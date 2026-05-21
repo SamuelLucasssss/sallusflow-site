@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles.css';
+
+/* ============================================
+   TYPES & DATA
+   ============================================ */
 
 type ProductModule = {
   id: string;
@@ -60,7 +64,7 @@ const productModules: ProductModule[] = [
 
 const flowSteps = ['Indicação', 'Consulta', 'Paciente', 'Guia', 'Produção', 'Faturamento', 'Glosa/Recurso', 'Recebimento'];
 
-const decisionLoop = [
+const decisionLoop: [string, string][] = [
   ['Sinal', 'O sistema identifica pendência, atraso, guia em risco ou gargalo operacional.'],
   ['Diagnóstico', 'A gestão entende o motivo: origem, etapa, responsável e impacto provável.'],
   ['Ação', 'A equipe sabe o que precisa ser feito primeiro, sem caçar informação em cinco lugares.'],
@@ -76,43 +80,191 @@ const audiences = [
   'Diretoria executiva',
 ];
 
-const implementationSteps = [
+const implementationSteps: [string, string, string][] = [
   ['01', 'Mapear fluxo real', 'Entender como a indicação nasce, como vira consulta, onde a guia trava e onde a receita se perde.'],
   ['02', 'Organizar base', 'Padronizar campos, status, responsáveis, convênios e pontos críticos antes de automatizar qualquer coisa.'],
   ['03', 'Ativar rotina', 'Treinar equipe, definir donos por etapa e transformar o painel em ritual semanal de decisão.'],
   ['04', 'Evoluir por evidência', 'Ajustar indicadores, alertas e módulos conforme a operação amadurece. Sem chute. Com rastro.'],
 ];
 
-const faqs = [
+const faqs: [string, string][] = [
   ['O Sallus Flow substitui o sistema hospitalar?', 'Não. Ele atua como camada de inteligência operacional, conectando pontos que normalmente ficam espalhados entre CRM, pacientes, guias, faturamento e decisão.'],
   ['É um sistema assistencial ou de diagnóstico?', 'Não. O foco é gestão operacional oncológica. Ele não realiza diagnóstico médico nem substitui conduta clínica.'],
   ['Precisa usar todos os módulos desde o começo?', 'Não. A implantação pode começar pelo fluxo mais crítico, como CRM, guias ou visão executiva, e evoluir em etapas.'],
   ['Os dados do site são reais?', 'Não. Toda demonstração pública deve usar dados fictícios ou mascarados. Dado sensível de saúde não é peça de vitrine.'],
 ];
 
+/* ============================================
+   HOOK — KPI COUNTER
+   ============================================ */
+
+function useCountUp(target: number, duration = 1300) {
+  const [count, setCount] = useState(0);
+  const elRef = useRef<HTMLElement>(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started.current) {
+          started.current = true;
+          let startTime: number | null = null;
+
+          const animate = (ts: number) => {
+            if (!startTime) startTime = ts;
+            const progress = Math.min((ts - startTime) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            setCount(Math.round(eased * target));
+            if (progress < 1) requestAnimationFrame(animate);
+          };
+
+          requestAnimationFrame(animate);
+        }
+      },
+      { threshold: 0.6 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [target, duration]);
+
+  return { count, elRef };
+}
+
+/* ============================================
+   COMPONENT — KPI CARD (hero mockup)
+   ============================================ */
+
+function KpiCard({ label, value, note, pad }: { label: string; value: number; note: string; pad?: number }) {
+  const { count, elRef } = useCountUp(value);
+  const display = pad ? String(count).padStart(pad, '0') : String(count);
+
+  return (
+    <article ref={elRef as React.RefObject<HTMLElement>}>
+      <small>{label}</small>
+      <strong>{display}</strong>
+      <em>{note}</em>
+    </article>
+  );
+}
+
+/* ============================================
+   COMPONENT — FAQ ACCORDION
+   ============================================ */
+
+function FaqAccordion() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const toggle = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
+
+  return (
+    <div className="faq-list">
+      {faqs.map(([question, answer], index) => (
+        <div
+          key={question}
+          className={`faq-item reveal${openIndex === index ? ' open' : ''}`}
+        >
+          <button
+            className="faq-question"
+            onClick={() => toggle(index)}
+            aria-expanded={openIndex === index}
+            type="button"
+          >
+            {question}
+            <span className="faq-chevron" aria-hidden="true" />
+          </button>
+          <div className="faq-body" role="region" aria-hidden={openIndex !== index}>
+            <div className="faq-body-inner">
+              <p>{answer}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================
+   APP
+   ============================================ */
+
 function App() {
   const [activeModule, setActiveModule] = useState(productModules[1].id);
-  const selectedModule = productModules.find((item) => item.id === activeModule) ?? productModules[0];
+  const [navOpen, setNavOpen] = useState(false);
+  const selectedModule = productModules.find((m) => m.id === activeModule) ?? productModules[0];
+
+  /* --- Scroll reveal via IntersectionObserver --- */
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            (entry.target as HTMLElement).classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -48px 0px' }
+    );
+
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
+
+  /* --- Nav blur on scroll --- */
+  useEffect(() => {
+    const header = document.querySelector('.header');
+    if (!header) return;
+
+    const onScroll = () => {
+      header.classList.toggle('nav-scrolled', window.scrollY > 30);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const closeNav = () => setNavOpen(false);
 
   return (
     <main className="site-shell">
+
+      {/* ====== NAV ====== */}
       <header className="header">
-        <a className="brand" href="#top" aria-label="Sallus Flow">
+        <a className="brand" href="#top" aria-label="Sallus Flow" onClick={closeNav}>
           <span className="brand-mark"><i /></span>
           <strong>Sallus<span>Flow</span></strong>
         </a>
-        <nav aria-label="Navegação principal">
-          <a href="#problema">Problema</a>
-          <a href="#fluxo">Fluxo</a>
-          <a href="#modulos">Módulos</a>
-          <a href="#governanca">Governança</a>
+
+        <nav className={navOpen ? 'open' : ''} aria-label="Navegação principal">
+          <a href="#problema" onClick={closeNav}>Problema</a>
+          <a href="#fluxo" onClick={closeNav}>Fluxo</a>
+          <a href="#modulos" onClick={closeNav}>Módulos</a>
+          <a href="#governanca" onClick={closeNav}>Governança</a>
         </nav>
+
         <div className="header-actions">
           <a className="ghost-link" href="mailto:contato@sallusflow.com.br">Contato</a>
           <a className="button small" href={systemUrl} target="_blank" rel="noreferrer">Acessar sistema</a>
+          <button
+            className="button small nav-toggle"
+            aria-label={navOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((o) => !o)}
+            type="button"
+          >
+            {navOpen ? '✕' : '☰'}
+          </button>
         </div>
       </header>
 
+      {/* ====== HERO ====== */}
       <section id="top" className="hero section-grid">
         <div className="hero-copy reveal">
           <p className="eyebrow">SALLUS FLOW · INTELIGÊNCIA OPERACIONAL EM ONCOLOGIA</p>
@@ -132,11 +284,16 @@ function App() {
         <div className="product-stage reveal delay-1" aria-label="Prévia visual do painel Sallus Flow">
           <div className="screen-glow" />
           <div className="browser-frame">
-            <div className="browser-top"><span /><span /><span /><strong>oncologia.sallusflow.com.br</strong></div>
+            <div className="browser-top">
+              <span /><span /><span />
+              <strong>oncologia.sallusflow.com.br</strong>
+            </div>
             <div className="command-panel">
               <aside className="side-rail">
                 <strong>§ Sallus Flow</strong>
-                {productModules.map((item) => <span key={item.id}>{item.accent} · {item.title}</span>)}
+                {productModules.map((item) => (
+                  <span key={item.id}>{item.accent} · {item.title}</span>
+                ))}
               </aside>
               <section className="dashboard-preview">
                 <div className="preview-head">
@@ -145,9 +302,9 @@ function App() {
                 </div>
                 <h2>Próxima melhor ação antes que a operação vire prejuízo.</h2>
                 <div className="kpi-grid">
-                  <article><small>CRM ativo</small><strong>67</strong><em>12 aguardam retorno</em></article>
-                  <article><small>Pacientes</small><strong>153</strong><em>carteira demonstrativa</em></article>
-                  <article><small>Guias em risco</small><strong>07</strong><em>validade próxima</em></article>
+                  <KpiCard label="CRM ativo" value={67} note="12 aguardam retorno" />
+                  <KpiCard label="Pacientes" value={153} note="carteira demonstrativa" />
+                  <KpiCard label="Guias em risco" value={7} note="validade próxima" pad={2} />
                 </div>
                 <div className="ops-table">
                   <div><b>Prioridade</b><b>Módulo</b><b>Status</b></div>
@@ -165,19 +322,21 @@ function App() {
         </div>
       </section>
 
+      {/* ====== IMPACT STRIP ====== */}
       <section className="impact-strip" aria-label="Resumo de posicionamento">
-        <article><span>Não é planilha bonita.</span><b>É fluxo operacional.</b></article>
-        <article><span>Não é BI decorativo.</span><b>É prioridade de ação.</b></article>
-        <article><span>Não é controle isolado.</span><b>É jornada conectada.</b></article>
+        <article className="reveal"><span>Não é planilha bonita.</span><b>É fluxo operacional.</b></article>
+        <article className="reveal delay-1"><span>Não é BI decorativo.</span><b>É prioridade de ação.</b></article>
+        <article className="reveal delay-2"><span>Não é controle isolado.</span><b>É jornada conectada.</b></article>
       </section>
 
+      {/* ====== PROBLEMA ====== */}
       <section id="problema" className="section problem-section">
-        <div className="section-title">
+        <div className="section-title reveal">
           <p className="eyebrow">01 · ANTES DO FLOW</p>
           <h2>A operação oncológica perde força quando o fluxo fica espalhado.</h2>
         </div>
         <div className="before-after">
-          <article className="bad-card">
+          <article className="bad-card reveal">
             <span>Antes</span>
             <h3>Planilhas, mensagens e memória da equipe.</h3>
             <ul>
@@ -187,7 +346,7 @@ function App() {
               <li>Diretoria enxergando tarde demais.</li>
             </ul>
           </article>
-          <article className="good-card">
+          <article className="good-card reveal delay-1">
             <span>Depois</span>
             <h3>Fluxo único, alerta e comando executivo.</h3>
             <ul>
@@ -200,14 +359,15 @@ function App() {
         </div>
       </section>
 
+      {/* ====== FLUXO ====== */}
       <section id="fluxo" className="section flow-section">
-        <div className="section-title center">
+        <div className="section-title center reveal">
           <p className="eyebrow">02 · O CONCEITO FLOW</p>
           <h2>Da indicação ao recebimento, sem perder o fio da operação.</h2>
         </div>
         <div className="flow-line">
           {flowSteps.map((step, index) => (
-            <article key={step}>
+            <article key={step} className={`reveal delay-${Math.min(index, 4) as 0|1|2|3|4}`}>
               <b>{String(index + 1).padStart(2, '0')}</b>
               <span>{step}</span>
             </article>
@@ -215,14 +375,15 @@ function App() {
         </div>
       </section>
 
+      {/* ====== DA INFORMAÇÃO À AÇÃO ====== */}
       <section className="section loop-section">
-        <div className="section-title">
+        <div className="section-title reveal">
           <p className="eyebrow">03 · DA INFORMAÇÃO À AÇÃO</p>
           <h2>O sistema precisa dizer onde apertar o parafuso, não apenas mostrar o painel.</h2>
         </div>
         <div className="loop-grid">
           {decisionLoop.map(([title, text], index) => (
-            <article key={title}>
+            <article key={title} className={`reveal delay-${index as 0|1|2|3}`}>
               <b>{String(index + 1).padStart(2, '0')}</b>
               <h3>{title}</h3>
               <p>{text}</p>
@@ -231,26 +392,38 @@ function App() {
         </div>
       </section>
 
+      {/* ====== MÓDULOS ====== */}
       <section id="modulos" className="section modules-section">
-        <div className="section-title">
+        <div className="section-title reveal">
           <p className="eyebrow">04 · MÓDULOS CONECTADOS</p>
           <h2>Um sistema que acompanha a rotina real, não uma apresentação bonita.</h2>
         </div>
-        <div className="module-lab">
+        <div className="module-lab reveal">
           <div className="module-tabs" role="tablist" aria-label="Módulos do produto">
             {productModules.map((item) => (
-              <button key={item.id} className={selectedModule.id === item.id ? 'active' : ''} onClick={() => setActiveModule(item.id)} type="button">
+              <button
+                key={item.id}
+                role="tab"
+                aria-selected={selectedModule.id === item.id}
+                className={selectedModule.id === item.id ? 'active' : ''}
+                onClick={() => setActiveModule(item.id)}
+                type="button"
+              >
                 <small>{item.accent}</small>
                 {item.title}
               </button>
             ))}
           </div>
-          <div className="module-preview">
+
+          {/* key causes remount → triggers moduleFadeIn CSS animation on switch */}
+          <div key={selectedModule.id} className="module-preview" role="tabpanel">
             <p className="eyebrow">{selectedModule.accent} · {selectedModule.title}</p>
             <h3>{selectedModule.headline}</h3>
             <p>{selectedModule.description}</p>
             <div className="module-metrics">
-              {selectedModule.metrics.map((metric) => <span key={metric}>{metric}</span>)}
+              {selectedModule.metrics.map((metric) => (
+                <span key={metric}>{metric}</span>
+              ))}
             </div>
             <div className="module-screen">
               <div><b>Prioridade</b><b>Indicador</b><b>Ação</b></div>
@@ -262,37 +435,44 @@ function App() {
         </div>
       </section>
 
+      {/* ====== INTELIGÊNCIA ====== */}
       <section className="section intelligence-section">
-        <div className="section-title center">
+        <div className="section-title center reveal">
           <p className="eyebrow">05 · INTELIGÊNCIA OPERACIONAL</p>
           <h2>O Sallus Flow não apenas guarda dados. Ele revela prioridade.</h2>
         </div>
         <div className="signal-grid">
-          <article><span>Próxima melhor ação</span><strong>Hoje</strong><p>Mostra onde a equipe precisa agir primeiro.</p></article>
-          <article><span>QA cadastral</span><strong>3</strong><p>Campos críticos incompletos antes do erro virar rotina.</p></article>
-          <article><span>Risco de guia</span><strong>7</strong><p>Autorizações em atenção por validade ou saldo.</p></article>
-          <article><span>Perda operacional</span><strong>R$</strong><p>Produção, glosa e recebimento vistos no mesmo fluxo.</p></article>
+          <article className="reveal"><span>Próxima melhor ação</span><strong>Hoje</strong><p>Mostra onde a equipe precisa agir primeiro.</p></article>
+          <article className="reveal delay-1"><span>QA cadastral</span><strong>3</strong><p>Campos críticos incompletos antes do erro virar rotina.</p></article>
+          <article className="reveal delay-2"><span>Risco de guia</span><strong>7</strong><p>Autorizações em atenção por validade ou saldo.</p></article>
+          <article className="reveal delay-3"><span>Perda operacional</span><strong>R$</strong><p>Produção, glosa e recebimento vistos no mesmo fluxo.</p></article>
         </div>
       </section>
 
+      {/* ====== PARA QUEM É ====== */}
       <section className="section audience-section">
-        <div className="section-title">
+        <div className="section-title reveal">
           <p className="eyebrow">06 · PARA QUEM É</p>
           <h2>Feito para equipes que precisam sair do improviso sem perder a realidade da operação.</h2>
         </div>
         <div className="audience-grid">
-          {audiences.map((audience) => <article key={audience}>{audience}</article>)}
+          {audiences.map((audience, index) => (
+            <article key={audience} className={`reveal delay-${Math.min(index, 4) as 0|1|2|3|4}`}>
+              {audience}
+            </article>
+          ))}
         </div>
       </section>
 
+      {/* ====== IMPLANTAÇÃO ====== */}
       <section className="section implementation-section">
-        <div className="section-title center">
+        <div className="section-title center reveal">
           <p className="eyebrow">07 · IMPLANTAÇÃO EM ETAPAS</p>
           <h2>Começa pequeno, fica sério e cresce com a operação.</h2>
         </div>
         <div className="implementation-grid">
-          {implementationSteps.map(([number, title, text]) => (
-            <article key={number}>
+          {implementationSteps.map(([number, title, text], index) => (
+            <article key={number} className={`reveal delay-${index as 0|1|2|3}`}>
               <b>{number}</b>
               <h3>{title}</h3>
               <p>{text}</p>
@@ -301,50 +481,51 @@ function App() {
         </div>
       </section>
 
+      {/* ====== GOVERNANÇA ====== */}
       <section id="governanca" className="section governance-section">
-        <div>
+        <div className="reveal">
           <p className="eyebrow">08 · GOVERNANÇA</p>
           <h2>Saúde exige tecnologia com responsabilidade.</h2>
         </div>
-        <p>O Sallus Flow é desenhado com princípios de rastreabilidade, organização e cuidado com dados sensíveis. Sem prometer milagre jurídico: o foco é construir uma base operacional mais segura, auditável e madura.</p>
+        <p className="reveal delay-1">
+          O Sallus Flow é desenhado com princípios de rastreabilidade, organização e cuidado com dados sensíveis.
+          Sem prometer milagre jurídico: o foco é construir uma base operacional mais segura, auditável e madura.
+        </p>
       </section>
 
+      {/* ====== FAQ ====== */}
       <section className="section faq-section">
-        <div className="section-title">
+        <div className="section-title reveal">
           <p className="eyebrow">09 · PERGUNTAS IMPORTANTES</p>
           <h2>Sem promessa solta. Sem fumaça de palco.</h2>
         </div>
-        <div className="faq-list">
-          {faqs.map(([question, answer]) => (
-            <details key={question}>
-              <summary>{question}</summary>
-              <p>{answer}</p>
-            </details>
-          ))}
-        </div>
+        <FaqAccordion />
       </section>
 
-      <section id="contato" className="final-cta">
+      {/* ====== CTA FINAL ====== */}
+      <section id="contato" className="final-cta reveal">
         <p className="eyebrow">PRÓXIMO PASSO</p>
         <h2>Pare de administrar oncologia no escuro.</h2>
         <p>Leve a operação para um ambiente onde indicação, paciente, guia, faturamento e decisão conversam entre si.</p>
-        <div className="hero-actions center-actions">
+        <div className="hero-actions center-actions" style={{ marginTop: 32 }}>
           <a className="button primary" href={whatsappUrl} target="_blank" rel="noreferrer">Falar no WhatsApp</a>
-          <a className="button secondary dark-button" href="mailto:contato@sallusflow.com.br">contato@sallusflow.com.br</a>
+          <a className="button dark-button" href="mailto:contato@sallusflow.com.br">contato@sallusflow.com.br</a>
         </div>
         <small>Sistema: oncologia.sallusflow.com.br · WhatsApp: 62 9 9249-9048</small>
       </section>
 
       <footer>© {new Date().getFullYear()} Sallus Flow · www.sallusflow.com.br</footer>
+
     </main>
   );
 }
 
-const root = document.getElementById('root');
+/* ============================================
+   MOUNT
+   ============================================ */
 
-if (!root) {
-  throw new Error('Root element not found');
-}
+const root = document.getElementById('root');
+if (!root) throw new Error('Root element not found');
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
