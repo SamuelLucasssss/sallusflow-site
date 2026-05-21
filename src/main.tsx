@@ -1,63 +1,250 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles.css';
 
+type ProductModule = {
+  id: string;
+  title: string;
+  headline: string;
+  description: string;
+  metrics: string[];
+  accent: string;
+};
+
 const whatsappMessage = encodeURIComponent('Olá! Quero conhecer o Sallus Flow e entender como aplicar na gestão oncológica.');
 const whatsappUrl = `https://wa.me/5562992499048?text=${whatsappMessage}`;
+const systemUrl = 'https://oncologia.sallusflow.com.br';
 
-const modules = [
-  ['M0', 'Executivo', 'Indicadores, alertas e leitura rápida para decisão da diretoria.'],
-  ['M1', 'CRM', 'Indicações, médicos, pós-consulta e conversão em tratamento.'],
-  ['M2', 'Pacientes', 'Carteira oncológica organizada por jornada, status e prioridade.'],
-  ['M3', 'Financeiro', 'Produção, faturamento, glosa, recurso e recebimento conectados.'],
-  ['M4', 'Guias', 'Autorizações, validade, saldo e risco de glosa sob controle.'],
+const productModules: ProductModule[] = [
+  {
+    id: 'executivo',
+    title: 'Executivo',
+    headline: 'Visão de comando para diretoria e coordenação.',
+    description: 'Indicadores, riscos, gargalos e próxima melhor ação em uma leitura objetiva para decisão rápida.',
+    metrics: ['Mapa de risco', 'Ação recomendada', 'Leitura mensal'],
+    accent: 'M0',
+  },
+  {
+    id: 'crm',
+    title: 'CRM Oncológico',
+    headline: 'Indicação acompanhada até virar tratamento.',
+    description: 'Controle de origem, médicos indicadores, pós-consulta, pendências e conversão sem depender de memória ou WhatsApp solto.',
+    metrics: ['Funil ativo', 'Pós-consulta', 'Médicos indicadores'],
+    accent: 'M1',
+  },
+  {
+    id: 'pacientes',
+    title: 'Pacientes',
+    headline: 'Carteira organizada por status e prioridade.',
+    description: 'Linha operacional do paciente com status, pendências, responsável e sinais de atenção para reduzir perda de acompanhamento.',
+    metrics: ['Carteira ativa', 'Responsável', 'Pendências'],
+    accent: 'M2',
+  },
+  {
+    id: 'guias',
+    title: 'Guias',
+    headline: 'Autorização, validade e saldo no radar.',
+    description: 'Controle de guias para proteger produção, reduzir glosas evitáveis e antecipar vencimentos críticos.',
+    metrics: ['Validade', 'Saldo', 'Risco de glosa'],
+    accent: 'M3',
+  },
+  {
+    id: 'financeiro',
+    title: 'Financeiro',
+    headline: 'Da produção ao recebimento, com rastro.',
+    description: 'Faturamento, glosa, recurso e recebimento conectados ao fluxo operacional para revelar perda e previsibilidade.',
+    metrics: ['Produção', 'Glosa', 'Recebimento'],
+    accent: 'M4',
+  },
 ];
 
+const flowSteps = ['Indicação', 'Consulta', 'Paciente', 'Guia', 'Produção', 'Faturamento', 'Glosa/Recurso', 'Recebimento'];
+
 function App() {
+  const [activeModule, setActiveModule] = useState(productModules[1].id);
+  const selectedModule = productModules.find((item) => item.id === activeModule) ?? productModules[0];
+
   return (
-    <main>
+    <main className="site-shell">
       <header className="header">
-        <a className="brand" href="#top"><span className="mark"><i /></span><strong>Sallus<span>Flow</span></strong></a>
-        <nav><a href="#solucao">Solução</a><a href="#modulos">Módulos</a><a href="#seguranca">Governança</a><a href="#contato">Contato</a></nav>
-        <a className="btn" href="https://oncologia.sallusflow.com.br" target="_blank">Acessar sistema</a>
+        <a className="brand" href="#top" aria-label="Sallus Flow">
+          <span className="brand-mark"><i /></span>
+          <strong>Sallus<span>Flow</span></strong>
+        </a>
+        <nav aria-label="Navegação principal">
+          <a href="#problema">Problema</a>
+          <a href="#fluxo">Fluxo</a>
+          <a href="#modulos">Módulos</a>
+          <a href="#governanca">Governança</a>
+        </nav>
+        <div className="header-actions">
+          <a className="ghost-link" href="mailto:contato@sallusflow.com.br">Contato</a>
+          <a className="button small" href={systemUrl} target="_blank" rel="noreferrer">Acessar sistema</a>
+        </div>
       </header>
 
-      <section id="top" className="hero">
-        <div className="copy">
-          <p className="eyebrow">SALLUS FLOW · ONCOLOGIA · PRODUÇÃO</p>
-          <h1>O sistema operacional inteligente para gestão oncológica.</h1>
-          <p className="lead">CRM, pacientes, guias, financeiro e indicadores em um único ambiente para quem precisa enxergar, decidir e agir com segurança.</p>
-          <div className="actions"><a className="btn primary" href={whatsappUrl} target="_blank">Solicitar demonstração</a><a className="btn" href="https://oncologia.sallusflow.com.br" target="_blank">Acessar sistema</a></div>
-          <div className="proof"><span><b>5</b> módulos</span><span><b>1</b> fluxo único</span><span><b>100%</b> foco operacional</span></div>
+      <section id="top" className="hero section-grid">
+        <div className="hero-copy reveal">
+          <p className="eyebrow">SALLUS FLOW · INTELIGÊNCIA OPERACIONAL EM ONCOLOGIA</p>
+          <h1>O fluxo inteligente entre indicação, tratamento, guia e receita.</h1>
+          <p className="lead">Sallus Flow conecta CRM, pacientes, autorizações, faturamento e indicadores para transformar a operação oncológica em comando executivo.</p>
+          <div className="hero-actions">
+            <a className="button primary" href={whatsappUrl} target="_blank" rel="noreferrer">Solicitar demonstração</a>
+            <a className="button secondary" href={systemUrl} target="_blank" rel="noreferrer">Entrar no sistema</a>
+          </div>
+          <div className="trust-row" aria-label="Diferenciais principais">
+            <span><b>01</b> fluxo único</span>
+            <span><b>05</b> módulos conectados</span>
+            <span><b>100%</b> foco operacional</span>
+          </div>
         </div>
-        <div className="panel">
-          <div className="panelTop"><span>§ 02.02 · Mesa operacional</span><b>AO VIVO</b></div>
-          <div className="dash">
-            <aside>{modules.map(m => <span key={m[0]}><b>{m[0]}</b> · {m[1]}</span>)}</aside>
-            <section>
-              <p className="eyebrow">CENTRAL DE COMANDO</p>
-              <h2>Da indicação ao recebimento, sem perder o fio da operação.</h2>
-              <div className="kpis"><article><small>Total CRM</small><strong>67</strong><em>base demonstrativa</em></article><article><small>Pacientes</small><strong>153</strong><em>carteira ativa</em></article><article><small>Guias em risco</small><strong>07</strong><em>validade próxima</em></article></div>
-              <div className="table"><div><b>Módulo</b><b>Controle</b><b>Status</b></div><div><span>CRM</span><span>Pós-consulta</span><span>OK</span></div><div><span>Guias</span><span>Validade</span><span>RISCO</span></div><div><span>Financeiro</span><span>Glosa</span><span>QA</span></div></div>
-            </section>
+
+        <div className="product-stage reveal delay-1" aria-label="Prévia visual do painel Sallus Flow">
+          <div className="screen-glow" />
+          <div className="browser-frame">
+            <div className="browser-top"><span /><span /><span /><strong>oncologia.sallusflow.com.br</strong></div>
+            <div className="command-panel">
+              <aside className="side-rail">
+                <strong>§ Sallus Flow</strong>
+                {productModules.map((item) => <span key={item.id}>{item.accent} · {item.title}</span>)}
+              </aside>
+              <section className="dashboard-preview">
+                <div className="preview-head">
+                  <p className="eyebrow">CENTRAL DE COMANDO</p>
+                  <span>AO VIVO</span>
+                </div>
+                <h2>Próxima melhor ação antes que a operação vire prejuízo.</h2>
+                <div className="kpi-grid">
+                  <article><small>CRM ativo</small><strong>67</strong><em>12 aguardam retorno</em></article>
+                  <article><small>Pacientes</small><strong>153</strong><em>carteira demonstrativa</em></article>
+                  <article><small>Guias em risco</small><strong>07</strong><em>validade próxima</em></article>
+                </div>
+                <div className="ops-table">
+                  <div><b>Prioridade</b><b>Módulo</b><b>Status</b></div>
+                  <div><span>Alta</span><span>Guia vencendo</span><mark>Agir hoje</mark></div>
+                  <div><span>Média</span><span>Pós-consulta sem retorno</span><mark>Revisar</mark></div>
+                  <div><span>Baixa</span><span>Cadastro incompleto</span><mark>QA</mark></div>
+                </div>
+              </section>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="section problem"><p className="eyebrow">01 · O PROBLEMA</p><h2>A oncologia não pode depender de planilhas soltas, memória da equipe e mensagens perdidas.</h2><div className="cards"><article>Indicações esquecidas em mensagens soltas</article><article>Guias vencendo sem alerta operacional</article><article>Faturamento desconectado da produção real</article><article>Gestão sem visão clara de risco e prioridade</article></div></section>
+      <section id="problema" className="section problem-section">
+        <div className="section-title">
+          <p className="eyebrow">01 · ANTES DO FLOW</p>
+          <h2>A operação oncológica perde força quando o fluxo fica espalhado.</h2>
+        </div>
+        <div className="before-after">
+          <article className="bad-card">
+            <span>Antes</span>
+            <h3>Planilhas, mensagens e memória da equipe.</h3>
+            <ul>
+              <li>Indicações sem rastreio claro.</li>
+              <li>Guias vencendo no silêncio.</li>
+              <li>Faturamento separado da produção.</li>
+              <li>Diretoria enxergando tarde demais.</li>
+            </ul>
+          </article>
+          <article className="good-card">
+            <span>Depois</span>
+            <h3>Fluxo único, alerta e comando executivo.</h3>
+            <ul>
+              <li>CRM conectado ao paciente.</li>
+              <li>Risco operacional em evidência.</li>
+              <li>Guia, glosa e receita no mesmo mapa.</li>
+              <li>Decisão com prioridade, não achismo.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
 
-      <section id="solucao" className="section"><p className="eyebrow">02 · FLUXO INTELIGENTE</p><h2>Um fluxo único: indicação, consulta, tratamento, guia e receita.</h2><div className="flow"><article><b>01</b><h3>Indicação</h3><p>Entrada estruturada no CRM.</p></article><article><b>02</b><h3>Consulta</h3><p>Acompanhamento até pós-consulta.</p></article><article><b>03</b><h3>Tratamento</h3><p>Carteira ativa e responsável.</p></article><article><b>04</b><h3>Guia</h3><p>Validade e saldo em controle.</p></article><article><b>05</b><h3>Receita</h3><p>Produção, glosa e recebimento.</p></article></div></section>
+      <section id="fluxo" className="section flow-section">
+        <div className="section-title center">
+          <p className="eyebrow">02 · O CONCEITO FLOW</p>
+          <h2>Da indicação ao recebimento, sem perder o fio da operação.</h2>
+        </div>
+        <div className="flow-line">
+          {flowSteps.map((step, index) => (
+            <article key={step}>
+              <b>{String(index + 1).padStart(2, '0')}</b>
+              <span>{step}</span>
+            </article>
+          ))}
+        </div>
+      </section>
 
-      <section id="modulos" className="section dark"><p className="eyebrow">03 · MÓDULOS</p><h2>Um produto com cara de operação real. Não de apresentação bonita.</h2><div className="modules">{modules.map(m => <article key={m[0]}><span>{m[0]}</span><h3>{m[1]}</h3><p>{m[2]}</p></article>)}</div></section>
+      <section id="modulos" className="section modules-section">
+        <div className="section-title">
+          <p className="eyebrow">03 · MÓDULOS CONECTADOS</p>
+          <h2>Um sistema que acompanha a rotina real, não uma apresentação bonita.</h2>
+        </div>
+        <div className="module-lab">
+          <div className="module-tabs" role="tablist" aria-label="Módulos do produto">
+            {productModules.map((item) => (
+              <button key={item.id} className={selectedModule.id === item.id ? 'active' : ''} onClick={() => setActiveModule(item.id)} type="button">
+                <small>{item.accent}</small>
+                {item.title}
+              </button>
+            ))}
+          </div>
+          <div className="module-preview">
+            <p className="eyebrow">{selectedModule.accent} · {selectedModule.title}</p>
+            <h3>{selectedModule.headline}</h3>
+            <p>{selectedModule.description}</p>
+            <div className="module-metrics">
+              {selectedModule.metrics.map((metric) => <span key={metric}>{metric}</span>)}
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <section className="section"><p className="eyebrow">04 · INTELIGÊNCIA OPERACIONAL</p><h2>Mais que registrar dados. O sistema aponta onde mexer.</h2><div className="signals"><article><span>Atrasados</span><strong>12</strong><p>Prioridade operacional</p></article><article><span>Sem responsável</span><strong>07</strong><p>Risco de abandono</p></article><article><span>Sem telefone</span><strong>03</strong><p>QA cadastral</p></article><article><span>Guias em risco</span><strong>07</strong><p>Validade próxima</p></article></div></section>
+      <section className="section intelligence-section">
+        <div className="section-title center">
+          <p className="eyebrow">04 · INTELIGÊNCIA OPERACIONAL</p>
+          <h2>O Sallus Flow não apenas guarda dados. Ele revela prioridade.</h2>
+        </div>
+        <div className="signal-grid">
+          <article><span>Próxima melhor ação</span><strong>Hoje</strong><p>Mostra onde a equipe precisa agir primeiro.</p></article>
+          <article><span>QA cadastral</span><strong>3</strong><p>Campos críticos incompletos antes do erro virar rotina.</p></article>
+          <article><span>Risco de guia</span><strong>7</strong><p>Autorizações em atenção por validade ou saldo.</p></article>
+          <article><span>Perda operacional</span><strong>R$</strong><p>Produção, glosa e recebimento vistos no mesmo fluxo.</p></article>
+        </div>
+      </section>
 
-      <section id="seguranca" className="section security"><p className="eyebrow">05 · SEGURANÇA E GOVERNANÇA</p><h2>Dados de saúde pedem tecnologia, mas também juízo.</h2><p>O Sallus Flow é desenhado com foco em rastreabilidade, organização e responsabilidade sobre dados sensíveis. No site público, somente dados demonstrativos devem ser usados.</p></section>
+      <section id="governanca" className="section governance-section">
+        <div>
+          <p className="eyebrow">05 · GOVERNANÇA</p>
+          <h2>Saúde exige tecnologia com responsabilidade.</h2>
+        </div>
+        <p>O Sallus Flow é desenhado com princípios de rastreabilidade, organização e cuidado com dados sensíveis. Sem prometer milagre jurídico: o foco é construir uma base operacional mais segura, auditável e madura.</p>
+      </section>
 
-      <section id="contato" className="contact"><h2>Sua operação já tem dados. Falta transformar isso em comando.</h2><p>Fale com a equipe para avaliar o fluxo, os módulos e a implantação do Sallus Flow na rotina oncológica.</p><div className="actions"><a className="btn primary" href={whatsappUrl} target="_blank">Chamar no WhatsApp</a><a className="btn" href="mailto:contato@sallusflow.com.br">contato@sallusflow.com.br</a></div><small>Sistema: oncologia.sallusflow.com.br · WhatsApp: 62 9 9249-9048</small></section>
+      <section id="contato" className="final-cta">
+        <p className="eyebrow">PRÓXIMO PASSO</p>
+        <h2>Pare de administrar oncologia no escuro.</h2>
+        <p>Leve a operação para um ambiente onde indicação, paciente, guia, faturamento e decisão conversam entre si.</p>
+        <div className="hero-actions center-actions">
+          <a className="button primary" href={whatsappUrl} target="_blank" rel="noreferrer">Falar no WhatsApp</a>
+          <a className="button secondary dark-button" href="mailto:contato@sallusflow.com.br">contato@sallusflow.com.br</a>
+        </div>
+        <small>Sistema: oncologia.sallusflow.com.br · WhatsApp: 62 9 9249-9048</small>
+      </section>
+
       <footer>© {new Date().getFullYear()} Sallus Flow · www.sallusflow.com.br</footer>
     </main>
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
+const root = document.getElementById('root');
+
+if (!root) {
+  throw new Error('Root element not found');
+}
+
+ReactDOM.createRoot(root).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);
