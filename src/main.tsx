@@ -60,6 +60,22 @@ const productModules: ProductModule[] = [
 
 const flowSteps = ['Indicação', 'Consulta', 'Paciente', 'Guia', 'Produção', 'Faturamento', 'Glosa/Recurso', 'Recebimento'];
 
+const decisionLoop = [
+  ['Sinal', 'O sistema identifica pendência, atraso, guia em risco ou gargalo operacional.'],
+  ['Diagnóstico', 'A gestão entende o motivo: origem, etapa, responsável e impacto provável.'],
+  ['Ação', 'A equipe sabe o que precisa ser feito primeiro, sem caçar informação em cinco lugares.'],
+  ['Evidência', 'O histórico fica organizado para auditoria, aprendizado e melhoria contínua.'],
+];
+
+const audiences = [
+  'Clínicas oncológicas',
+  'Ambulatórios hospitalares',
+  'Gestores de saúde',
+  'Faturamento e auditoria',
+  'Coordenação assistencial',
+  'Diretoria executiva',
+];
+
 function App() {
   const [activeModule, setActiveModule] = useState(productModules[1].id);
   const selectedModule = productModules.find((item) => item.id === activeModule) ?? productModules[0];
@@ -125,10 +141,20 @@ function App() {
                   <div><span>Média</span><span>Pós-consulta sem retorno</span><mark>Revisar</mark></div>
                   <div><span>Baixa</span><span>Cadastro incompleto</span><mark>QA</mark></div>
                 </div>
+                <div className="preview-footer">
+                  <span>Produção → Faturamento → Glosa → Recurso → Recebimento</span>
+                  <b>Rastro operacional</b>
+                </div>
               </section>
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="impact-strip" aria-label="Resumo de posicionamento">
+        <article><span>Não é planilha bonita.</span><b>É fluxo operacional.</b></article>
+        <article><span>Não é BI decorativo.</span><b>É prioridade de ação.</b></article>
+        <article><span>Não é controle isolado.</span><b>É jornada conectada.</b></article>
       </section>
 
       <section id="problema" className="section problem-section">
@@ -175,9 +201,25 @@ function App() {
         </div>
       </section>
 
+      <section className="section loop-section">
+        <div className="section-title">
+          <p className="eyebrow">03 · DA INFORMAÇÃO À AÇÃO</p>
+          <h2>O sistema precisa dizer onde apertar o parafuso, não apenas mostrar o painel.</h2>
+        </div>
+        <div className="loop-grid">
+          {decisionLoop.map(([title, text], index) => (
+            <article key={title}>
+              <b>{String(index + 1).padStart(2, '0')}</b>
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section id="modulos" className="section modules-section">
         <div className="section-title">
-          <p className="eyebrow">03 · MÓDULOS CONECTADOS</p>
+          <p className="eyebrow">04 · MÓDULOS CONECTADOS</p>
           <h2>Um sistema que acompanha a rotina real, não uma apresentação bonita.</h2>
         </div>
         <div className="module-lab">
@@ -196,13 +238,19 @@ function App() {
             <div className="module-metrics">
               {selectedModule.metrics.map((metric) => <span key={metric}>{metric}</span>)}
             </div>
+            <div className="module-screen">
+              <div><b>Prioridade</b><b>Indicador</b><b>Ação</b></div>
+              <div><span>Alta</span><span>{selectedModule.metrics[0]}</span><mark>Executar</mark></div>
+              <div><span>Média</span><span>{selectedModule.metrics[1]}</span><mark>Revisar</mark></div>
+              <div><span>Controle</span><span>{selectedModule.metrics[2]}</span><mark>Monitorar</mark></div>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="section intelligence-section">
         <div className="section-title center">
-          <p className="eyebrow">04 · INTELIGÊNCIA OPERACIONAL</p>
+          <p className="eyebrow">05 · INTELIGÊNCIA OPERACIONAL</p>
           <h2>O Sallus Flow não apenas guarda dados. Ele revela prioridade.</h2>
         </div>
         <div className="signal-grid">
@@ -213,9 +261,19 @@ function App() {
         </div>
       </section>
 
+      <section className="section audience-section">
+        <div className="section-title">
+          <p className="eyebrow">06 · PARA QUEM É</p>
+          <h2>Feito para equipes que precisam sair do improviso sem perder a realidade da operação.</h2>
+        </div>
+        <div className="audience-grid">
+          {audiences.map((audience) => <article key={audience}>{audience}</article>)}
+        </div>
+      </section>
+
       <section id="governanca" className="section governance-section">
         <div>
-          <p className="eyebrow">05 · GOVERNANÇA</p>
+          <p className="eyebrow">07 · GOVERNANÇA</p>
           <h2>Saúde exige tecnologia com responsabilidade.</h2>
         </div>
         <p>O Sallus Flow é desenhado com princípios de rastreabilidade, organização e cuidado com dados sensíveis. Sem prometer milagre jurídico: o foco é construir uma base operacional mais segura, auditável e madura.</p>
