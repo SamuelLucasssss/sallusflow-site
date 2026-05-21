@@ -76,6 +76,20 @@ const audiences = [
   'Diretoria executiva',
 ];
 
+const implementationSteps = [
+  ['01', 'Mapear fluxo real', 'Entender como a indicação nasce, como vira consulta, onde a guia trava e onde a receita se perde.'],
+  ['02', 'Organizar base', 'Padronizar campos, status, responsáveis, convênios e pontos críticos antes de automatizar qualquer coisa.'],
+  ['03', 'Ativar rotina', 'Treinar equipe, definir donos por etapa e transformar o painel em ritual semanal de decisão.'],
+  ['04', 'Evoluir por evidência', 'Ajustar indicadores, alertas e módulos conforme a operação amadurece. Sem chute. Com rastro.'],
+];
+
+const faqs = [
+  ['O Sallus Flow substitui o sistema hospitalar?', 'Não. Ele atua como camada de inteligência operacional, conectando pontos que normalmente ficam espalhados entre CRM, pacientes, guias, faturamento e decisão.'],
+  ['É um sistema assistencial ou de diagnóstico?', 'Não. O foco é gestão operacional oncológica. Ele não realiza diagnóstico médico nem substitui conduta clínica.'],
+  ['Precisa usar todos os módulos desde o começo?', 'Não. A implantação pode começar pelo fluxo mais crítico, como CRM, guias ou visão executiva, e evoluir em etapas.'],
+  ['Os dados do site são reais?', 'Não. Toda demonstração pública deve usar dados fictícios ou mascarados. Dado sensível de saúde não é peça de vitrine.'],
+];
+
 function App() {
   const [activeModule, setActiveModule] = useState(productModules[1].id);
   const selectedModule = productModules.find((item) => item.id === activeModule) ?? productModules[0];
@@ -271,12 +285,43 @@ function App() {
         </div>
       </section>
 
+      <section className="section implementation-section">
+        <div className="section-title center">
+          <p className="eyebrow">07 · IMPLANTAÇÃO EM ETAPAS</p>
+          <h2>Começa pequeno, fica sério e cresce com a operação.</h2>
+        </div>
+        <div className="implementation-grid">
+          {implementationSteps.map(([number, title, text]) => (
+            <article key={number}>
+              <b>{number}</b>
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section id="governanca" className="section governance-section">
         <div>
-          <p className="eyebrow">07 · GOVERNANÇA</p>
+          <p className="eyebrow">08 · GOVERNANÇA</p>
           <h2>Saúde exige tecnologia com responsabilidade.</h2>
         </div>
         <p>O Sallus Flow é desenhado com princípios de rastreabilidade, organização e cuidado com dados sensíveis. Sem prometer milagre jurídico: o foco é construir uma base operacional mais segura, auditável e madura.</p>
+      </section>
+
+      <section className="section faq-section">
+        <div className="section-title">
+          <p className="eyebrow">09 · PERGUNTAS IMPORTANTES</p>
+          <h2>Sem promessa solta. Sem fumaça de palco.</h2>
+        </div>
+        <div className="faq-list">
+          {faqs.map(([question, answer]) => (
+            <details key={question}>
+              <summary>{question}</summary>
+              <p>{answer}</p>
+            </details>
+          ))}
+        </div>
       </section>
 
       <section id="contato" className="final-cta">
