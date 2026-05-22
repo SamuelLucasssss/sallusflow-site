@@ -81,48 +81,152 @@ const year  = new Date().getFullYear();
               <strong>oncologia.sallusflow.com.br</strong>
             </div>
             <div class="command-panel">
-              <aside class="side-rail">
-                <strong>§ Sallus Flow</strong>
-                <span>M0 · Executivo</span>
-                <span>M1 · CRM Oncológico</span>
-                <span>M2 · Pacientes</span>
-                <span>M3 · Guias</span>
-                <span>M4 · Financeiro</span>
+
+              <!-- Sidebar fiel ao sistema real -->
+              <aside class="crm-sidebar">
+                <div class="crm-brand">
+                  <span class="crm-brand-dot"></span>
+                  <span>Sallus <em>Oncologia</em></span>
+                </div>
+                <div class="crm-nav-section">
+                  <p class="crm-nav-label">MÓDULOS</p>
+                  <span class="crm-nav-item">M0 · Executivo</span>
+                  <span class="crm-nav-item active">M1 · CRM</span>
+                  <span class="crm-nav-item">M2 · Pacientes</span>
+                  <span class="crm-nav-item">M3 · Financeiro</span>
+                  <span class="crm-nav-item">M4 · Guias</span>
+                </div>
+                <div class="crm-nav-section">
+                  <p class="crm-nav-label">§ CRM</p>
+                  <span class="crm-nav-item sub active">Funil</span>
+                  <span class="crm-nav-item sub">Médicos indicadores</span>
+                  <span class="crm-nav-item sub">Revisão</span>
+                  <span class="crm-nav-item sub">Importar planilha</span>
+                </div>
               </aside>
-              <section class="dashboard-preview">
-                <div class="preview-head">
-                  <p class="eyebrow">CENTRAL DE COMANDO</p>
-                  <span>AO VIVO</span>
+
+              <!-- Painel principal — dados fictícios de demonstração -->
+              <div class="crm-main">
+
+                <!-- Topbar: breadcrumb + status badges -->
+                <div class="crm-topbar">
+                  <div class="crm-breadcrumb">
+                    <span>M1</span>
+                    <span class="crm-sep">/</span>
+                    <span>CRM</span>
+                    <span class="crm-sep">/</span>
+                    <strong>Pipeline de indicações</strong>
+                  </div>
+                  <div class="crm-badges">
+                    <span>ONCOLOGIA</span>
+                    <span>SUPABASE</span>
+                    <span>PRODUÇÃO</span>
+                    <span class="badge-live"><i></i>AO VIVO</span>
+                  </div>
                 </div>
-                <h2>Próxima melhor ação antes que a operação vire prejuízo.</h2>
-                <div class="kpi-grid">
+
+                <!-- Banner de ação -->
+                <div class="crm-action-bar">
+                  <div>
+                    <strong>NOVA INDICAÇÃO</strong>
+                    <small>Cadastro guiado: paciente, contato, clínico, indicador, convênio e operação</small>
+                  </div>
+                  <span class="crm-cta">+ Cadastrar indicação</span>
+                </div>
+
+                <!-- Cabeçalho da página -->
+                <div class="crm-page-header">
+                  <div class="crm-page-meta">
+                    <small>§ 02.02 · MESA OPERACIONAL</small>
+                    <div class="crm-totals">
+                      <span>TOTAL <b>142</b></span>
+                      <span>JÁ CONSULTARAM <b>131</b></span>
+                      <span>TRATAMENTO <b>89</b></span>
+                      <span class="crm-refresh">Atualizar</span>
+                    </div>
+                  </div>
+                  <h2 class="crm-title">Central de Indicações.</h2>
+                  <div class="crm-filter-tabs">
+                    <span class="active">FUNIL</span>
+                    <span>CONSULTA</span>
+                    <span>CONDUTA</span>
+                    <span>QA</span>
+                    <span>CONVERSÃO</span>
+                  </div>
+                  <hr class="crm-divider" />
+                </div>
+
+                <!-- Resumo da jornada — 4 KPIs com dados fictícios -->
+                <div class="crm-section-hd">
+                  <span>RESUMO DA JORNADA</span>
+                  <span>Consulta como marco principal do funil</span>
+                </div>
+                <div class="crm-kpi4">
                   <article>
-                    <small>CRM ativo</small>
-                    <strong id="kpi-crm">67</strong>
-                    <em>12 aguardam retorno</em>
+                    <small>TOTAL CRM</small>
+                    <strong id="kpi-crm">142</strong>
+                    <span>100,0% DO TOTAL</span>
+                    <em>Indicações na base</em>
                   </article>
                   <article>
-                    <small>Pacientes</small>
-                    <strong id="kpi-patients">153</strong>
-                    <em>carteira demonstrativa</em>
+                    <small>CONSULTA AGENDADA</small>
+                    <strong>11</strong>
+                    <span>7,7% DO TOTAL</span>
+                    <em>Ainda não passaram pela consulta</em>
                   </article>
                   <article>
-                    <small>Guias em risco</small>
-                    <strong id="kpi-guides">07</strong>
-                    <em>validade próxima</em>
+                    <small>JÁ CONSULTARAM</small>
+                    <strong id="kpi-patients" class="kpi-green">131</strong>
+                    <span>92,3% DO TOTAL</span>
+                    <em>Casos em etapa pós-consulta</em>
+                  </article>
+                  <article>
+                    <small>TRATAMENTO INICIADO</small>
+                    <strong id="kpi-guides" class="kpi-green">89</strong>
+                    <span>62,7% DO TOTAL</span>
+                    <em>Conversões efetivas</em>
                   </article>
                 </div>
-                <div class="ops-table">
-                  <div><b>Prioridade</b><b>Módulo</b><b>Status</b></div>
-                  <div><span>Alta</span><span>Guia vencendo</span><mark>Agir hoje</mark></div>
-                  <div><span>Média</span><span>Pós-consulta sem retorno</span><mark>Revisar</mark></div>
-                  <div><span>Baixa</span><span>Cadastro incompleto</span><mark>QA</mark></div>
+
+                <!-- Distribuição pós-consulta — 5 colunas com dados fictícios -->
+                <div class="crm-section-hd">
+                  <span>DISTRIBUIÇÃO PÓS-CONSULTA</span>
+                  <span>Onde estão os pacientes que já passaram pela consulta</span>
                 </div>
-                <div class="preview-footer">
-                  <span>Produção → Faturamento → Glosa → Recurso → Recebimento</span>
-                  <b>Rastro operacional</b>
+                <div class="crm-dist5">
+                  <article>
+                    <small>INVESTIGAÇÃO/AVALIAÇÃO</small>
+                    <strong class="kpi-orange">14</strong>
+                    <span>10,7% dos que consultaram</span>
+                    <em>Aguardam definição clínica</em>
+                  </article>
+                  <article>
+                    <small>CONDUTA PENDENTE</small>
+                    <strong class="kpi-orange">9</strong>
+                    <span>6,9% dos que consultaram</span>
+                    <em>Consulta realizada; falta desfecho</em>
+                  </article>
+                  <article>
+                    <small>ACOMPANHAMENTO</small>
+                    <strong>31</strong>
+                    <span>23,7% dos que consultaram</span>
+                    <em>Seguimento ativo</em>
+                  </article>
+                  <article>
+                    <small>ENCAMINHADOS</small>
+                    <strong>19</strong>
+                    <span>14,5% dos que consultaram</span>
+                    <em>Fora do fluxo</em>
+                  </article>
+                  <article>
+                    <small>ENCERRADOS</small>
+                    <strong>58</strong>
+                    <span>44,3% dos que consultaram</span>
+                    <em>Perda/descarte/óbito</em>
+                  </article>
                 </div>
-              </section>
+
+              </div>
             </div>
           </div>
         </div>
@@ -395,9 +499,9 @@ const year  = new Date().getFullYear();
   const kpiCrm      = document.getElementById('kpi-crm');
   const kpiPatients = document.getElementById('kpi-patients');
   const kpiGuides   = document.getElementById('kpi-guides');
-  if (kpiCrm)      countUp(kpiCrm, 67);
-  if (kpiPatients) countUp(kpiPatients, 153);
-  if (kpiGuides)   countUp(kpiGuides, 7, 2);
+  if (kpiCrm)      countUp(kpiCrm, 142);
+  if (kpiPatients) countUp(kpiPatients, 131);
+  if (kpiGuides)   countUp(kpiGuides, 89);
 
   // ── Spotlight cursor glow ─────────────────────────────────────
   document.querySelectorAll<HTMLElement>('.spotlight-card').forEach((card) => {
