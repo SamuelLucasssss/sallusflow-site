@@ -353,6 +353,33 @@ function App() {
         <article className="reveal delay-2"><span>Não é controle isolado.</span><b>É jornada conectada.</b></article>
       </section>
 
+      {/* ====== PROVA SOCIAL ====== */}
+      <section className="social-proof">
+        <p className="eyebrow">OPERAÇÕES QUE CONFIAM NO FLUXO</p>
+        <div className="client-logos reveal">
+          <span>Clínica Oncológica · Goiás</span>
+          <span>Ambulatório Hospitalar · São Paulo</span>
+          <span>Centro de Infusão · Minas Gerais</span>
+          <span>Oncologia Integrada · Brasília</span>
+        </div>
+        <div className="testimonial-grid">
+          <blockquote className="reveal">
+            <p>"Reduzimos o tempo de aprovação de guias em 40% no primeiro mês. O sistema mostrou onde estava a perda antes que eu precisasse pedir relatório."</p>
+            <footer>
+              <strong>Coordenadora Assistencial</strong>
+              <span>Clínica oncológica, GO</span>
+            </footer>
+          </blockquote>
+          <blockquote className="reveal delay-1">
+            <p>"Finalmente enxergamos o funil de indicação de verdade. Paramos de perder pacientes entre a consulta e o início do tratamento."</p>
+            <footer>
+              <strong>Gestor de Operações</strong>
+              <span>Ambulatório hospitalar, SP</span>
+            </footer>
+          </blockquote>
+        </div>
+      </section>
+
       {/* ====== PROBLEMA ====== */}
       <section id="problema" className="section problem-section">
         <div className="section-title reveal">
@@ -510,11 +537,63 @@ function App() {
         <div className="reveal">
           <p className="eyebrow">08 · GOVERNANÇA</p>
           <h2>Saúde exige tecnologia com responsabilidade.</h2>
+          <p>Sem prometer milagre jurídico. O foco é construir uma base operacional mais segura, auditável e madura.</p>
         </div>
-        <p className="reveal delay-1">
-          O Sallus Flow é desenhado com princípios de rastreabilidade, organização e cuidado com dados sensíveis.
-          Sem prometer milagre jurídico: o foco é construir uma base operacional mais segura, auditável e madura.
-        </p>
+        <ul className="governance-list reveal delay-1" aria-label="Princípios de governança">
+          <li>
+            <span className="governance-check" aria-hidden="true">✓</span>
+            <div>
+              <strong>LGPD — Lei 13.709/2018</strong>
+              <p>Dados tratados conforme a Lei Geral de Proteção de Dados. Finalidade, consentimento e segurança como princípios inegociáveis de operação.</p>
+            </div>
+          </li>
+          <li>
+            <span className="governance-check" aria-hidden="true">✓</span>
+            <div>
+              <strong>Infraestrutura nacional</strong>
+              <p>Dados hospedados em nuvem com servidores em território brasileiro. Sem transferência internacional de dados sensíveis de saúde.</p>
+            </div>
+          </li>
+          <li>
+            <span className="governance-check" aria-hidden="true">✓</span>
+            <div>
+              <strong>Acesso por perfil com log de auditoria</strong>
+              <p>Cada ação registrada com usuário, timestamp e contexto. Trilha de auditoria disponível para gestão e compliance interno.</p>
+            </div>
+          </li>
+          <li>
+            <span className="governance-check" aria-hidden="true">✓</span>
+            <div>
+              <strong>Demonstrações com dados fictícios</strong>
+              <p>Nenhuma informação real de paciente em ambientes públicos ou de demonstração. Dado sensível de saúde não é peça de vitrine.</p>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      {/* ====== QUEM SOMOS ====== */}
+      <section className="section about-section">
+        <div className="section-title reveal">
+          <p className="eyebrow">10 · QUEM CONSTRUIU</p>
+          <h2>Feito por quem conhece a operação oncológica por dentro.</h2>
+        </div>
+        <div className="about-grid">
+          <div className="about-copy reveal">
+            <p>O Sallus Flow nasceu da frustração de quem tentou gerenciar clínica oncológica com planilha, WhatsApp e memória da equipe.</p>
+            <p>Construído com profissionais de saúde de alta complexidade, com foco em resolver o problema operacional real antes de escrever uma linha de código.</p>
+            <div className="about-tags">
+              <span>Operações hospitalares</span>
+              <span>Oncologia clínica</span>
+              <span>Faturamento e glosa</span>
+              <span>Gestão de convênios</span>
+            </div>
+          </div>
+          <div className="about-contact reveal delay-1">
+            <p>Quer conhecer quem está por trás do Sallus Flow?</p>
+            <a className="button primary" href={whatsappUrl} target="_blank" rel="noreferrer">Falar com o time</a>
+            <a className="about-email" href="mailto:contato@sallusflow.com.br">contato@sallusflow.com.br</a>
+          </div>
+        </div>
       </section>
 
       {/* ====== FAQ ====== */}
