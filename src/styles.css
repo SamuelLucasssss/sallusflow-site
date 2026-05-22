@@ -1133,6 +1133,232 @@ nav a:hover { color: var(--ink); }
 }
 
 /* ============================================
+   MODULE PREVIEW v2 — previews por módulo
+   ============================================ */
+
+.module-screen-v2 {
+  margin-top: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #faf7f2;
+}
+
+.module-screen-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 13px;
+  background: #1b1914;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+}
+
+.ms-breadcrumb { color: rgba(255,255,255,.55); }
+
+.ms-live {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--orange);
+  font-weight: 700;
+  font-size: 9px;
+  border: 1px solid rgba(221,86,14,.4);
+  border-radius: 999px;
+  padding: 2px 7px 2px 5px;
+}
+
+.ms-live i {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--orange);
+  animation: livePulse 1.8s ease-in-out infinite;
+}
+
+.mod-preview-inner { padding: 12px 13px; }
+
+/* KPI row (Executivo) */
+.mod-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mod-kpi-card {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(26,25,21,.1);
+  background: #fff;
+}
+
+.mod-kpi-card small {
+  display: block;
+  font-size: 8px;
+  letter-spacing: .09em;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.mod-kpi-card strong {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.mod-kpi-card em {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.mod-kpi-card.risk-high strong { color: #c0392b; }
+.mod-kpi-card.risk-mid  strong { color: var(--orange2); }
+.mod-kpi-card.risk-ok   strong { color: #3f7052; }
+
+/* Generic table (all modules) */
+.mod-table { border: 1px solid rgba(26,25,21,.1); border-radius: 8px; overflow: hidden; }
+
+.mod-table-head {
+  display: grid;
+  grid-template-columns: var(--mod-cols, 1fr 1fr 1.5fr);
+  background: rgba(26,25,21,.04);
+  border-bottom: 1px solid rgba(26,25,21,.1);
+}
+
+.mod-table-head span {
+  padding: 6px 10px;
+  font-size: 8.5px;
+  letter-spacing: .08em;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.mod-table-row {
+  display: grid;
+  grid-template-columns: var(--mod-cols, 1fr 1fr 1.5fr);
+  border-bottom: 1px solid rgba(26,25,21,.06);
+}
+
+.mod-table-row:last-child { border-bottom: none; }
+
+.mod-table-row span {
+  padding: 7px 10px;
+  font-size: 10px;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Pacientes — 4 columns */
+.mod-table-head:has(span:nth-child(4)),
+.mod-table-row:has(span:nth-child(4)) {
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+}
+
+/* Financeiro — 5 columns */
+.mod-table-head:has(span:nth-child(5)),
+.mod-table-row:has(span:nth-child(5)) {
+  grid-template-columns: .9fr 1fr .8fr .7fr 1.1fr;
+}
+
+/* Guias — 4 columns */
+
+/* Risk badges */
+.badge-risk {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-risk.high { background: #fde8e8; color: #c0392b; }
+.badge-risk.mid  { background: #fff0e0; color: var(--orange2); }
+.badge-risk.ok   { background: #e6f4ec; color: #3f7052; }
+
+/* Patient avatar */
+.pat-name { display: flex; align-items: center; gap: 6px; }
+
+.pat-avatar {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--orange);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pat-pend { color: var(--muted) !important; font-size: 9px !important; }
+
+/* Funnel (CRM) */
+.mod-funnel { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+
+.mod-funnel-stage { width: 100%; }
+
+.funnel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: rgba(26,25,21,.06);
+  border-radius: 6px;
+  transition: width .4s ease;
+}
+
+.funnel-bar.funnel-active { background: rgba(221,86,14,.12); }
+.funnel-bar.funnel-active strong { color: var(--orange2); }
+
+.funnel-label { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
+
+.funnel-bar strong {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--ink);
+  line-height: 1;
+}
+
+/* Stat row (bottom of each preview) */
+.mod-stat-row {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(26,25,21,.08);
+}
+
+.mod-stat-row span {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.mod-stat-row b { color: var(--ink); font-weight: 700; }
+
+/* Utility */
+.txt-orange { color: var(--orange2); font-weight: 600; }
+.txt-bold   { font-weight: 700; }
+
+.badge-open {
+  margin-left: 4px;
+  background: #fff0e0;
+  color: var(--orange2);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+/* ============================================
    INTELLIGENCE SECTION
    ============================================ */
 
