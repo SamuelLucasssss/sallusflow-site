@@ -338,10 +338,37 @@ const year  = new Date().getFullYear();
         <ModuleTabs client:visible />
       </section>
 
+      <!-- RESULTADOS -->
+      <section class="section results-section">
+        <div class="section-title center reveal">
+          <p class="eyebrow">05 · IMPACTO OPERACIONAL</p>
+          <h2>O que muda quando o fluxo vira rotina.</h2>
+          <p class="section-sub">Referências de operações oncológicas que organizaram o fluxo com o Sallus Flow.</p>
+        </div>
+        <div class="results-grid">
+          <article class="reveal">
+            <div class="res-number"><strong id="res-1">40</strong><b>%</b></div>
+            <p>menos tempo de aprovação de guias no primeiro mês de operação organizada</p>
+          </article>
+          <article class="reveal delay-1">
+            <div class="res-number"><strong id="res-2">3</strong><b>x</b></div>
+            <p>mais visibilidade sobre a conversão de indicações em tratamento</p>
+          </article>
+          <article class="reveal delay-2">
+            <div class="res-number"><strong id="res-3">5</strong></div>
+            <p>módulos conectados em um único fluxo operacional sem duplicar sistemas</p>
+          </article>
+          <article class="reveal delay-3">
+            <div class="res-number"><strong id="res-4">0</strong></div>
+            <p>dado real de paciente exposto em ambientes públicos ou de demonstração</p>
+          </article>
+        </div>
+      </section>
+
       <!-- INTELIGÊNCIA -->
       <section class="section intelligence-section">
         <div class="section-title center reveal">
-          <p class="eyebrow">05 · INTELIGÊNCIA OPERACIONAL</p>
+          <p class="eyebrow">06 · INTELIGÊNCIA OPERACIONAL</p>
           <h2>O Sallus Flow não apenas guarda dados. Ele revela prioridade.</h2>
         </div>
         <div class="signal-grid">
@@ -355,7 +382,7 @@ const year  = new Date().getFullYear();
       <!-- PARA QUEM É -->
       <section class="section audience-section">
         <div class="section-title reveal">
-          <p class="eyebrow">06 · PARA QUEM É</p>
+          <p class="eyebrow">07 · PARA QUEM É</p>
           <h2>Feito para equipes que precisam sair do improviso sem perder a realidade da operação.</h2>
         </div>
         <div class="audience-grid">
@@ -368,7 +395,7 @@ const year  = new Date().getFullYear();
       <!-- IMPLANTAÇÃO -->
       <section class="section implementation-section">
         <div class="section-title center reveal">
-          <p class="eyebrow">07 · IMPLANTAÇÃO EM ETAPAS</p>
+          <p class="eyebrow">08 · IMPLANTAÇÃO EM ETAPAS</p>
           <h2>Começa pequeno, fica sério e cresce com a operação.</h2>
         </div>
         <div class="implementation-grid">
@@ -385,7 +412,7 @@ const year  = new Date().getFullYear();
       <!-- GOVERNANÇA -->
       <section id="governanca" class="section governance-section">
         <div class="reveal">
-          <p class="eyebrow">08 · GOVERNANÇA</p>
+          <p class="eyebrow">09 · GOVERNANÇA</p>
           <h2>Saúde exige tecnologia com responsabilidade.</h2>
           <p>Sem prometer milagre jurídico. O foco é construir uma base operacional mais segura, auditável e madura.</p>
         </div>
@@ -405,7 +432,7 @@ const year  = new Date().getFullYear();
       <!-- QUEM SOMOS -->
       <section class="section about-section">
         <div class="section-title reveal">
-          <p class="eyebrow">10 · QUEM CONSTRUIU</p>
+          <p class="eyebrow">11 · QUEM CONSTRUIU</p>
           <h2>Feito por quem conhece a operação oncológica por dentro.</h2>
         </div>
         <div class="about-grid">
@@ -430,7 +457,7 @@ const year  = new Date().getFullYear();
       <!-- FAQ (React island) -->
       <section class="section faq-section">
         <div class="section-title reveal">
-          <p class="eyebrow">09 · PERGUNTAS IMPORTANTES</p>
+          <p class="eyebrow">10 · PERGUNTAS IMPORTANTES</p>
           <h2>Sem promessa solta. Sem fumaça de palco.</h2>
         </div>
         <FaqAccordion client:visible />
@@ -450,7 +477,39 @@ const year  = new Date().getFullYear();
 
     </main>
 
-    <footer>© {year} Sallus Flow · www.sallusflow.com.br</footer>
+    <footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="brand footer-logo" href="#top" aria-label="Sallus Flow">
+            <span class="brand-mark"><i></i></span>
+            <strong>Sallus<span>Flow</span></strong>
+          </a>
+          <p>Inteligência operacional para oncologia.<br/>Da indicação ao recebimento, sem perder o fio.</p>
+          <span class="lgpd-badge">🔒 LGPD — Lei 13.709/2018</span>
+        </div>
+        <div class="footer-links">
+          <strong>Produto</strong>
+          <a href="#problema">O problema</a>
+          <a href="#fluxo">O fluxo</a>
+          <a href="#modulos">Módulos</a>
+          <a href="#governanca">Governança</a>
+        </div>
+        <div class="footer-links">
+          <strong>Acesso</strong>
+          <a href={systemUrl} target="_blank" rel="noreferrer">Entrar no sistema</a>
+          <a href={whatsappUrl} target="_blank" rel="noreferrer">WhatsApp</a>
+          <a href="mailto:contato@sallusflow.com.br">contato@sallusflow.com.br</a>
+        </div>
+        <div class="footer-links">
+          <strong>Conformidade</strong>
+          <p class="footer-note">Dados hospedados em servidores nacionais. Demonstrações com dados fictícios. Acesso por perfil com log de auditoria.</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© {year} Sallus Flow · Todos os direitos reservados</span>
+        <span>oncologia.sallusflow.com.br</span>
+      </div>
+    </footer>
 
   </div><!-- /site-shell -->
 </Layout>
@@ -502,6 +561,15 @@ const year  = new Date().getFullYear();
   if (kpiCrm)      countUp(kpiCrm, 142);
   if (kpiPatients) countUp(kpiPatients, 131);
   if (kpiGuides)   countUp(kpiGuides, 89);
+
+  const res1 = document.getElementById('res-1');
+  const res2 = document.getElementById('res-2');
+  const res3 = document.getElementById('res-3');
+  const res4 = document.getElementById('res-4');
+  if (res1) countUp(res1, 40);
+  if (res2) countUp(res2, 3);
+  if (res3) countUp(res3, 5);
+  if (res4) countUp(res4, 0);
 
   // ── Spotlight cursor glow ─────────────────────────────────────
   document.querySelectorAll<HTMLElement>('.spotlight-card').forEach((card) => {
