@@ -234,10 +234,16 @@ function App() {
       { threshold: 0.1, rootMargin: '0px 0px -48px 0px' }
     );
 
-    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+    // Re-observa após mudança de módulo para capturar elementos recém-montados
+    const timer = setTimeout(() => {
+      document.querySelectorAll('.reveal:not(.visible)').forEach((el) => observer.observe(el));
+    }, 0);
 
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [activeModule]);
 
   /* --- Nav blur on scroll --- */
   useEffect(() => {
@@ -387,7 +393,7 @@ function App() {
           <h2>A operação oncológica perde força quando o fluxo fica espalhado.</h2>
         </div>
         <div className="before-after">
-          <article className="bad-card reveal">
+          <SpotlightCard className="bad-card reveal">
             <span>Antes</span>
             <h3>Planilhas, mensagens e memória da equipe.</h3>
             <ul>
@@ -396,8 +402,8 @@ function App() {
               <li>Faturamento separado da produção.</li>
               <li>Diretoria enxergando tarde demais.</li>
             </ul>
-          </article>
-          <article className="good-card reveal delay-1">
+          </SpotlightCard>
+          <SpotlightCard className="good-card reveal delay-1">
             <span>Depois</span>
             <h3>Fluxo único, alerta e comando executivo.</h3>
             <ul>
@@ -406,7 +412,7 @@ function App() {
               <li>Guia, glosa e receita no mesmo mapa.</li>
               <li>Decisão com prioridade, não achismo.</li>
             </ul>
-          </article>
+          </SpotlightCard>
         </div>
       </section>
 
@@ -416,9 +422,13 @@ function App() {
           <p className="eyebrow">02 · O CONCEITO FLOW</p>
           <h2>Da indicação ao recebimento, sem perder o fio da operação.</h2>
         </div>
-        <div className="flow-line">
+        <div className="flow-line" role="list" aria-label="Etapas do fluxo oncológico">
           {flowSteps.map((step, index) => (
-            <article key={step} className={`reveal delay-${Math.min(index, 4) as 0|1|2|3|4}`}>
+            <article
+              key={step}
+              role="listitem"
+              className={`reveal delay-${Math.min(index, 4) as 0|1|2|3|4}`}
+            >
               <b>{String(index + 1).padStart(2, '0')}</b>
               <span>{step}</span>
             </article>
@@ -523,11 +533,11 @@ function App() {
         </div>
         <div className="implementation-grid">
           {implementationSteps.map(([number, title, text], index) => (
-            <article key={number} className={`reveal delay-${index as 0|1|2|3}`}>
+            <SpotlightCard key={number} className={`reveal delay-${index as 0|1|2|3}`}>
               <b>{number}</b>
               <h3>{title}</h3>
               <p>{text}</p>
-            </article>
+            </SpotlightCard>
           ))}
         </div>
       </section>
