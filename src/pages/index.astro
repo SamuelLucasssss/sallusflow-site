@@ -54,6 +54,9 @@ const year  = new Date().getFullYear();
       <NavIsland client:load />
     </header>
 
+    <!-- Cursor glow global — segue o mouse pela página -->
+    <div id="cursor-glow" aria-hidden="true"></div>
+
     <main>
 
       <!-- HERO -->
@@ -571,17 +574,58 @@ const year  = new Date().getFullYear();
   if (res3) countUp(res3, 5);
   if (res4) countUp(res4, 0);
 
-  // ── Spotlight cursor glow ─────────────────────────────────────
-  document.querySelectorAll<HTMLElement>('.spotlight-card').forEach((card) => {
-    card.addEventListener('mousemove', (e) => {
-      const r = card.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-      card.style.background =
-        `radial-gradient(280px at ${x}px ${y}px, rgba(221,86,14,.09), transparent 70%), var(--card)`;
+  // ── Cursor glow global (orb que segue o mouse pela página) ───────
+  const cursorGlow = document.getElementById('cursor-glow') as HTMLElement | null;
+  if (cursorGlow && window.matchMedia('(hover: hover)').matches) {
+    let cx = -9999, cy = -9999;
+    let lx = -9999, ly = -9999;
+    let raf = 0;
+
+    document.addEventListener('mousemove', (e) => {
+      cx = e.clientX;
+      cy = e.clientY;
     });
+
+    document.addEventListener('mouseleave', () => {
+      cx = -9999; cy = -9999;
+    });
+
+    const tick = () => {
+      // suaviza o movimento com lerp
+      lx += (cx - lx) * 0.1;
+      ly += (cy - ly) * 0.1;
+      cursorGlow.style.transform = `translate(${lx}px, ${ly}px)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+
+  // ── Spotlight + 3D tilt nas cards ────────────────────────────────
+  const isTouchDevice = !window.matchMedia('(hover: hover)').matches;
+
+  document.querySelectorAll<HTMLElement>('.spotlight-card').forEach((card) => {
+    if (isTouchDevice) return;
+
+    card.addEventListener('mousemove', (e) => {
+      const r  = card.getBoundingClientRect();
+      const x  = e.clientX - r.left;
+      const y  = e.clientY - r.top;
+      const cx = r.width  / 2;
+      const cy = r.height / 2;
+
+      // Spotlight
+      card.style.background =
+        `radial-gradient(400px at ${x}px ${y}px, rgba(221,86,14,.15), transparent 65%), var(--card)`;
+
+      // 3D tilt — máx 5°
+      const rotX = ((y - cy) / cy) * -4;
+      const rotY = ((x - cx) / cx) *  4;
+      card.style.transform = `perspective(700px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.02)`;
+    });
+
     card.addEventListener('mouseleave', () => {
-      card.style.background = '';
+      card.style.background  = '';
+      card.style.transform   = '';
     });
   });
 </script>

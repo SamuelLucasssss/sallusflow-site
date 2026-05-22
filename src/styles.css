@@ -1931,6 +1931,35 @@ blockquote footer span {
 }
 
 /* ============================================
+   CURSOR GLOW GLOBAL
+   ============================================ */
+
+#cursor-glow {
+  position: fixed;
+  top: -300px;
+  left: -300px;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(221,86,14,.07) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+  transition: opacity .4s ease;
+}
+
+/* Spotlight cards — transition para o tilt e background */
+.spotlight-card {
+  transition: transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s ease;
+  will-change: transform;
+}
+
+.spotlight-card:hover {
+  box-shadow: 0 20px 60px rgba(26,25,21,.14);
+  z-index: 1;
+}
+
+/* ============================================
    ANIMATIONS
    ============================================ */
 
