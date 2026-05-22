@@ -190,6 +190,28 @@ function FaqAccordion() {
 }
 
 /* ============================================
+   COMPONENT — SPOTLIGHT CARD (efeito Linear/Stripe)
+   ============================================ */
+
+function SpotlightCard({ children, className }: { children: React.ReactNode; className?: string }) {
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.background =
+      `radial-gradient(280px at ${x}px ${y}px, rgba(221,86,14,.09), transparent 70%), var(--card)`;
+  };
+  const handleMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.background = '';
+  };
+  return (
+    <article className={className} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+      {children}
+    </article>
+  );
+}
+
+/* ============================================
    APP
    ============================================ */
 
@@ -233,7 +255,7 @@ function App() {
   const closeNav = () => setNavOpen(false);
 
   return (
-    <main className="site-shell">
+    <div className="site-shell">
 
       {/* ====== NAV ====== */}
       <header className="header">
@@ -264,12 +286,14 @@ function App() {
         </div>
       </header>
 
+      <main>
+
       {/* ====== HERO ====== */}
       <section id="top" className="hero section-grid">
         <div className="hero-copy reveal">
           <p className="eyebrow">SALLUS FLOW · INTELIGÊNCIA OPERACIONAL EM ONCOLOGIA</p>
-          <h1>O fluxo inteligente entre indicação, tratamento, guia e receita.</h1>
-          <p className="lead">Sallus Flow conecta CRM, pacientes, autorizações, faturamento e indicadores para transformar a operação oncológica em comando executivo.</p>
+          <h1>Sua operação oncológica perde mais do que você consegue ver.</h1>
+          <p className="lead">Sallus Flow conecta CRM, pacientes, guias e faturamento em um comando único — para que a equipe saiba onde agir antes que o prejuízo aconteça.</p>
           <div className="hero-actions">
             <a className="button primary" href={whatsappUrl} target="_blank" rel="noreferrer">Solicitar demonstração</a>
             <a className="button secondary" href={systemUrl} target="_blank" rel="noreferrer">Entrar no sistema</a>
@@ -383,11 +407,11 @@ function App() {
         </div>
         <div className="loop-grid">
           {decisionLoop.map(([title, text], index) => (
-            <article key={title} className={`reveal delay-${index as 0|1|2|3}`}>
+            <SpotlightCard key={title} className={`reveal delay-${index as 0|1|2|3}`}>
               <b>{String(index + 1).padStart(2, '0')}</b>
               <h3>{title}</h3>
               <p>{text}</p>
-            </article>
+            </SpotlightCard>
           ))}
         </div>
       </section>
@@ -442,10 +466,10 @@ function App() {
           <h2>O Sallus Flow não apenas guarda dados. Ele revela prioridade.</h2>
         </div>
         <div className="signal-grid">
-          <article className="reveal"><span>Próxima melhor ação</span><strong>Hoje</strong><p>Mostra onde a equipe precisa agir primeiro.</p></article>
-          <article className="reveal delay-1"><span>QA cadastral</span><strong>3</strong><p>Campos críticos incompletos antes do erro virar rotina.</p></article>
-          <article className="reveal delay-2"><span>Risco de guia</span><strong>7</strong><p>Autorizações em atenção por validade ou saldo.</p></article>
-          <article className="reveal delay-3"><span>Perda operacional</span><strong>R$</strong><p>Produção, glosa e recebimento vistos no mesmo fluxo.</p></article>
+          <SpotlightCard className="reveal"><span>Próxima melhor ação</span><strong>Hoje</strong><p>Mostra onde a equipe precisa agir primeiro.</p></SpotlightCard>
+          <SpotlightCard className="reveal delay-1"><span>QA cadastral</span><strong>3</strong><p>Campos críticos incompletos antes do erro virar rotina.</p></SpotlightCard>
+          <SpotlightCard className="reveal delay-2"><span>Risco de guia</span><strong>7</strong><p>Autorizações em atenção por validade ou saldo.</p></SpotlightCard>
+          <SpotlightCard className="reveal delay-3"><span>Perda operacional</span><strong>R$</strong><p>Produção, glosa e recebimento vistos no mesmo fluxo.</p></SpotlightCard>
         </div>
       </section>
 
@@ -514,9 +538,11 @@ function App() {
         <small>Sistema: oncologia.sallusflow.com.br · WhatsApp: 62 9 9249-9048</small>
       </section>
 
+      </main>
+
       <footer>© {new Date().getFullYear()} Sallus Flow · www.sallusflow.com.br</footer>
 
-    </main>
+    </div>
   );
 }
 

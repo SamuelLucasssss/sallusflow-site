@@ -171,6 +171,23 @@ nav a:hover { color: var(--ink); }
 .nav-toggle:hover { background: var(--paper2); }
 
 /* ============================================
+   FOCUS VISIBLE — acessibilidade WCAG 2.4.7
+   ============================================ */
+
+:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+:focus:not(:focus-visible) { outline: none; }
+
+.button:focus-visible       { border-radius: 999px; }
+.faq-question:focus-visible { border-radius: 0; outline-offset: -2px; }
+.module-tabs button:focus-visible { border-radius: var(--radius); }
+.nav-toggle:focus-visible   { border-radius: 10px; }
+
+/* ============================================
    BUTTONS
    ============================================ */
 
@@ -256,7 +273,7 @@ nav a:hover { color: var(--ink); }
 
 .hero h1 {
   font-size: clamp(46px, 6.2vw, 90px);
-  line-height: .91;
+  line-height: .95;
   margin: 16px 0 22px;
   max-width: 900px;
 }
@@ -739,6 +756,10 @@ nav a:hover { color: var(--ink); }
   font-variant-numeric: tabular-nums;
 }
 
+.flow-line::-webkit-scrollbar { height: 4px; }
+.flow-line::-webkit-scrollbar-track { background: transparent; }
+.flow-line::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+
 .signal-grid span { font-weight: 900; font-size: 16px; }
 .signal-grid p { color: var(--muted); line-height: 1.5; margin: 0; }
 
@@ -955,6 +976,31 @@ footer {
 @keyframes float {
   0%, 100% { transform: translateY(0) rotate(.4deg); }
   50%       { transform: translateY(-10px) rotate(.1deg); }
+}
+
+/* ============================================
+   ACESSIBILIDADE — prefers-reduced-motion
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .browser-frame {
+    animation: none;
+    transform: rotate(0.4deg);
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ============================================
