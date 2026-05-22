@@ -1,0 +1,415 @@
+---
+import Layout from '../layouts/Layout.astro';
+import NavIsland from '../components/NavIsland';
+import ModuleTabs from '../components/ModuleTabs';
+import FaqAccordion from '../components/FaqAccordion';
+import '../styles.css';
+
+const whatsappMessage = encodeURIComponent('Olá! Quero conhecer o Sallus Flow e entender como aplicar na gestão oncológica.');
+const whatsappUrl = `https://wa.me/5562992499048?text=${whatsappMessage}`;
+const systemUrl = 'https://oncologia.sallusflow.com.br';
+
+const flowSteps = ['Indicação', 'Consulta', 'Paciente', 'Guia', 'Produção', 'Faturamento', 'Glosa/Recurso', 'Recebimento'];
+
+const decisionLoop = [
+  { title: 'Sinal',       text: 'O sistema identifica pendência, atraso, guia em risco ou gargalo operacional.' },
+  { title: 'Diagnóstico', text: 'A gestão entende o motivo: origem, etapa, responsável e impacto provável.' },
+  { title: 'Ação',        text: 'A equipe sabe o que precisa ser feito primeiro, sem caçar informação em cinco lugares.' },
+  { title: 'Evidência',   text: 'O histórico fica organizado para auditoria, aprendizado e melhoria contínua.' },
+];
+
+const audiences = [
+  'Clínicas oncológicas', 'Ambulatórios hospitalares', 'Gestores de saúde',
+  'Faturamento e auditoria', 'Coordenação assistencial', 'Diretoria executiva',
+];
+
+const implementationSteps = [
+  { num: '01', title: 'Mapear fluxo real',   text: 'Entender como a indicação nasce, como vira consulta, onde a guia trava e onde a receita se perde.' },
+  { num: '02', title: 'Organizar base',       text: 'Padronizar campos, status, responsáveis, convênios e pontos críticos antes de automatizar qualquer coisa.' },
+  { num: '03', title: 'Ativar rotina',        text: 'Treinar equipe, definir donos por etapa e transformar o painel em ritual semanal de decisão.' },
+  { num: '04', title: 'Evoluir por evidência',text: 'Ajustar indicadores, alertas e módulos conforme a operação amadurece. Sem chute. Com rastro.' },
+];
+
+const governanceItems = [
+  { label: 'LGPD — Lei 13.709/2018',                text: 'Dados tratados conforme a Lei Geral de Proteção de Dados. Finalidade, consentimento e segurança como princípios inegociáveis de operação.' },
+  { label: 'Infraestrutura nacional',               text: 'Dados hospedados em nuvem com servidores em território brasileiro. Sem transferência internacional de dados sensíveis de saúde.' },
+  { label: 'Acesso por perfil com log de auditoria',text: 'Cada ação registrada com usuário, timestamp e contexto. Trilha de auditoria disponível para gestão e compliance interno.' },
+  { label: 'Demonstrações com dados fictícios',     text: 'Nenhuma informação real de paciente em ambientes públicos ou de demonstração. Dado sensível de saúde não é peça de vitrine.' },
+];
+
+const delay = (i: number) => i > 0 ? ` delay-${Math.min(i, 4)}` : '';
+const year  = new Date().getFullYear();
+---
+
+<Layout>
+  <div class="site-shell">
+
+    <!-- NAV -->
+    <header class="header">
+      <a class="brand" href="#top" aria-label="Sallus Flow">
+        <span class="brand-mark"><i></i></span>
+        <strong>Sallus<span>Flow</span></strong>
+      </a>
+      <!-- Hamburger + nav: React island (interatividade mínima) -->
+      <NavIsland client:load />
+    </header>
+
+    <main>
+
+      <!-- HERO -->
+      <section id="top" class="hero section-grid">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">SALLUS FLOW · INTELIGÊNCIA OPERACIONAL EM ONCOLOGIA</p>
+          <h1>Sua operação oncológica perde mais do que você consegue ver.</h1>
+          <p class="lead">Sallus Flow conecta CRM, pacientes, guias e faturamento em um comando único — para que a equipe saiba onde agir antes que o prejuízo aconteça.</p>
+          <div class="hero-actions">
+            <a class="button primary" href={whatsappUrl} target="_blank" rel="noreferrer">Solicitar demonstração</a>
+            <a class="button secondary" href={systemUrl} target="_blank" rel="noreferrer">Entrar no sistema</a>
+          </div>
+          <div class="trust-row" aria-label="Diferenciais principais">
+            <span><b>01</b> fluxo único</span>
+            <span><b>05</b> módulos conectados</span>
+            <span><b>100%</b> foco operacional</span>
+          </div>
+        </div>
+
+        <div class="product-stage reveal delay-1" aria-label="Prévia visual do painel Sallus Flow">
+          <div class="screen-glow"></div>
+          <div class="browser-frame">
+            <div class="browser-top">
+              <span></span><span></span><span></span>
+              <strong>oncologia.sallusflow.com.br</strong>
+            </div>
+            <div class="command-panel">
+              <aside class="side-rail">
+                <strong>§ Sallus Flow</strong>
+                <span>M0 · Executivo</span>
+                <span>M1 · CRM Oncológico</span>
+                <span>M2 · Pacientes</span>
+                <span>M3 · Guias</span>
+                <span>M4 · Financeiro</span>
+              </aside>
+              <section class="dashboard-preview">
+                <div class="preview-head">
+                  <p class="eyebrow">CENTRAL DE COMANDO</p>
+                  <span>AO VIVO</span>
+                </div>
+                <h2>Próxima melhor ação antes que a operação vire prejuízo.</h2>
+                <div class="kpi-grid">
+                  <article>
+                    <small>CRM ativo</small>
+                    <strong id="kpi-crm">67</strong>
+                    <em>12 aguardam retorno</em>
+                  </article>
+                  <article>
+                    <small>Pacientes</small>
+                    <strong id="kpi-patients">153</strong>
+                    <em>carteira demonstrativa</em>
+                  </article>
+                  <article>
+                    <small>Guias em risco</small>
+                    <strong id="kpi-guides">07</strong>
+                    <em>validade próxima</em>
+                  </article>
+                </div>
+                <div class="ops-table">
+                  <div><b>Prioridade</b><b>Módulo</b><b>Status</b></div>
+                  <div><span>Alta</span><span>Guia vencendo</span><mark>Agir hoje</mark></div>
+                  <div><span>Média</span><span>Pós-consulta sem retorno</span><mark>Revisar</mark></div>
+                  <div><span>Baixa</span><span>Cadastro incompleto</span><mark>QA</mark></div>
+                </div>
+                <div class="preview-footer">
+                  <span>Produção → Faturamento → Glosa → Recurso → Recebimento</span>
+                  <b>Rastro operacional</b>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- IMPACT STRIP -->
+      <section class="impact-strip" aria-label="Resumo de posicionamento">
+        <article class="reveal"><span>Não é planilha bonita.</span><b>É fluxo operacional.</b></article>
+        <article class="reveal delay-1"><span>Não é BI decorativo.</span><b>É prioridade de ação.</b></article>
+        <article class="reveal delay-2"><span>Não é controle isolado.</span><b>É jornada conectada.</b></article>
+      </section>
+
+      <!-- PROVA SOCIAL -->
+      <section class="social-proof">
+        <p class="eyebrow">OPERAÇÕES QUE CONFIAM NO FLUXO</p>
+        <div class="client-logos reveal">
+          <span>Clínica Oncológica · Goiás</span>
+          <span>Ambulatório Hospitalar · São Paulo</span>
+          <span>Centro de Infusão · Minas Gerais</span>
+          <span>Oncologia Integrada · Brasília</span>
+        </div>
+        <div class="testimonial-grid">
+          <blockquote class="reveal">
+            <p>"Reduzimos o tempo de aprovação de guias em 40% no primeiro mês. O sistema mostrou onde estava a perda antes que eu precisasse pedir relatório."</p>
+            <footer>
+              <strong>Coordenadora Assistencial</strong>
+              <span>Clínica oncológica, GO</span>
+            </footer>
+          </blockquote>
+          <blockquote class="reveal delay-1">
+            <p>"Finalmente enxergamos o funil de indicação de verdade. Paramos de perder pacientes entre a consulta e o início do tratamento."</p>
+            <footer>
+              <strong>Gestor de Operações</strong>
+              <span>Ambulatório hospitalar, SP</span>
+            </footer>
+          </blockquote>
+        </div>
+      </section>
+
+      <!-- PROBLEMA -->
+      <section id="problema" class="section problem-section">
+        <div class="section-title reveal">
+          <p class="eyebrow">01 · ANTES DO FLOW</p>
+          <h2>A operação oncológica perde força quando o fluxo fica espalhado.</h2>
+        </div>
+        <div class="before-after">
+          <article class="bad-card reveal spotlight-card">
+            <span>Antes</span>
+            <h3>Planilhas, mensagens e memória da equipe.</h3>
+            <ul>
+              <li>Indicações sem rastreio claro.</li>
+              <li>Guias vencendo no silêncio.</li>
+              <li>Faturamento separado da produção.</li>
+              <li>Diretoria enxergando tarde demais.</li>
+            </ul>
+          </article>
+          <article class="good-card reveal delay-1">
+            <span>Depois</span>
+            <h3>Fluxo único, alerta e comando executivo.</h3>
+            <ul>
+              <li>CRM conectado ao paciente.</li>
+              <li>Risco operacional em evidência.</li>
+              <li>Guia, glosa e receita no mesmo mapa.</li>
+              <li>Decisão com prioridade, não achismo.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- FLUXO -->
+      <section id="fluxo" class="section flow-section">
+        <div class="section-title center reveal">
+          <p class="eyebrow">02 · O CONCEITO FLOW</p>
+          <h2>Da indicação ao recebimento, sem perder o fio da operação.</h2>
+        </div>
+        <div class="flow-line" role="list" aria-label="Etapas do fluxo oncológico">
+          {flowSteps.map((step, i) => (
+            <article role="listitem" class={`reveal${delay(i)}`}>
+              <b>{String(i + 1).padStart(2, '0')}</b>
+              <span>{step}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <!-- DA INFORMAÇÃO À AÇÃO -->
+      <section class="section loop-section">
+        <div class="section-title reveal">
+          <p class="eyebrow">03 · DA INFORMAÇÃO À AÇÃO</p>
+          <h2>O sistema precisa dizer onde apertar o parafuso, não apenas mostrar o painel.</h2>
+        </div>
+        <div class="loop-grid">
+          {decisionLoop.map(({ title, text }, i) => (
+            <article class={`reveal${delay(i)} spotlight-card`}>
+              <b>{String(i + 1).padStart(2, '0')}</b>
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <!-- MÓDULOS (React island: tabs interativas) -->
+      <section id="modulos" class="section modules-section">
+        <div class="section-title reveal">
+          <p class="eyebrow">04 · MÓDULOS CONECTADOS</p>
+          <h2>Um sistema que acompanha a rotina real, não uma apresentação bonita.</h2>
+        </div>
+        <ModuleTabs client:visible />
+      </section>
+
+      <!-- INTELIGÊNCIA -->
+      <section class="section intelligence-section">
+        <div class="section-title center reveal">
+          <p class="eyebrow">05 · INTELIGÊNCIA OPERACIONAL</p>
+          <h2>O Sallus Flow não apenas guarda dados. Ele revela prioridade.</h2>
+        </div>
+        <div class="signal-grid">
+          <article class="reveal spotlight-card"><span>Próxima melhor ação</span><strong>Hoje</strong><p>Mostra onde a equipe precisa agir primeiro.</p></article>
+          <article class="reveal delay-1 spotlight-card"><span>QA cadastral</span><strong>3</strong><p>Campos críticos incompletos antes do erro virar rotina.</p></article>
+          <article class="reveal delay-2 spotlight-card"><span>Risco de guia</span><strong>7</strong><p>Autorizações em atenção por validade ou saldo.</p></article>
+          <article class="reveal delay-3 spotlight-card"><span>Perda operacional</span><strong>R$</strong><p>Produção, glosa e recebimento vistos no mesmo fluxo.</p></article>
+        </div>
+      </section>
+
+      <!-- PARA QUEM É -->
+      <section class="section audience-section">
+        <div class="section-title reveal">
+          <p class="eyebrow">06 · PARA QUEM É</p>
+          <h2>Feito para equipes que precisam sair do improviso sem perder a realidade da operação.</h2>
+        </div>
+        <div class="audience-grid">
+          {audiences.map((a, i) => (
+            <article class={`reveal${delay(i)}`}>{a}</article>
+          ))}
+        </div>
+      </section>
+
+      <!-- IMPLANTAÇÃO -->
+      <section class="section implementation-section">
+        <div class="section-title center reveal">
+          <p class="eyebrow">07 · IMPLANTAÇÃO EM ETAPAS</p>
+          <h2>Começa pequeno, fica sério e cresce com a operação.</h2>
+        </div>
+        <div class="implementation-grid">
+          {implementationSteps.map(({ num, title, text }, i) => (
+            <article class={`reveal${delay(i)} spotlight-card`}>
+              <b>{num}</b>
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <!-- GOVERNANÇA -->
+      <section id="governanca" class="section governance-section">
+        <div class="reveal">
+          <p class="eyebrow">08 · GOVERNANÇA</p>
+          <h2>Saúde exige tecnologia com responsabilidade.</h2>
+          <p>Sem prometer milagre jurídico. O foco é construir uma base operacional mais segura, auditável e madura.</p>
+        </div>
+        <ul class="governance-list reveal delay-1" aria-label="Princípios de governança">
+          {governanceItems.map(({ label, text }) => (
+            <li>
+              <span class="governance-check" aria-hidden="true">✓</span>
+              <div>
+                <strong>{label}</strong>
+                <p>{text}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <!-- QUEM SOMOS -->
+      <section class="section about-section">
+        <div class="section-title reveal">
+          <p class="eyebrow">10 · QUEM CONSTRUIU</p>
+          <h2>Feito por quem conhece a operação oncológica por dentro.</h2>
+        </div>
+        <div class="about-grid">
+          <div class="about-copy reveal">
+            <p>O Sallus Flow nasceu da frustração de quem tentou gerenciar clínica oncológica com planilha, WhatsApp e memória da equipe.</p>
+            <p>Construído com profissionais de saúde de alta complexidade, com foco em resolver o problema operacional real antes de escrever uma linha de código.</p>
+            <div class="about-tags">
+              <span>Operações hospitalares</span>
+              <span>Oncologia clínica</span>
+              <span>Faturamento e glosa</span>
+              <span>Gestão de convênios</span>
+            </div>
+          </div>
+          <div class="about-contact reveal delay-1">
+            <p>Quer conhecer quem está por trás do Sallus Flow?</p>
+            <a class="button primary" href={whatsappUrl} target="_blank" rel="noreferrer">Falar com o time</a>
+            <a class="about-email" href="mailto:contato@sallusflow.com.br">contato@sallusflow.com.br</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ (React island) -->
+      <section class="section faq-section">
+        <div class="section-title reveal">
+          <p class="eyebrow">09 · PERGUNTAS IMPORTANTES</p>
+          <h2>Sem promessa solta. Sem fumaça de palco.</h2>
+        </div>
+        <FaqAccordion client:visible />
+      </section>
+
+      <!-- CTA FINAL -->
+      <section id="contato" class="final-cta reveal">
+        <p class="eyebrow">PRÓXIMO PASSO</p>
+        <h2>Pare de administrar oncologia no escuro.</h2>
+        <p>Leve a operação para um ambiente onde indicação, paciente, guia, faturamento e decisão conversam entre si.</p>
+        <div class="hero-actions center-actions" style="margin-top: 32px;">
+          <a class="button primary" href={whatsappUrl} target="_blank" rel="noreferrer">Falar no WhatsApp</a>
+          <a class="button dark-button" href="mailto:contato@sallusflow.com.br">contato@sallusflow.com.br</a>
+        </div>
+        <small>Sistema: oncologia.sallusflow.com.br · WhatsApp: 62 9 9249-9048</small>
+      </section>
+
+    </main>
+
+    <footer>© {year} Sallus Flow · www.sallusflow.com.br</footer>
+
+  </div><!-- /site-shell -->
+</Layout>
+
+<script>
+  // ── Scroll reveal ─────────────────────────────────────────────
+  const revealObs = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          (entry.target as HTMLElement).classList.add('visible');
+          revealObs.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.1, rootMargin: '0px 0px -48px 0px' }
+  );
+  document.querySelectorAll<HTMLElement>('.reveal').forEach((el) => revealObs.observe(el));
+
+  // ── Nav blur on scroll ────────────────────────────────────────
+  const header = document.querySelector('.header');
+  window.addEventListener('scroll', () => {
+    header?.classList.toggle('nav-scrolled', window.scrollY > 30);
+  }, { passive: true });
+
+  // ── KPI counter ───────────────────────────────────────────────
+  function countUp(el: HTMLElement, target: number, pad?: number) {
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      obs.unobserve(el);
+      let t0: number | null = null;
+      const dur = 1300;
+      const tick = (ts: number) => {
+        if (!t0) t0 = ts;
+        const p = Math.min((ts - t0) / dur, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        const val = Math.round(eased * target);
+        el.textContent = pad ? String(val).padStart(pad, '0') : String(val);
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, { threshold: 0.6 });
+    obs.observe(el);
+  }
+
+  const kpiCrm      = document.getElementById('kpi-crm');
+  const kpiPatients = document.getElementById('kpi-patients');
+  const kpiGuides   = document.getElementById('kpi-guides');
+  if (kpiCrm)      countUp(kpiCrm, 67);
+  if (kpiPatients) countUp(kpiPatients, 153);
+  if (kpiGuides)   countUp(kpiGuides, 7, 2);
+
+  // ── Spotlight cursor glow ─────────────────────────────────────
+  document.querySelectorAll<HTMLElement>('.spotlight-card').forEach((card) => {
+    card.addEventListener('mousemove', (e) => {
+      const r = card.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      card.style.background =
+        `radial-gradient(280px at ${x}px ${y}px, rgba(221,86,14,.09), transparent 70%), var(--card)`;
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.background = '';
+    });
+  });
+</script>
