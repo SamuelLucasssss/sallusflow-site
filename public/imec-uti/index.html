@@ -997,9 +997,9 @@ function buildSettlementPdfBytes(a,s){
   t(50,629,13,Number(s.dailyUnits||0).toLocaleString('pt-BR',{maximumFractionDigits:1})+' diária(s)',true);
   t(50,615,8,pdfShort(settlementComposition(s),55));
   t(386,629,8,'Regra de alta',true);t(386,615,8,'O dia da saída não é cobrado');
-  const fin=[['Diárias',s.dailyTotal],['Extras',s.extrasTotal],['Total',s.total],['Recebido',s.received],['Saldo',s.balance]];
-  const fw=103;
-  fin.forEach((x,i)=>{const xx=40+i*fw;rect(xx,558,fw,38);t(xx+7,583,7,x[0].toUpperCase(),true);t(xx+7,567,9,pdfShort(money(Number(x[1]||0)),18),true)});
+  const fin=[['Diárias',s.dailyTotal],['Extras',s.extrasTotal],['Total',s.total],['Recebido',s.received],['Reembolsado',s.refunded],['Saldo',s.balance]];
+  const fw=515/6;
+  fin.forEach((x,i)=>{const xx=40+i*fw;rect(xx,558,fw,38);t(xx+7,583,7,x[0].toUpperCase(),true);t(xx+7,567,9,pdfShort(money(x[0]==='Saldo'?Math.abs(Number(x[1]||0)):Number(x[1]||0)),18),true)});
   t(40,536,8,'RESUMO DA COMPOSIÇÃO',true);line(40,530,555,530);
   t(42,518,7,'PERÍODO',true);t(145,518,7,'DESCRIÇÃO',true);t(442,518,7,'QTD.',true);t(490,518,7,'VALOR',true);
   let y=502;
@@ -1075,7 +1075,7 @@ function printSettlementSheet(a,knownSettlement=null){
         .box{border:1px solid #dfe7e7;border-radius:7px;padding:8px}.box span{display:block;color:#6d7b7e;font-size:7.5pt;text-transform:uppercase;font-weight:700;letter-spacing:.03em}.box strong{display:block;margin-top:3px;font-size:10pt}
         .period{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
         .daily{border:1px solid #cfe4e4;background:#f3f9f9;border-radius:7px;padding:9px;margin:10px 0;display:flex;justify-content:space-between;align-items:center}.daily strong{font-size:14pt;color:#07575a}.daily small{display:block;color:#6d7b7e;margin-top:2px}
-        .finance{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #dfe7e7;border-radius:7px;overflow:hidden;margin:10px 0 12px}.finance div{padding:8px;border-right:1px solid #dfe7e7}.finance div:last-child{border-right:0}.finance span{display:block;color:#6d7b7e;font-size:7.5pt}.finance strong{display:block;margin-top:3px;font-size:10.5pt}.finance .saldo strong{font-size:12pt}
+        .finance{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #dfe7e7;border-radius:7px;overflow:hidden;margin:10px 0 12px}.finance div{padding:8px;border-right:1px solid #dfe7e7}.finance div:last-child{border-right:0}.finance span{display:block;color:#6d7b7e;font-size:7.5pt}.finance strong{display:block;margin-top:3px;font-size:10.5pt}.finance .saldo strong{font-size:12pt}
         h2{font-size:9pt;text-transform:uppercase;letter-spacing:.05em;color:#5d6d70;margin:12px 0 6px}
         table{width:100%;border-collapse:collapse;font-size:8.5pt}th{background:#f5f8f8;color:#5d6d70;text-align:left;font-size:7.5pt;text-transform:uppercase}th,td{border:1px solid #e1e8e8;padding:5px 6px}th:last-child,td:last-child{text-align:right}
         .proof{margin-top:12px;border:1px dashed #9caaaa;border-radius:6px;padding:9px;flex:1;min-height:145px}.proof h2{margin-top:0}.proof p{color:#6d7b7e;margin:3px 0 0;font-size:8pt}.proof-space{min-height:105px}
@@ -1103,12 +1103,13 @@ function printSettlementSheet(a,knownSettlement=null){
         <div><span>Extras</span><strong>${money(Number(s.extrasTotal||0))}</strong></div>
         <div><span>Total</span><strong>${money(Number(s.total||0))}</strong></div>
         <div><span>Recebido</span><strong>${money(Number(s.received||0))}</strong></div>
-        <div class="saldo"><span>Saldo</span><strong>${money(Number(s.balance||0))}</strong></div>
+        <div><span>Reembolsado</span><strong>${money(Number(s.refunded||0))}</strong></div>
+        <div class="saldo"><span>Saldo</span><strong>${money(Math.abs(Number(s.balance||0)))}</strong></div>
       </div>
       <h2>Resumo da composição</h2>
       <table><thead><tr><th>Período</th><th>Descrição</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${printItems.map(x=>`<tr><td>${esc(x.period)}</td><td>${esc(x.description)}</td><td>${Number(x.qty).toLocaleString('pt-BR',{maximumFractionDigits:1})}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table><div style="font-size:7.5pt;color:#6d7b7e;margin-top:4px">O detalhamento completo permanece disponível no sistema.</div>
-      ${payGroups.length?`<h2>Pagamentos</h2><table><thead><tr><th>Período</th><th>Forma</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${payGroups.map(x=>`<tr><td>${esc(x.period)}</td><td>${esc(x.method)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table>`:''}
-      <div class="proof"><h2>Comprovantes de pagamento</h2><p>Anexar abaixo o(s) comprovante(s) original(is) de PIX, cartão, transferência ou outro meio utilizado.</p><div class="proof-space"></div></div>
+      ${payGroups.length?`<h2>Movimentações de caixa</h2><table><thead><tr><th>Período</th><th>Tipo / forma</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${payGroups.map(x=>`<tr><td>${esc(x.period)}</td><td>${esc(x.method)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table>`:''}
+      <div class="proof"><h2>Comprovantes de movimentação financeira</h2><p>Anexar abaixo os comprovantes originais de recebimentos ou reembolsos registrados nesta conta.</p><div class="proof-space"></div></div>
       <div class="footer"><div><strong>Responsável pelo fechamento:</strong> ${esc(a.closer||'—')}<br><strong>Documento emitido por:</strong> ${esc(data.currentUser)} • ${fmtDT(new Date().toISOString())}</div><div class="sign">Conferência / Visto</div></div>
       </main></body></html>`);
       win.document.close();
