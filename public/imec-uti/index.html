@@ -800,6 +800,18 @@ function printSettlementSheet(a,knownSettlement=null){
     try{
       const s=knownSettlement||await fetchSettlement(a,a.dischargeAt);
       const p=patient(a.patientId),items=(s.items||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt)),pays=(s.payments||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
+      const dailyGroups=new Map();
+      items.filter(x=>x.kind==='daily').forEach(x=>{
+        const key=`${x.description||'Diária'}|${Number(x.amount||0)}`,g=dailyGroups.get(key)||{description:x.description||'Diária',qty:0,total:0,first:x.occurredAt,last:x.occurredAt};
+        g.qty+=Number(x.units||1);g.total+=Number(x.amount||0);g.last=x.occurredAt;dailyGroups.set(key,g);
+      });
+      const printItems=[
+        ...[...dailyGroups.values()].map(g=>({description:g.description,qty:g.qty,total:g.total,period:g.first===g.last?fmtDM(g.first):`${fmtDM(g.first)} a ${fmtDM(g.last)}`})),
+        ...items.filter(x=>x.kind!=='daily').map(x=>({description:x.description||x.category||'Extra',qty:1,total:Number(x.amount||0),period:fmtDM(x.occurredAt)}))
+      ];
+      const payMap=new Map();
+      pays.forEach(x=>{const g=payMap.get(x.method)||{method:x.method,qty:0,total:0};g.qty+=1;g.total+=Number(x.amount||0);payMap.set(x.method,g)});
+      const payGroups=[...payMap.values()];
       const status=Number(s.balance||0)<=0?'ACERTO QUITADO':'ACERTO COM PENDÊNCIA';
       const statusClass=Number(s.balance||0)<=0?'ok':'pending';
       win.document.open();
@@ -843,8 +855,8 @@ function printSettlementSheet(a,knownSettlement=null){
         <div class="saldo"><span>Saldo</span><strong>${money(Number(s.balance||0))}</strong></div>
       </div>
       <h2>Composição do acerto</h2>
-      <table><thead><tr><th>Data/hora</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>${items.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(x.description||x.category||'Lançamento')}</td><td>${money(Number(x.amount||0))}</td></tr>`).join('')}</tbody></table>
-      ${pays.length?`<h2>Pagamentos</h2><table><thead><tr><th>Data/hora</th><th>Forma</th><th>Valor</th></tr></thead><tbody>${pays.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(x.method)}</td><td>${money(Number(x.amount||0))}</td></tr>`).join('')}</tbody></table>`:''}
+      <table><thead><tr><th>Período</th><th>Descrição</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${printItems.map(x=>`<tr><td>${esc(x.period)}</td><td>${esc(x.description)}</td><td>${Number(x.qty).toLocaleString('pt-BR',{maximumFractionDigits:1})}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table>
+      ${payGroups.length?`<h2>Pagamentos</h2><table><thead><tr><th>Forma</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${payGroups.map(x=>`<tr><td>${esc(x.method)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table>`:''}
       <div class="proof"><h2>Comprovantes de pagamento</h2><p>Anexar abaixo o(s) comprovante(s) original(is) de PIX, cartão, transferência ou outro meio utilizado.</p><div class="proof-space"></div></div>
       <div class="footer"><div><strong>Responsável pelo fechamento:</strong> ${esc(a.closer||'—')}<br><strong>Documento emitido por:</strong> ${esc(data.currentUser)} • ${fmtDT(new Date().toISOString())}</div><div class="sign">Conferência / Visto</div></div>
       </body></html>`);
