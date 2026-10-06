@@ -14,8 +14,8 @@
     "security": "node scripts/security-audit.mjs"
   },
   "dependencies": {
-    "astro": "6.4.8",
-    "@astrojs/react": "5.0.5",
+    "astro": "7.3.6",
+    "@astrojs/react": "7.0.0",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
