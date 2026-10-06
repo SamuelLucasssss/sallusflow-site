@@ -797,7 +797,7 @@ function printSettlementSheet(a,knownSettlement=null){
       <table><thead><tr><th>Data/hora</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>${items.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(x.description||x.category||'Lançamento')}</td><td>${money(Number(x.amount||0))}</td></tr>`).join('')}</tbody></table>
       ${pays.length?`<h2>Pagamentos</h2><table><thead><tr><th>Data/hora</th><th>Forma</th><th>Valor</th></tr></thead><tbody>${pays.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(x.method)}</td><td>${money(Number(x.amount||0))}</td></tr>`).join('')}</tbody></table>`:''}
       <div class="proof"><h2>Comprovantes de pagamento</h2><p>Anexar abaixo o(s) comprovante(s) original(is) de PIX, cartão, transferência ou outro meio utilizado.</p><div class="proof-space"></div></div>
-      <div class="footer"><div><strong>Acerto registrado por:</strong> ${esc(data.currentUser)}<br>Emissão: ${fmtDT(new Date().toISOString())}</div><div class="sign">Conferência / Visto</div></div>
+      <div class="footer"><div><strong>Responsável pelo fechamento:</strong> ${esc(a.closer||'—')}<br><strong>Documento emitido por:</strong> ${esc(data.currentUser)} • ${fmtDT(new Date().toISOString())}</div><div class="sign">Conferência / Visto</div></div>
       </body></html>`);
       win.document.close();
       setTimeout(()=>{try{win.focus();win.print()}catch{}},350);
