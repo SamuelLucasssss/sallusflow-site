@@ -562,12 +562,33 @@ function dischargeModal(a){
 function rateModal(a){const r=currentRate(a),isPrivate=a.mode==='private';openModal('Ajustar diária','A alteração vale dali para frente; cobranças anteriores permanecem intactas.',`<form class="form" id="rateForm">${isPrivate?field('Ventilação mecânica',`<select id="rVent"><option value="0" ${!r.ventilation?'selected':''}>Não</option><option value="1" ${r.ventilation?'selected':''}>Sim</option></select>`):''}<div class="form-grid two">${field('Validade a partir de',`<input id="rWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Nova diária',`<div class="currency-input"><span>R$</span><input id="rValue" value="${r.negotiatedRate}" inputmode="decimal"></div>`)}</div><div class="summary-box"><div><span>Valor padrão</span><strong id="rStandard">—</strong></div><div><span>Valor aplicado</span><strong id="rApplied">${money(r.negotiatedRate)}</strong></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">↻ Salvar condição</button></div></form>`);document.querySelector('[data-close2]').onclick=closeModal;const upd=()=>{const vent=isPrivate&&document.getElementById('rVent').value==='1',std=isPrivate?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):bedRate(a.bed),val=Number(document.getElementById('rValue').value.replace(',','.'))||0;document.getElementById('rStandard').textContent=money(std);document.getElementById('rApplied').textContent=money(val)};if(isPrivate)document.getElementById('rVent').onchange=e=>{const std=e.target.value==='1'?PRIVATE_VENT:PRIVATE_NO_VENT;document.getElementById('rValue').value=std;upd()};document.getElementById('rValue').oninput=upd;upd();document.getElementById('rateForm').onsubmit=e=>{e.preventDefault();const vent=isPrivate&&document.getElementById('rVent').value==='1',std=isPrivate?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):bedRate(a.bed),v=Number(document.getElementById('rValue').value.replace(',','.')),eff=parseLocal(document.getElementById('rWhen').value),label=isPrivate?(vent?'Particular com ventilação':'Particular sem ventilação'):bedLabel(a.bed);if(!v||v<=0)return;a.rateHistory.push({id:uid(),effectiveAt:eff,standardRate:std,negotiatedRate:v,ventilation:isPrivate?vent:undefined,label,changedBy:data.currentUser});audit(a.id,'Diária ajustada',`A partir de ${fmtDT(eff)} • ${label} • ${money(v)}`);save();closeModal();toast('Nova condição salva para as próximas diárias.');render()}}
 
 function bindPage(){document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{state.selectedId=b.dataset.open;render()});const s=document.getElementById('searchPatients');if(s)s.oninput=e=>{state.search=e.target.value;render()};document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.patientFilter=b.dataset.filter;render()});document.querySelectorAll('[data-ftab]').forEach(b=>b.onclick=()=>{state.financeTab=b.dataset.ftab;render()});const cu=document.getElementById('currentUser');if(cu)cu.onchange=e=>{data.currentUser=e.target.value;save();render()};const od=document.getElementById('onDuty');if(od)od.onchange=e=>{data.onDuty=e.target.value;save();toast('Plantão comercial atualizado.');render()};}
+function refundModal(a){
+  if(data.currentRole!=='admin'){toast('Somente administradores podem registrar reembolsos.');return}
+  const t=totals(a.id),credit=Math.max(0,-t.balance);
+  if(credit<=0.009){toast('Não há crédito a devolver nesta conta.');return}
+  const clientRef=crypto.randomUUID();
+  openModal('Registrar reembolso',`Crédito atual: ${money(credit)}`,`<form class="form" id="refundForm">${field('Valor devolvido',`<div class="currency-input large"><span>R$</span><input id="rfdValue" autofocus inputmode="decimal" value="${credit.toFixed(2)}"></div>`)}<div class="form-grid two">${field('Data e hora',`<input id="rfdWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Forma','<select id="rfdMethod"><option>PIX</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Outro</option></select>')}</div>${field('Observação','<textarea id="rfdNotes" rows="2" placeholder="Ex.: devolução de cobrança cancelada"></textarea>','Opcional')}<div id="refundError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">↗ Registrar reembolso</button></div></form>`);
+  document.querySelector('[data-close2]').onclick=closeModal;
+  document.getElementById('refundForm').onsubmit=async e=>{
+    e.preventDefault();if(remoteBusy)return;
+    const amount=Number(document.getElementById('rfdValue').value.replace(',','.')),er=document.getElementById('refundError');
+    if(!amount||amount<=0){er.innerHTML='<div class="form-error">⚠ Informe um valor válido.</div>';return}
+    try{
+      setLoading(true,'Registrando reembolso…');
+      await rpc('add_uti_refund',{p_admission_id:a.id,p_occurred_at:parseLocal(document.getElementById('rfdWhen').value),p_amount:amount,p_method:document.getElementById('rfdMethod').value,p_notes:document.getElementById('rfdNotes').value.trim()||null,p_client_ref:clientRef});
+      await loadRemote({quiet:true});closeModal();toast('Reembolso registrado com auditoria.');render();
+    }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+  };
+}
+
 function correctionsModal(a){
-  const pays=data.payments.filter(x=>x.admissionId===a.id),extras=data.charges.filter(x=>x.admissionId===a.id&&x.kind!=='daily');
-  if(!pays.length&&!extras.length){toast('Não há lançamentos manuais para corrigir.');return}
+  if(data.currentRole!=='admin'){toast('Somente administradores podem corrigir lançamentos financeiros.');return}
+  const pays=data.payments.filter(x=>x.admissionId===a.id),extras=data.charges.filter(x=>x.admissionId===a.id&&x.kind!=='daily'),refunds=(data.refunds||[]).filter(x=>x.admissionId===a.id);
+  if(!pays.length&&!extras.length&&!refunds.length){toast('Não há lançamentos manuais para corrigir.');return}
   const rows=[
     ...pays.map(x=>({id:x.id,type:'payment',at:x.occurredAt,label:`Pagamento • ${x.method}`,amount:x.amount})),
-    ...extras.map(x=>({id:x.id,type:'extra',at:x.occurredAt,label:x.description||x.category||'Extra',amount:x.amount}))
+    ...extras.map(x=>({id:x.id,type:'extra',at:x.occurredAt,label:x.description||x.category||'Extra',amount:x.amount})),
+    ...refunds.map(x=>({id:x.id,type:'refund',at:x.occurredAt,label:`Reembolso • ${x.method}`,amount:x.amount}))
   ].sort((x,y)=>new Date(y.at)-new Date(x.at));
   openModal('Corrigir lançamento','O registro original permanece no banco e a correção fica na auditoria.',`
     <div class="form">
@@ -586,6 +607,7 @@ function correctionsModal(a){
       setLoading(true,'Registrando correção…');
       const type=btn.dataset.correctType,id=btn.dataset.correctId;
       if(type==='payment')await rpc('cancel_uti_payment',{p_payment_id:id,p_reason:reason});
+      else if(type==='refund')await rpc('cancel_uti_refund',{p_refund_id:id,p_reason:reason});
       else await rpc('cancel_uti_extra',{p_charge_id:id,p_reason:reason});
       await loadRemote({quiet:true});closeModal();toast('Correção registrada com auditoria.');render();
     }catch(ex){alert(ex.message)}finally{setLoading(false)}
@@ -718,6 +740,12 @@ async function changePasswordModal(){
 async function boot(){authState=restoreAuth();if(!authState){renderAuth();return}setLoading(true);try{await loadRemote()}finally{setLoading(false)}}
 
 function roleLabel(r){return r==='admin'?'Administrador':r==='commercial'?'Comercial':'Operacional'}
+const ROLE_PERMISSIONS={
+  commercial:new Set(['create_admission','add_extra','add_payment','adjust_rate','discharge','update_on_duty']),
+  operator:new Set(['create_admission','add_extra','discharge'])
+};
+function can(permission){return data?.currentRole==='admin'||!!ROLE_PERMISSIONS[data?.currentRole]?.has(permission)}
+function balanceMeta(v){const n=Number(v||0);if(n<-.009)return {label:'Crédito a devolver',amount:-n,kind:'credit'};if(n>.009)return {label:'Saldo a receber',amount:n,kind:'debt'};return {label:'Saldo',amount:0,kind:'paid'}}
 function settingsPage(){
   const members=teamProfiles.map(p=>`<div class="member-row"><div class="member-ident"><div class="avatar small">${esc((p.display_name||'?')[0])}</div><div><strong>${esc(p.display_name)}</strong><span>${esc(p.email||'Sem e-mail')}</span></div></div><div class="member-controls">${data.currentRole==='admin'?`<select data-member-role="${p.id}"><option value="operator" ${p.role==='operator'?'selected':''}>Operacional</option><option value="commercial" ${p.role==='commercial'?'selected':''}>Comercial</option><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option></select><label class="switch-label"><input type="checkbox" data-member-active="${p.id}" ${p.active?'checked':''}> <span>${p.active?'Ativo':'Pendente'}</span></label><button class="btn btn-secondary" data-save-member="${p.id}">Salvar</button>`:`<span class="badge ${p.active?'badge-good':'badge-warn'}">${p.active?'Ativo':'Pendente'}</span><span class="badge badge-neutral">${roleLabel(p.role)}</span>`}</div></div>`).join('');
   return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section><section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" data-action="export">⇩ Exportar backup</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, trava de leito duplicado e diárias reconciliadas no servidor. O banco da oncologia permanece separado.</span></div></div></section></div>`
@@ -1076,6 +1104,7 @@ function printSettlementSheet(a,knownSettlement=null){
 }
 
 function dischargeModal(a){
+  if(!can('discharge')){toast('Seu perfil não pode registrar alta.');return}
   const alreadyDischarged=!!a.dischargeAt;
   const def=a.dischargeAt?toLocalInput(new Date(a.dischargeAt)):nowLocalInput();
   let lastPreview=null,lastDis=null,confirmedSnapshot=null;
@@ -1095,26 +1124,40 @@ function dischargeModal(a){
     </div>`);
   document.getElementById('modalBackdrop')?.classList.add('settlement-modal');
   document.querySelector('[data-close2]').onclick=closeModal;
-
   const getDis=()=>a.dischargeAt||parseLocal(document.getElementById('dWhen').value);
+  const snapshot=s=>JSON.stringify([Number(s.accountVersion||0),Number(s.total||0),Number(s.received||0),Number(s.refunded||0),Number(s.balance||0),Number(s.dailyUnits||0)]);
 
   const bindPreviewActions=()=>{
-    const paymentRef=crypto.randomUUID();
     const payBtn=document.getElementById('settlePayBtn');
-    if(payBtn)payBtn.onclick=async()=>{
-      if(remoteBusy)return;
-      const val=Number(document.getElementById('settlePayValue').value.replace(',','.')),method=document.getElementById('settlePayMethod').value,when=parseLocal(document.getElementById('settlePayWhen').value),er=document.getElementById('settlePayError');
-      er.innerHTML='';
-      if(!val||val<=0){er.innerHTML='<div class="form-error">⚠ Informe um valor válido.</div>';return}
-      try{
-        setLoading(true,'Registrando recebimento…');
-        await rpc('add_uti_payment',{p_admission_id:a.id,p_occurred_at:when,p_amount:val,p_method:method,p_notes:'Recebimento no acerto de alta',p_client_ref:paymentRef});
-        await loadRemote({quiet:true});
-        a=admission(a.id);
-        await calculate();
-        toast('Pagamento registrado.');
-      }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
-    };
+    if(payBtn){
+      const paymentRef=crypto.randomUUID();
+      payBtn.onclick=async()=>{
+        if(remoteBusy)return;
+        const val=Number(document.getElementById('settlePayValue').value.replace(',','.')),method=document.getElementById('settlePayMethod').value,when=parseLocal(document.getElementById('settlePayWhen').value),er=document.getElementById('settlePayError');
+        er.innerHTML='';
+        if(!val||val<=0){er.innerHTML='<div class="form-error">⚠ Informe um valor válido.</div>';return}
+        try{
+          setLoading(true,'Registrando recebimento…');
+          await rpc('add_uti_payment',{p_admission_id:a.id,p_occurred_at:when,p_amount:val,p_method:method,p_notes:'Recebimento no acerto de alta',p_client_ref:paymentRef});
+          await loadRemote({quiet:true});a=admission(a.id);await calculate();toast('Pagamento registrado.');
+        }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+      };
+    }
+    const refundBtn=document.getElementById('settleRefundBtn');
+    if(refundBtn){
+      const refundRef=crypto.randomUUID();
+      refundBtn.onclick=async()=>{
+        if(remoteBusy)return;
+        const val=Number(document.getElementById('settleRefundValue').value.replace(',','.')),method=document.getElementById('settleRefundMethod').value,when=parseLocal(document.getElementById('settleRefundWhen').value),er=document.getElementById('settleRefundError');
+        er.innerHTML='';
+        if(!val||val<=0){er.innerHTML='<div class="form-error">⚠ Informe um valor válido.</div>';return}
+        try{
+          setLoading(true,'Registrando reembolso…');
+          await rpc('add_uti_refund',{p_admission_id:a.id,p_occurred_at:when,p_amount:val,p_method:method,p_notes:'Reembolso no acerto de alta',p_client_ref:refundRef});
+          await loadRemote({quiet:true});a=admission(a.id);await calculate();toast('Reembolso registrado.');
+        }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+      };
+    }
   };
 
   const renderActions=()=>{
@@ -1137,7 +1180,7 @@ function dischargeModal(a){
     try{
       setLoading(true,'Calculando acerto…');
       const s=await fetchSettlement(a,dis);
-      lastPreview=s;lastDis=dis;confirmedSnapshot=JSON.stringify([Number(s.total||0),Number(s.received||0),Number(s.balance||0),Number(s.dailyUnits||0)]);
+      lastPreview=s;lastDis=dis;confirmedSnapshot=snapshot(s);
       document.getElementById('dPreview').innerHTML=settlementPreviewMarkup(a,s);
       bindPreviewActions();renderActions();
     }catch(ex){lastPreview=null;document.getElementById('dPreview').innerHTML='';er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`;renderActions()}
@@ -1150,8 +1193,7 @@ function dischargeModal(a){
     if(!lastPreview||dis!==lastDis){er.innerHTML='<div class="form-warning">⚠ Recalcule o acerto antes de confirmar.</div>';return}
     try{
       setLoading(true,'Conferindo e registrando alta…');
-      const fresh=await fetchSettlement(a,dis);
-      const freshSnap=JSON.stringify([Number(fresh.total||0),Number(fresh.received||0),Number(fresh.balance||0),Number(fresh.dailyUnits||0)]);
+      const fresh=await fetchSettlement(a,dis),freshSnap=snapshot(fresh);
       if(freshSnap!==confirmedSnapshot){
         lastPreview=fresh;confirmedSnapshot=freshSnap;
         document.getElementById('dPreview').innerHTML=settlementPreviewMarkup(a,fresh);
@@ -1159,12 +1201,10 @@ function dischargeModal(a){
         er.innerHTML='<div class="form-warning">⚠ A conta foi atualizada desde a última conferência. Revise os novos valores e confirme novamente.</div>';
         return;
       }
-      const status=await rpc('discharge_uti',{p_admission_id:a.id,p_discharge_at:dis});
-      await loadRemote({quiet:true});
-      a=admission(a.id);
-      lastPreview=await fetchSettlement(a,a.dischargeAt);
+      const status=await rpc('discharge_uti',{p_admission_id:a.id,p_discharge_at:dis,p_expected_version:Number(fresh.accountVersion)});
+      await loadRemote({quiet:true});a=admission(a.id);lastPreview=await fetchSettlement(a,a.dischargeAt);
       closeModal();
-      toast((status==='finalized'?'Alta registrada e conta finalizada.':'Alta registrada com saldo pendente.')+' A Folha de Acerto já está disponível para imprimir ou baixar em PDF.');
+      toast(status==='finalized'?'Alta registrada e conta finalizada.':'Alta registrada; ainda existe uma pendência financeira.');
       render();
     }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
   };
@@ -1177,13 +1217,14 @@ function dischargeModal(a){
 function bindDetail(a){
   document.querySelectorAll('[data-action="back"]').forEach(b=>b.onclick=()=>{state.selectedId=null;render()});
   document.querySelectorAll('[data-action="payment"]').forEach(b=>b.onclick=()=>paymentModal(a));
+  document.querySelectorAll('[data-action="refund"]').forEach(b=>b.onclick=()=>refundModal(a));
   document.querySelectorAll('[data-action="extra"]').forEach(b=>b.onclick=()=>extraModal(a));
   document.querySelectorAll('[data-action="rate"]').forEach(b=>b.onclick=()=>rateModal(a));
   document.querySelectorAll('[data-action="discharge"]').forEach(b=>{const sp=b.querySelector('span');if(sp)sp.textContent=a.dischargeAt?'Acerto / saída':'Alta e acerto';b.onclick=()=>dischargeModal(a)});
   document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=()=>window.print());
   const actions=document.querySelector('.detail-actions');
-  const hasCorrectable=data.payments.some(x=>x.admissionId===a.id)||data.charges.some(x=>x.admissionId===a.id&&x.kind!=='daily');
-  if(actions&&hasCorrectable&&!actions.querySelector('[data-action="corrections"]')){
+  const hasCorrectable=data.payments.some(x=>x.admissionId===a.id)||data.charges.some(x=>x.admissionId===a.id&&x.kind!=='daily')||(data.refunds||[]).some(x=>x.admissionId===a.id);
+  if(actions&&data.currentRole==='admin'&&hasCorrectable&&!actions.querySelector('[data-action="corrections"]')){
     const cb=document.createElement('button');cb.className='btn btn-secondary';cb.dataset.action='corrections';cb.innerHTML='↺ Corrigir lançamento';cb.onclick=()=>correctionsModal(a);actions.insertBefore(cb,actions.firstChild);
   }
   if(actions&&a.dischargeAt&&!actions.querySelector('[data-action="settlement-sheet"]')){
@@ -1199,7 +1240,7 @@ function bindPage(){
   document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.patientFilter=b.dataset.filter;render()});
   document.querySelectorAll('[data-ftab]').forEach(b=>b.onclick=()=>{state.financeTab=b.dataset.ftab;render()});
   const od=document.getElementById('onDuty');if(od)od.onchange=async e=>{const next=e.target.value;try{setLoading(true);await rpc('update_uti_on_duty',{p_name:next});await loadRemote({quiet:true});toast('Plantão comercial atualizado.');render()}catch(ex){alert(ex.message);render()}finally{setLoading(false)}};
-  const mr=document.getElementById('manualRefresh');if(mr)mr.onclick=()=>withRemote(async()=>{await loadRemote({quiet:true});render()},'Dados atualizados.');
+  const mr=document.getElementById('manualRefresh');if(mr)mr.onclick=()=>withRemote(async()=>{const ok=await loadRemote({quiet:true});if(!ok)throw new Error('Não foi possível atualizar os dados.');render()},'Dados atualizados.');
   const cp=document.getElementById('changePasswordBtn');if(cp)cp.onclick=changePasswordModal;const lo=document.getElementById('logoutBtn');if(lo)lo.onclick=logoutRemote;
   document.querySelectorAll('[data-save-member]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.saveMember,role=document.querySelector(`[data-member-role="${id}"]`).value,active=document.querySelector(`[data-member-active="${id}"]`).checked;try{setLoading(true,'Atualizando acesso…');await rpc('admin_update_uti_member',{p_user_id:id,p_active:active,p_role:role});await loadRemote({quiet:true});toast('Acesso atualizado.');render()}catch(ex){alert(ex.message)}finally{setLoading(false)}});
 }
