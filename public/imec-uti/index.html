@@ -562,6 +562,36 @@ function dischargeModal(a){
 function rateModal(a){const r=currentRate(a),isPrivate=a.mode==='private';openModal('Ajustar diária','A alteração vale dali para frente; cobranças anteriores permanecem intactas.',`<form class="form" id="rateForm">${isPrivate?field('Ventilação mecânica',`<select id="rVent"><option value="0" ${!r.ventilation?'selected':''}>Não</option><option value="1" ${r.ventilation?'selected':''}>Sim</option></select>`):''}<div class="form-grid two">${field('Validade a partir de',`<input id="rWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Nova diária',`<div class="currency-input"><span>R$</span><input id="rValue" value="${r.negotiatedRate}" inputmode="decimal"></div>`)}</div><div class="summary-box"><div><span>Valor padrão</span><strong id="rStandard">—</strong></div><div><span>Valor aplicado</span><strong id="rApplied">${money(r.negotiatedRate)}</strong></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">↻ Salvar condição</button></div></form>`);document.querySelector('[data-close2]').onclick=closeModal;const upd=()=>{const vent=isPrivate&&document.getElementById('rVent').value==='1',std=isPrivate?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):bedRate(a.bed),val=Number(document.getElementById('rValue').value.replace(',','.'))||0;document.getElementById('rStandard').textContent=money(std);document.getElementById('rApplied').textContent=money(val)};if(isPrivate)document.getElementById('rVent').onchange=e=>{const std=e.target.value==='1'?PRIVATE_VENT:PRIVATE_NO_VENT;document.getElementById('rValue').value=std;upd()};document.getElementById('rValue').oninput=upd;upd();document.getElementById('rateForm').onsubmit=e=>{e.preventDefault();const vent=isPrivate&&document.getElementById('rVent').value==='1',std=isPrivate?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):bedRate(a.bed),v=Number(document.getElementById('rValue').value.replace(',','.')),eff=parseLocal(document.getElementById('rWhen').value),label=isPrivate?(vent?'Particular com ventilação':'Particular sem ventilação'):bedLabel(a.bed);if(!v||v<=0)return;a.rateHistory.push({id:uid(),effectiveAt:eff,standardRate:std,negotiatedRate:v,ventilation:isPrivate?vent:undefined,label,changedBy:data.currentUser});audit(a.id,'Diária ajustada',`A partir de ${fmtDT(eff)} • ${label} • ${money(v)}`);save();closeModal();toast('Nova condição salva para as próximas diárias.');render()}}
 
 function bindPage(){document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{state.selectedId=b.dataset.open;render()});const s=document.getElementById('searchPatients');if(s)s.oninput=e=>{state.search=e.target.value;render()};document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.patientFilter=b.dataset.filter;render()});document.querySelectorAll('[data-ftab]').forEach(b=>b.onclick=()=>{state.financeTab=b.dataset.ftab;render()});const cu=document.getElementById('currentUser');if(cu)cu.onchange=e=>{data.currentUser=e.target.value;save();render()};const od=document.getElementById('onDuty');if(od)od.onchange=e=>{data.onDuty=e.target.value;save();toast('Plantão comercial atualizado.');render()};}
+function correctionsModal(a){
+  const pays=data.payments.filter(x=>x.admissionId===a.id),extras=data.charges.filter(x=>x.admissionId===a.id&&x.kind!=='daily');
+  if(!pays.length&&!extras.length){toast('Não há lançamentos manuais para corrigir.');return}
+  const rows=[
+    ...pays.map(x=>({id:x.id,type:'payment',at:x.occurredAt,label:`Pagamento • ${x.method}`,amount:x.amount})),
+    ...extras.map(x=>({id:x.id,type:'extra',at:x.occurredAt,label:x.description||x.category||'Extra',amount:x.amount}))
+  ].sort((x,y)=>new Date(y.at)-new Date(x.at));
+  openModal('Corrigir lançamento','O registro original permanece no banco e a correção fica na auditoria.',`
+    <div class="form">
+      <div class="settle-table-wrap"><table class="settle-table"><thead><tr><th>Data/hora</th><th>Lançamento</th><th>Valor</th><th></th></tr></thead><tbody>
+      ${rows.map(x=>`<tr><td>${fmtDT(x.at)}</td><td>${esc(x.label)}</td><td>${money(x.amount)}</td><td><button class="btn btn-secondary" data-correct-type="${x.type}" data-correct-id="${x.id}">Corrigir</button></td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="form-warning">⚠ Use apenas para corrigir lançamento feito incorretamente. O motivo é obrigatório e ficará registrado.</div>
+      <div class="modal-actions"><button class="btn btn-secondary" data-close2>Fechar</button></div>
+    </div>`);
+  document.querySelector('[data-close2]').onclick=closeModal;
+  document.querySelectorAll('[data-correct-id]').forEach(btn=>btn.onclick=async()=>{
+    if(remoteBusy)return;
+    const reason=prompt('Informe o motivo da correção:')?.trim();
+    if(!reason)return;
+    try{
+      setLoading(true,'Registrando correção…');
+      const type=btn.dataset.correctType,id=btn.dataset.correctId;
+      if(type==='payment')await rpc('cancel_uti_payment',{p_payment_id:id,p_reason:reason});
+      else await rpc('cancel_uti_extra',{p_charge_id:id,p_reason:reason});
+      await loadRemote({quiet:true});closeModal();toast('Correção registrada com auditoria.');render();
+    }catch(ex){alert(ex.message)}finally{setLoading(false)}
+  });
+}
+
 function bindDetail(a){document.querySelectorAll('[data-action="back"]').forEach(b=>b.onclick=()=>{state.selectedId=null;render()});document.querySelectorAll('[data-action="payment"]').forEach(b=>b.onclick=()=>paymentModal(a));document.querySelectorAll('[data-action="extra"]').forEach(b=>b.onclick=()=>extraModal(a));document.querySelectorAll('[data-action="rate"]').forEach(b=>b.onclick=()=>rateModal(a));document.querySelectorAll('[data-action="discharge"]').forEach(b=>b.onclick=()=>dischargeModal(a));document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=()=>window.print())}
 
 
@@ -642,8 +672,8 @@ async function loadRemote({quiet=false}={}){
       rest('patients?select=*&order=created_at.asc'),
       rest('admissions?select=*&order=entry_at.desc'),
       rest('rate_periods?select=*&order=effective_at.asc'),
-      rest('charges?select=*&order=occurred_at.asc'),
-      rest('payments?select=*&order=occurred_at.asc'),
+      rest('charges?cancelled_at=is.null&select=*&order=occurred_at.asc'),
+      rest('payments?cancelled_at=is.null&select=*&order=occurred_at.asc'),
       rest('audits?select=*&order=occurred_at.asc'),
       rest('app_settings?id=eq.1&select=*'),
       rest('profiles?select=id,display_name,email,role,active,created_at&order=created_at.asc')
@@ -976,6 +1006,10 @@ function bindDetail(a){
   document.querySelectorAll('[data-action="discharge"]').forEach(b=>{const sp=b.querySelector('span');if(sp)sp.textContent=a.dischargeAt?'Acerto / saída':'Alta e acerto';b.onclick=()=>dischargeModal(a)});
   document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=()=>window.print());
   const actions=document.querySelector('.detail-actions');
+  const hasCorrectable=data.payments.some(x=>x.admissionId===a.id)||data.charges.some(x=>x.admissionId===a.id&&x.kind!=='daily');
+  if(actions&&hasCorrectable&&!actions.querySelector('[data-action="corrections"]')){
+    const cb=document.createElement('button');cb.className='btn btn-secondary';cb.dataset.action='corrections';cb.innerHTML='↺ Corrigir lançamento';cb.onclick=()=>correctionsModal(a);actions.insertBefore(cb,actions.firstChild);
+  }
   if(actions&&a.dischargeAt&&!actions.querySelector('[data-action="settlement-sheet"]')){
     const b=document.createElement('button');b.className='btn btn-secondary';b.dataset.action='settlement-sheet';b.innerHTML='▤ Folha de Acerto';b.onclick=()=>printSettlementSheet(a);actions.insertBefore(b,actions.firstChild);
   }
