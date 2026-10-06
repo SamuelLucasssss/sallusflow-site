@@ -1004,13 +1004,13 @@ function buildSettlementPdfBytes(a,s){
   t(42,518,7,'PERÍODO',true);t(145,518,7,'DESCRIÇÃO',true);t(442,518,7,'QTD.',true);t(490,518,7,'VALOR',true);
   let y=502;
   m.lines.forEach(x=>{t(42,y,7,pdfShort(x.period,18));t(145,y,7,pdfShort(x.description,46));t(445,y,7,Number(x.qty).toLocaleString('pt-BR',{maximumFractionDigits:1}));t(486,y,7,pdfShort(money(x.total),15));y-=18});
-  t(40,390,8,'PAGAMENTOS',true);line(40,384,555,384);
-  if(!m.payGroups.length){t(42,367,8,'Nenhum pagamento registrado.');}
+  t(40,390,8,'MOVIMENTAÇÕES DE CAIXA',true);line(40,384,555,384);
+  if(!m.payGroups.length){t(42,367,8,'Nenhuma movimentação registrada.');}
   else{
     t(42,367,7,'PERÍODO',true);t(205,367,7,'FORMA',true);t(405,367,7,'QTD.',true);t(475,367,7,'VALOR',true);
     let py=350;m.payGroups.forEach(x=>{t(42,py,7,pdfShort(x.period,25));t(205,py,7,pdfShort(x.method,24));t(408,py,7,String(x.qty));t(472,py,7,pdfShort(money(x.total),16));py-=17});
   }
-  cmd.push('0.65 G');rect(40,88,515,185);t(50,252,8,'COMPROVANTES DE PAGAMENTO',true);t(50,237,7,'Anexar nesta área os comprovantes originais de PIX, cartão, transferência ou outro meio.');
+  cmd.push('0.65 G');rect(40,88,515,185);t(50,252,8,'COMPROVANTES DE MOVIMENTAÇÃO',true);t(50,237,7,'Anexar nesta área os comprovantes originais de recebimentos ou reembolsos.');
   t(40,60,7,'Responsável pelo fechamento: '+pdfShort(a.closer||'—',34),true);
   t(40,47,7,'Emitido por: '+pdfShort(data.currentUser||'—',30)+' - '+fmtDT(new Date().toISOString()));
   t(395,47,7,'Conferência / Visto');line(395,58,555,58);
