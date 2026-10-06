@@ -441,7 +441,7 @@ const bedRate=bed=>bed>=17?HOTEL_SUITE:HOTEL_SIMPLE;
 const bedLabel=bed=>bed>=17?'Hotelaria com suíte':'Hotelaria individual';
 const late=v=>{const m=String(v).match(/T(\d{2}):/);return m?Number(m[1])>=18:businessParts(v).hour>=18};
 
-function blankData(){return {patients:[],admissions:[],charges:[],payments:[],audits:[],currentUser:'Samuel',onDuty:'Samuel',seededDemo:false}}
+function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
 function isoDaysAgoAt(days,h,m=0){const p=businessParts(new Date()),u=new Date(Date.UTC(p.year,p.month-1,p.day-days));return localDateAt(u.getUTCFullYear(),u.getUTCMonth()+1,u.getUTCDate(),h,m).toISOString()}
 function demoData(){
   const p1={id:uid(),name:'João Batista da Silva',cpf:'12345678900',createdAt:new Date().toISOString()};
@@ -483,7 +483,7 @@ function ensureCharges(d,a,now=new Date()){
   while(cycle<end&&guard++<3650){const k=`cycle:${a.id}:${cycle.toISOString()}`;if(!keys.has(k)){const r=currentRate(a,cycle);d.charges.push({id:uid(),admissionId:a.id,occurredAt:cycle.toISOString(),kind:'daily',category:a.mode==='private'?'Diária UTI':'Hotelaria',description:`Diária — ${r.label}`,amount:r.negotiatedRate,cycleKey:k,createdBy:d.currentUser});keys.add(k)}cycle=addLocalDaysAtSeven(cycle,1)}
 }
 function refreshCharges(){data.admissions.filter(a=>a.status==='active'||a.status==='discharge_pending').forEach(a=>ensureCharges(data,a,new Date()));save()}
-function totals(id){const billed=data.charges.filter(c=>c.admissionId===id).reduce((s,c)=>s+c.amount,0);const received=data.payments.filter(p=>p.admissionId===id).reduce((s,p)=>s+p.amount,0);return {billed,received,balance:billed-received}}
+function totals(id){const billed=data.charges.filter(c=>c.admissionId===id).reduce((s,c)=>s+c.amount,0),received=data.payments.filter(p=>p.admissionId===id).reduce((s,p)=>s+p.amount,0),refunded=(data.refunds||[]).filter(r=>r.admissionId===id).reduce((s,r)=>s+r.amount,0),netReceived=received-refunded;return {billed,received,refunded,netReceived,balance:billed-received+refunded}}
 function patient(id){return data.patients.find(p=>p.id===id)}
 function admission(id){return data.admissions.find(a=>a.id===id)}
 function hospitalDays(a){const st=new Date(a.entryAt), en=a.dischargeAt?new Date(a.dischargeAt):new Date();return Math.max(1,Math.ceil(Math.max(0,en-st)/86400000))}
@@ -602,6 +602,7 @@ const SUPABASE_KEY='sb_publishable_5icXK3ANBlaetf6DshGQfw_M5wSptqI';
 const AUTH_STORAGE_KEY='imec-uti-auth-v1';
 let authState=null;
 let teamProfiles=[];
+let teamClosers=[];
 let remoteBusy=false;
 
 function load(){return blankData()}
@@ -646,14 +647,16 @@ function setLoading(on,text='Sincronizando…'){
 }
 async function withRemote(work,success){if(remoteBusy)return;try{setLoading(true);const r=await work();if(success)toast(success);return r}catch(e){alert(e.message||'Não foi possível concluir a operação.');throw e}finally{setLoading(false)}}
 
-function mapRemote({patients,admissions,rates,charges,payments,audits,settings,profiles,profile}){
+function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings,profiles,closers,profile}){
   const rateMap={};(rates||[]).forEach(r=>(rateMap[r.admission_id]??=[]).push({id:r.id,effectiveAt:r.effective_at,standardRate:Number(r.standard_rate),negotiatedRate:Number(r.negotiated_rate),ventilation:r.ventilation??undefined,label:r.label,changedBy:r.changed_by_name}));
   teamProfiles=profiles||[];
+  teamClosers=closers||[];
   return {
     patients:(patients||[]).map(p=>({id:p.id,name:p.name,cpf:p.cpf||undefined,createdAt:p.created_at})),
-    admissions:(admissions||[]).map(a=>({id:a.id,patientId:a.patient_id,bed:a.bed,mode:a.mode,entryAt:a.entry_at,dischargeAt:a.discharge_at||undefined,status:a.status,closer:a.closer_name,createdBy:a.created_by_name,halfInitial:a.half_initial,commissionAmount:Number(a.commission_amount||0),notes:a.notes||undefined,createdAt:a.created_at,rateHistory:rateMap[a.id]||[]})),
+    admissions:(admissions||[]).map(a=>({id:a.id,patientId:a.patient_id,bed:a.bed,mode:a.mode,entryAt:a.entry_at,dischargeAt:a.discharge_at||undefined,status:a.status,closerId:a.closer_id||undefined,closer:a.closer_name,createdBy:a.created_by_name,halfInitial:a.half_initial,commissionAmount:Number(a.commission_amount||0),accountVersion:Number(a.account_version||1),notes:a.notes||undefined,createdAt:a.created_at,rateHistory:rateMap[a.id]||[]})),
     charges:(charges||[]).map(c=>({id:c.id,admissionId:c.admission_id,occurredAt:c.occurred_at,kind:c.kind,category:c.category,description:c.description,amount:Number(c.amount),cycleKey:c.cycle_key||undefined,createdBy:c.created_by_name})),
     payments:(payments||[]).map(p=>({id:p.id,admissionId:p.admission_id,occurredAt:p.occurred_at,amount:Number(p.amount),method:p.method,notes:p.notes||undefined,createdBy:p.created_by_name})),
+    refunds:(refunds||[]).map(r=>({id:r.id,admissionId:r.admission_id,occurredAt:r.occurred_at,amount:Number(r.amount),method:r.method,notes:r.notes||undefined,createdBy:r.created_by_name})),
     audits:(audits||[]).map(a=>({id:a.id,admissionId:a.admission_id||undefined,occurredAt:a.occurred_at,user:a.user_name,action:a.action,detail:a.detail})),
     currentUser:profile.display_name,currentRole:profile.role,onDuty:settings?.on_duty_name||'Samuel',seededDemo:false
   }
@@ -668,17 +671,19 @@ async function loadRemote({quiet=false}={}){
     if(!profile){renderAccountState('Seu perfil ainda está sendo preparado.','Tente novamente em alguns segundos.');return false}
     if(!profile.active){data=blankData();data.currentUser=profile.display_name;data.currentRole=profile.role;renderPending(profile);return false}
     try{await rpc('sync_uti_charges',{})}catch(e){console.warn('sync daily charges',e)}
-    const [patients,admissions,rates,charges,payments,audits,settingsRows,profiles]=await Promise.all([
+    const [patients,admissions,rates,charges,payments,refunds,audits,settingsRows,profiles,closers]=await Promise.all([
       rest('patients?select=*&order=created_at.asc'),
       rest('admissions?select=*&order=entry_at.desc'),
       rest('rate_periods?select=*&order=effective_at.asc'),
       rest('charges?cancelled_at=is.null&select=*&order=occurred_at.asc'),
       rest('payments?cancelled_at=is.null&select=*&order=occurred_at.asc'),
+      rest('refunds?cancelled_at=is.null&select=*&order=occurred_at.asc'),
       rest('audits?select=*&order=occurred_at.asc'),
       rest('app_settings?id=eq.1&select=*'),
-      rest('profiles?select=id,display_name,email,role,active,created_at&order=created_at.asc')
+      rest('profiles?select=id,display_name,email,role,active,created_at&order=created_at.asc'),
+      rest('commercial_closers?active=eq.true&select=id,code,display_name,commission_amount,active&order=display_name.asc')
     ]);
-    data=mapRemote({patients,admissions,rates,charges,payments,audits,settings:settingsRows?.[0],profiles,profile});
+    data=mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings:settingsRows?.[0],profiles,closers,profile});
     if(!quiet)render();
     return true;
   }catch(e){
@@ -686,7 +691,6 @@ async function loadRemote({quiet=false}={}){
     renderAccountState('Não foi possível carregar os dados.',e.message||'Verifique a conexão e tente novamente.');return false
   }
 }
-
 function authCard(inner){
   document.getElementById('app').innerHTML=`<main class="auth-shell"><section class="auth-card"><div class="auth-logo"><div class="brand-mark">I</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div>${inner}</section></main>`;
 }
