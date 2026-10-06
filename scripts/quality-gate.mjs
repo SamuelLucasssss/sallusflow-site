@@ -29,6 +29,9 @@ for (const token of [
   'ensureCharges(',
   "authFetch('signup'",
   'function renderSignup',
+  'save();',
+  "data-action=\"import\"",
+  "data-action=\"clear\"",
 ]) {
   if (app.includes(token)) fail(`Código legado/proibido encontrado: ${token}`);
 }
