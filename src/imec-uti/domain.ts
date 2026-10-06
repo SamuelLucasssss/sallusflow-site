@@ -87,10 +87,10 @@ export function spParts(value: Date | string | number) {
   return { year: p.year, month: p.month, day: p.day, hour: p.hour, minute: p.minute };
 }
 
-export function newAdmissionEstimate(entryValue: string, input: AdmissionEstimateInput) {
+export function newAdmissionEstimate(entryValue: string, input: AdmissionEstimateInput, now: Date = new Date()) {
   if (!entryValue || !input?.value || input.value <= 0) return { additional: 0, units: 0, total: 0, retro: false };
   const ep = spParts(parseLocal(entryValue));
-  const np = spParts(new Date());
+  const np = spParts(now);
   const entryDay = Date.UTC(ep.year, ep.month - 1, ep.day);
   const today = Date.UTC(np.year, np.month - 1, np.day);
   const limit = today - (np.hour < 7 ? 86_400_000 : 0);
