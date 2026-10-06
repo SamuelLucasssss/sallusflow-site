@@ -523,7 +523,7 @@ function patientsPage(){const q=state.search.toLowerCase().trim();let rows=data.
 function financePage(){const open=data.admissions.filter(a=>a.status==='active'||a.status==='discharge_pending').map(a=>({a,t:totals(a.id)})).filter(x=>x.t.balance>0).sort((x,y)=>y.t.balance-x.t.balance), rec=[...data.payments].sort((a,b)=>new Date(b.occurredAt)-new Date(a.occurredAt)), fin=data.admissions.filter(a=>a.status==='finalized').sort((a,b)=>new Date(b.dischargeAt||b.entryAt)-new Date(a.dischargeAt||a.entryAt));const totalOpen=open.reduce((s,x)=>s+x.t.balance,0),rt=data.payments.filter(p=>sameDay(p.occurredAt)).reduce((s,p)=>s+p.amount,0),rm=data.payments.filter(p=>sameMonth(p.occurredAt)).reduce((s,p)=>s+p.amount,0);let body='';if(state.financeTab==='pending')body=open.length?`<div class="finance-list">${open.map(({a,t})=>{const p=patient(a.patientId),pays=data.payments.filter(x=>x.admissionId===a.id).sort((x,y)=>new Date(y.occurredAt)-new Date(x.occurredAt));return `<button class="finance-row" data-open="${a.id}"><div><div class="finance-name"><strong>${esc(p?.name)}</strong>${a.status==='discharge_pending'?'<span class="badge badge-warn">Alta pendente</span>':''}</div><span>Leito ${String(a.bed).padStart(2,'0')} • Último pagamento: ${pays[0]?fmtDT(pays[0].occurredAt):'nenhum'}</span></div><div class="finance-amount"><span>Saldo</span><strong>${money(t.balance)}</strong></div><span>›</span></button>`}).join('')}</div>`:empty('Nenhum saldo em aberto','As contas abertas estão quitadas.');else if(state.financeTab==='receipts')body=rec.length?`<div class="receipt-list">${rec.map(p=>{const a=admission(p.admissionId),pt=a?patient(a.patientId):null;return `<div class="receipt-row"><div class="receipt-icon">↙</div><div><strong>${esc(pt?.name||'Paciente')}</strong><span>${fmtDT(p.occurredAt)} • ${esc(p.method)} • por ${esc(p.createdBy)}</span></div><strong>${money(p.amount)}</strong></div>`}).join('')}</div>`:empty('Nenhum recebimento','Os pagamentos registrados aparecerão aqui.');else body=fin.length?`<div class="finance-list">${fin.map(a=>{const p=patient(a.patientId),t=totals(a.id);return `<button class="finance-row" data-open="${a.id}"><div><div class="finance-name"><strong>${esc(p?.name)}</strong><span class="badge badge-good">Finalizado</span></div><span>Alta ${a.dischargeAt?fmtDT(a.dischargeAt):'—'} • ${a.mode==='private'?'Particular':'Hotelaria'}</span></div><div class="finance-amount"><span>Total</span><strong>${money(t.billed)}</strong></div><span>›</span></button>`}).join('')}</div>`:empty('Nenhuma conta finalizada','Internações quitadas e encerradas aparecerão aqui.');return `<section class="page-head"><div><span class="eyebrow">CAIXA & RECEBIMENTOS</span><h1>Financeiro</h1><p>O que entrou, o que falta receber e quais contas precisam ser fechadas.</p></div></section><div class="metric-grid finance-metrics">${metric('A receber',money(totalOpen),'',totalOpen>0?'warn':'good')}${metric('Recebido hoje',money(rt),'','good')}${metric('Recebido no mês',money(rm))}</div><div class="tabs"><button data-ftab="pending" class="${state.financeTab==='pending'?'active':''}">A receber <span>${open.length}</span></button><button data-ftab="receipts" class="${state.financeTab==='receipts'?'active':''}">Recebimentos</button><button data-ftab="finalized" class="${state.financeTab==='finalized'?'active':''}">Finalizados</button></div><section class="panel">${body}</section>`}
 function settingsPage(){return `<section class="page-head"><div><span class="eyebrow">PREFERÊNCIAS</span><h1>Configurações</h1><p>Usuário atual, plantão e segurança dos dados locais.</p></div></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Identificação dos lançamentos e escala comercial.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário atual</span><select id="currentUser">${USERS.map(u=>`<option ${u===data.currentUser?'selected':''}>${u}</option>`).join('')}</select></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Backup local</h2><p>Exporte um backup regularmente.</p></div></div><div class="backup-actions"><button class="btn btn-secondary" data-action="export">⇩ Exportar backup</button><button class="btn btn-secondary" data-action="import">⇧ Importar backup</button><input id="importFile" type="file" accept="application/json" hidden></div><div class="security-note"><span>◈</span><div><strong>V1 isolada</strong><span>Os dados ficam neste navegador e não usam o banco da oncologia. Antes do uso simultâneo por três usuários, migrar para um banco próprio da UTI.</span></div></div></section><section class="panel danger-panel"><div class="panel-head"><div><h2>Dados locais</h2><p>Limpe os dados fictícios quando quiser iniciar uma base vazia.</p></div></div><button class="btn btn-danger" data-action="clear">⌫ Limpar e começar vazio</button></section></div>`}
 
-function patientDetail(a){const p=patient(a.patientId),t=totals(a.id),r=currentRate(a),charges=data.charges.filter(c=>c.admissionId===a.id),payments=data.payments.filter(p=>p.admissionId===a.id),timeline=[...charges.map(item=>({kind:'c',at:item.occurredAt,item})),...payments.map(item=>({kind:'p',at:item.occurredAt,item}))].sort((x,y)=>new Date(y.at)-new Date(x.at)),daily=charges.filter(c=>c.kind==='daily').sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));let alloc=payments.reduce((s,p)=>s+p.amount,0);const cov=daily.map(c=>{const paid=Math.min(Math.max(alloc,0),c.amount);alloc-=paid;return {c,paid,status:paid>=c.amount?'paid':paid>0?'partial':'open'}});const audits=data.audits.filter(x=>x.admissionId===a.id).sort((x,y)=>new Date(y.occurredAt)-new Date(x.occurredAt));return `<div class="detail-top no-print"><button class="back-btn" data-action="back">← Voltar</button><div class="detail-actions"><button class="btn btn-secondary" data-action="print">▤ Extrato / PDF</button>${a.status!=='finalized'&&a.status!=='cancelled'?'<button class="btn btn-primary" data-action="payment">＋ Pagamento</button>':''}</div></div><section class="detail-hero print-area"><div class="detail-identity"><div class="bed-large">${String(a.bed).padStart(2,'0')}</div><div><div class="detail-badges">${statusBadge(a.status)}<span class="badge ${a.mode==='private'?'badge-brand':'badge-neutral'}">${a.mode==='private'?'Particular':'Hotelaria'}</span></div><h1>${esc(p?.name)}</h1><p>CPF ${cpfMask(p?.cpf)} • Responsável pelo fechamento: <strong>${esc(a.closer)}</strong></p></div></div><div class="detail-meta-grid"><div><span>Entrada</span><strong>${fmtDT(a.entryAt)}</strong></div><div><span>Saída</span><strong>${a.dischargeAt?fmtDT(a.dischargeAt):'Em andamento'}</strong></div><div><span>Tempo de internação</span><strong>${hospitalDays(a)} dia${hospitalDays(a)>1?'s':''}</strong></div><div><span>Condição atual</span><strong>${esc(r.label)}</strong></div><div><span>Diária atual</span><strong>${money(r.negotiatedRate)}</strong></div></div></section><div class="money-hero print-area"><div><span>Cobrado</span><strong>${money(t.billed)}</strong></div><div><span>Recebido</span><strong>${money(t.received)}</strong></div><div class="balance ${t.balance>0?'open':'paid'}"><span>Saldo</span><strong>${money(t.balance)}</strong></div></div><div class="quick-actions no-print"><button data-action="payment" ${a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>R$</div><span>Registrar pagamento</span></button><button data-action="extra" ${a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>＋</div><span>Adicionar extra</span></button><button data-action="rate" ${a.status!=='active'?'disabled':''}><div>↻</div><span>Ajustar diária</span></button><button data-action="discharge" ${a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>→</div><span>${a.status==='discharge_pending'?'Finalizar conta':'Registrar alta'}</span></button></div><div class="detail-columns print-area"><section class="panel"><div class="panel-head"><div><h2>Movimentação financeira</h2><p>Lançamentos da entrada até o fechamento.</p></div></div>${timeline.length?`<div class="timeline">${timeline.map(row=>row.kind==='p'?`<div class="timeline-row payment"><div class="timeline-dot">↙</div><div><strong>Pagamento recebido</strong><span>${fmtDT(row.at)} • ${esc(row.item.method)} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}</div><strong class="good-text">+ ${money(row.item.amount)}</strong></div>`:`<div class="timeline-row charge"><div class="timeline-dot">▤</div><div><strong>${esc(row.item.description)}</strong><span>${fmtDT(row.at)} • ${esc(row.item.category)}</span></div><strong>${money(row.item.amount)}</strong></div>`).join('')}</div>`:empty('Sem movimentações','As diárias, extras e pagamentos aparecerão aqui.')}</section><div class="side-stack"><section class="panel"><div class="panel-head"><div><h2>Cobertura das diárias</h2><p>Pagamentos distribuídos em ordem cronológica.</p></div></div><div class="coverage-list">${cov.map(({c,paid,status})=>`<div class="coverage-row"><div><strong>${fmtDM(c.occurredAt)}</strong><span>${esc(c.description)}</span></div><div class="coverage-right"><span>${money(c.amount)}</span><span class="badge ${status==='paid'?'badge-good':status==='partial'?'badge-warn':'badge-bad'}">${status==='paid'?'Pago':status==='partial'?`Parcial ${money(paid)}`:'Em aberto'}</span></div></div>`).join('')}</div></section><section class="panel no-print"><div class="panel-head"><div><h2>Auditoria</h2><p>Últimas alterações relevantes.</p></div></div><div class="audit-list">${audits.slice(0,6).map(x=>`<div><span>${esc(x.action)}</span><strong>${esc(x.detail)}</strong><small>${fmtDT(x.occurredAt)} • ${esc(x.user)}</small></div>`).join('')}</div></section></div></div><div class="print-footer print-only"><strong>IMEC UTI — Extrato de internação</strong><span>Gerado em ${fmtDT(new Date().toISOString())}</span></div>`}
+function patientDetail(a){const p=patient(a.patientId),t=totals(a.id),r=currentRate(a),charges=data.charges.filter(c=>c.admissionId===a.id),payments=data.payments.filter(p=>p.admissionId===a.id),timeline=[...charges.map(item=>({kind:'c',at:item.occurredAt,item})),...payments.map(item=>({kind:'p',at:item.occurredAt,item}))].sort((x,y)=>new Date(y.at)-new Date(x.at)),daily=charges.filter(c=>c.kind==='daily').sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));let alloc=payments.reduce((s,p)=>s+p.amount,0);const cov=daily.map(c=>{const paid=Math.min(Math.max(alloc,0),c.amount);alloc-=paid;return {c,paid,status:paid>=c.amount?'paid':paid>0?'partial':'open'}});const audits=data.audits.filter(x=>x.admissionId===a.id).sort((x,y)=>new Date(y.occurredAt)-new Date(x.occurredAt));return `<div class="detail-top no-print"><button class="back-btn" data-action="back">← Voltar</button><div class="detail-actions"><button class="btn btn-secondary" data-action="print">▤ Imprimir ficha</button>${a.status!=='finalized'&&a.status!=='cancelled'?'<button class="btn btn-primary" data-action="payment">＋ Pagamento</button>':''}</div></div><section class="detail-hero print-area"><div class="detail-identity"><div class="bed-large">${String(a.bed).padStart(2,'0')}</div><div><div class="detail-badges">${statusBadge(a.status)}<span class="badge ${a.mode==='private'?'badge-brand':'badge-neutral'}">${a.mode==='private'?'Particular':'Hotelaria'}</span></div><h1>${esc(p?.name)}</h1><p>CPF ${cpfMask(p?.cpf)} • Responsável pelo fechamento: <strong>${esc(a.closer)}</strong></p></div></div><div class="detail-meta-grid"><div><span>Entrada</span><strong>${fmtDT(a.entryAt)}</strong></div><div><span>Saída</span><strong>${a.dischargeAt?fmtDT(a.dischargeAt):'Em andamento'}</strong></div><div><span>Tempo de internação</span><strong>${hospitalDays(a)} dia${hospitalDays(a)>1?'s':''}</strong></div><div><span>Condição atual</span><strong>${esc(r.label)}</strong></div><div><span>Diária atual</span><strong>${money(r.negotiatedRate)}</strong></div></div></section><div class="money-hero print-area"><div><span>Cobrado</span><strong>${money(t.billed)}</strong></div><div><span>Recebido</span><strong>${money(t.received)}</strong></div><div class="balance ${t.balance>0?'open':'paid'}"><span>Saldo</span><strong>${money(t.balance)}</strong></div></div><div class="quick-actions no-print"><button data-action="payment" ${a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>R$</div><span>Registrar pagamento</span></button><button data-action="extra" ${a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>＋</div><span>Adicionar extra</span></button><button data-action="rate" ${a.status!=='active'?'disabled':''}><div>↻</div><span>Ajustar diária</span></button><button data-action="discharge" ${a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>→</div><span>${a.status==='discharge_pending'?'Finalizar conta':'Registrar alta'}</span></button></div><div class="detail-columns print-area"><section class="panel"><div class="panel-head"><div><h2>Movimentação financeira</h2><p>Lançamentos da entrada até o fechamento.</p></div></div>${timeline.length?`<div class="timeline">${timeline.map(row=>row.kind==='p'?`<div class="timeline-row payment"><div class="timeline-dot">↙</div><div><strong>Pagamento recebido</strong><span>${fmtDT(row.at)} • ${esc(row.item.method)} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}</div><strong class="good-text">+ ${money(row.item.amount)}</strong></div>`:`<div class="timeline-row charge"><div class="timeline-dot">▤</div><div><strong>${esc(row.item.description)}</strong><span>${fmtDT(row.at)} • ${esc(row.item.category)}</span></div><strong>${money(row.item.amount)}</strong></div>`).join('')}</div>`:empty('Sem movimentações','As diárias, extras e pagamentos aparecerão aqui.')}</section><div class="side-stack"><section class="panel"><div class="panel-head"><div><h2>Cobertura das diárias</h2><p>Pagamentos distribuídos em ordem cronológica.</p></div></div><div class="coverage-list">${cov.map(({c,paid,status})=>`<div class="coverage-row"><div><strong>${fmtDM(c.occurredAt)}</strong><span>${esc(c.description)}</span></div><div class="coverage-right"><span>${money(c.amount)}</span><span class="badge ${status==='paid'?'badge-good':status==='partial'?'badge-warn':'badge-bad'}">${status==='paid'?'Pago':status==='partial'?`Parcial ${money(paid)}`:'Em aberto'}</span></div></div>`).join('')}</div></section><section class="panel no-print"><div class="panel-head"><div><h2>Auditoria</h2><p>Últimas alterações relevantes.</p></div></div><div class="audit-list">${audits.slice(0,6).map(x=>`<div><span>${esc(x.action)}</span><strong>${esc(x.detail)}</strong><small>${fmtDT(x.occurredAt)} • ${esc(x.user)}</small></div>`).join('')}</div></section></div></div><div class="print-footer print-only"><strong>IMEC UTI — Extrato de internação</strong><span>Gerado em ${fmtDT(new Date().toISOString())}</span></div>`}
 
 function openModal(title,subtitle,body){document.getElementById('modal').innerHTML=`<div class="modal-backdrop" id="modalBackdrop"><div class="modal-card"><div class="modal-head"><div><h2>${title}</h2>${subtitle?`<p>${subtitle}</p>`:''}</div><button class="icon-btn" data-close>×</button></div>${body}</div></div>`;document.querySelector('[data-close]').onclick=closeModal;document.getElementById('modalBackdrop').addEventListener('mousedown',e=>{if(e.target.id==='modalBackdrop')closeModal()})}
 function closeModal(){document.getElementById('modal').innerHTML=''}
@@ -822,6 +822,165 @@ function settlementPreviewMarkup(a,s){
 async function fetchSettlement(a,dis){
   return rpc('preview_uti_settlement',{p_admission_id:a.id,p_discharge_at:dis});
 }
+
+function docDateOnly(v){
+  if(!v)return '—';
+  return new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(v));
+}
+function docIsoDate(v){
+  if(!v)return 'sem-data';
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(v));
+  const o=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+  return o.year+'-'+o.month+'-'+o.day;
+}
+function settlementDocumentId(a){
+  const raw=String(a?.id||'').replace(/[^a-zA-Z0-9]/g,'').toUpperCase();
+  return raw.slice(0,10)||'SEM-ID';
+}
+function settlementPdfFileName(a,s){
+  const p=patient(a.patientId),base=String(p?.name||'Paciente').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,48)||'Paciente';
+  return 'IMEC_Acerto_'+base+'_'+docIsoDate(s?.dischargeAt||a.dischargeAt||new Date())+'.pdf';
+}
+function settlementDocumentModel(a,s){
+  const p=patient(a.patientId);
+  const items=(s.items||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
+  const pays=(s.payments||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
+  const dailyGroups=[];
+  items.filter(x=>x.kind==='daily').forEach(x=>{
+    const description=x.description||'Diária',amount=Number(x.amount||0),units=Number(x.units||1),last=dailyGroups[dailyGroups.length-1];
+    if(last&&last.description===description&&Math.abs(last.unitAmount-amount)<0.009){
+      last.qty+=units;last.total+=amount;last.last=x.occurredAt;
+    }else{
+      dailyGroups.push({description:description,unitAmount:amount,qty:units,total:amount,first:x.occurredAt,last:x.occurredAt});
+    }
+  });
+  let lines=dailyGroups.map(g=>({
+    description:g.description,
+    qty:g.qty,
+    total:g.total,
+    period:g.first===g.last?docDateOnly(g.first):docDateOnly(g.first)+' a '+docDateOnly(g.last)
+  }));
+  lines=lines.concat(items.filter(x=>x.kind!=='daily').map(x=>({
+    description:x.description||x.category||'Extra',
+    qty:1,total:Number(x.amount||0),period:docDateOnly(x.occurredAt)
+  })));
+  if(lines.length>6){
+    const kept=lines.slice(0,5),rest=lines.slice(5);
+    kept.push({
+      description:'Outros lançamentos - consultar detalhamento no sistema',
+      qty:rest.reduce((n,x)=>n+Number(x.qty||1),0),
+      total:rest.reduce((n,x)=>n+Number(x.total||0),0),
+      period:'Diversos'
+    });
+    lines=kept;
+  }
+  const payMap=new Map();
+  pays.forEach(x=>{
+    const key=x.method||'Outro',g=payMap.get(key)||{method:key,qty:0,total:0,first:x.occurredAt,last:x.occurredAt};
+    g.qty+=1;g.total+=Number(x.amount||0);g.last=x.occurredAt;payMap.set(key,g);
+  });
+  const payGroups=[...payMap.values()].map(g=>({
+    method:g.method,qty:g.qty,total:g.total,
+    period:g.first===g.last?docDateOnly(g.first):docDateOnly(g.first)+' a '+docDateOnly(g.last)
+  }));
+  return {
+    patient:p,
+    lines:lines,
+    payGroups:payGroups,
+    status:Number(s.balance||0)<=0?'ACERTO QUITADO':'ACERTO COM PENDÊNCIA',
+    statusClass:Number(s.balance||0)<=0?'ok':'pending',
+    docId:settlementDocumentId(a)
+  };
+}
+function pdfSafeText(v){
+  return String(v??'').normalize('NFC').replace(/\u00a0/g,' ').replace(/[–—]/g,'-').replace(/•/g,'-').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[^\x20-\xFF]/g,'?');
+}
+function pdfEscape(v){
+  return pdfSafeText(v).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+}
+function pdfShort(v,n){
+  const s=pdfSafeText(v);return s.length>n?s.slice(0,Math.max(1,n-3))+'...':s;
+}
+function buildSettlementPdfBytes(a,s){
+  const m=settlementDocumentModel(a,s),p=m.patient||{},cmd=[];
+  const t=(x,y,size,value,bold=false)=>cmd.push('BT /F'+(bold?'2':'1')+' '+size+' Tf '+x+' '+y+' Td ('+pdfEscape(value)+') Tj ET');
+  const line=(x1,y1,x2,y2)=>cmd.push(x1+' '+y1+' m '+x2+' '+y2+' l S');
+  const rect=(x,y,w,h)=>cmd.push(x+' '+y+' '+w+' '+h+' re S');
+  cmd.push('0.04 0.43 0.45 RG','1.4 w');line(40,786,555,786);
+  cmd.push('0.04 0.43 0.45 rg');t(40,804,19,'IMEC UTI',true);cmd.push('0 g');
+  t(40,790,9,'Folha de Acerto - Particular & Hotelaria');
+  t(405,806,8,'Documento '+m.docId,true);t(405,792,8,m.status,true);
+  t(40,754,17,pdfShort(p.name||'Paciente',54),true);
+  cmd.push('0.82 G','0.7 w');
+  rect(40,706,165,34);rect(215,706,165,34);rect(390,706,165,34);
+  t(50,727,7,'MODALIDADE',true);t(50,713,10,a.mode==='private'?'Particular':'Hotelaria',true);
+  t(225,727,7,'ACOMODAÇÃO',true);t(225,713,10,pdfShort(accommodationLabel(a),25),true);
+  t(400,727,7,'LEITO',true);t(400,713,10,String(a.bed).padStart(2,'0'),true);
+  rect(40,662,165,34);rect(215,662,165,34);rect(390,662,165,34);
+  t(50,683,7,'ENTRADA',true);t(50,669,9,fmtDT(a.entryAt),true);
+  t(225,683,7,'SAÍDA',true);t(225,669,9,fmtDT(s.dischargeAt||a.dischargeAt),true);
+  t(400,683,7,'PERMANÊNCIA',true);t(400,669,9,pdfShort(stayText(s.stayMinutes),24),true);
+  rect(40,615,515,35);
+  t(50,635,13,Number(s.dailyUnits||0).toLocaleString('pt-BR',{maximumFractionDigits:1})+' diária(s)',true);
+  t(50,621,8,pdfShort(settlementComposition(s),55));
+  t(386,635,8,'Regra de alta',true);t(386,621,8,'O dia da saída não é cobrado');
+  const fin=[['Diárias',s.dailyTotal],['Extras',s.extrasTotal],['Total',s.total],['Recebido',s.received],['Saldo',s.balance]];
+  const fw=103;
+  fin.forEach((x,i)=>{const xx=40+i*fw;rect(xx,564,fw,38);t(xx+7,589,7,x[0].toUpperCase(),true);t(xx+7,573,9,pdfShort(money(Number(x[1]||0)),18),true)});
+  t(40,542,8,'RESUMO DA COMPOSIÇÃO',true);line(40,536,555,536);
+  t(42,524,7,'PERÍODO',true);t(145,524,7,'DESCRIÇÃO',true);t(442,524,7,'QTD.',true);t(490,524,7,'VALOR',true);
+  let y=508;
+  m.lines.forEach(x=>{t(42,y,7,pdfShort(x.period,18));t(145,y,7,pdfShort(x.description,46));t(445,y,7,Number(x.qty).toLocaleString('pt-BR',{maximumFractionDigits:1}));t(486,y,7,pdfShort(money(x.total),15));y-=18});
+  t(40,390,8,'PAGAMENTOS',true);line(40,384,555,384);
+  if(!m.payGroups.length){t(42,367,8,'Nenhum pagamento registrado.');}
+  else{
+    t(42,367,7,'PERÍODO',true);t(205,367,7,'FORMA',true);t(405,367,7,'QTD.',true);t(475,367,7,'VALOR',true);
+    let py=350;m.payGroups.forEach(x=>{t(42,py,7,pdfShort(x.period,25));t(205,py,7,pdfShort(x.method,24));t(408,py,7,String(x.qty));t(472,py,7,pdfShort(money(x.total),16));py-=17});
+  }
+  cmd.push('0.65 G');rect(40,88,515,185);t(50,252,8,'COMPROVANTES DE PAGAMENTO',true);t(50,237,7,'Anexar nesta área os comprovantes originais de PIX, cartão, transferência ou outro meio.');
+  t(40,60,7,'Responsável pelo fechamento: '+pdfShort(a.closer||'—',34),true);
+  t(40,47,7,'Emitido por: '+pdfShort(data.currentUser||'—',30)+' - '+fmtDT(new Date().toISOString()));
+  t(395,47,7,'Conferência / Visto');line(395,58,555,58);
+  const stream=cmd.join('\n');
+  const objects=[
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
+    '<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream'
+  ];
+  let pdf='%PDF-1.4\n%\xE2\xE3\xCF\xD3\n',offsets=[0];
+  objects.forEach((obj,i)=>{offsets[i+1]=pdf.length;pdf+=(i+1)+' 0 obj\n'+obj+'\nendobj\n'});
+  const xref=pdf.length;
+  pdf+='xref\n0 '+(objects.length+1)+'\n0000000000 65535 f \n';
+  for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+  pdf+='trailer\n<< /Size '+(objects.length+1)+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+  const bytes=new Uint8Array(pdf.length);
+  for(let i=0;i<pdf.length;i++)bytes[i]=pdf.charCodeAt(i)&255;
+  return bytes;
+}
+function buildSettlementPdfBlob(a,s){
+  return new Blob([buildSettlementPdfBytes(a,s)],{type:'application/pdf'});
+}
+async function downloadSettlementPdf(a,knownSettlement=null){
+  let loading=false;
+  try{
+    let s=knownSettlement;
+    if(!s){loading=true;setLoading(true,'Gerando PDF…');s=await fetchSettlement(a,a.dischargeAt)}
+    const blob=buildSettlementPdfBlob(a,s),url=URL.createObjectURL(blob),fileName=settlementPdfFileName(a,s);
+    const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    if(isiOS){
+      const w=window.open(url,'_blank');if(!w)window.location.href=url;
+    }else{
+      const link=document.createElement('a');link.href=url;link.download=fileName;document.body.appendChild(link);link.click();link.remove();
+    }
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    toast('PDF do acerto gerado.');
+  }catch(ex){alert('Não foi possível gerar o PDF: '+ex.message)}
+  finally{if(loading)setLoading(false)}
+}
+
 function printSettlementSheet(a,knownSettlement=null){
   const win=window.open('','_blank');
   if(!win){alert('O navegador bloqueou a janela de impressão. Permita pop-ups para este site.');return}
@@ -829,42 +988,30 @@ function printSettlementSheet(a,knownSettlement=null){
   const build=async()=>{
     try{
       const s=knownSettlement||await fetchSettlement(a,a.dischargeAt);
-      const p=patient(a.patientId),items=(s.items||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt)),pays=(s.payments||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
-      const dailyGroups=new Map();
-      items.filter(x=>x.kind==='daily').forEach(x=>{
-        const key=`${x.description||'Diária'}|${Number(x.amount||0)}`,g=dailyGroups.get(key)||{description:x.description||'Diária',qty:0,total:0,first:x.occurredAt,last:x.occurredAt};
-        g.qty+=Number(x.units||1);g.total+=Number(x.amount||0);g.last=x.occurredAt;dailyGroups.set(key,g);
-      });
-      const printItems=[
-        ...[...dailyGroups.values()].map(g=>({description:g.description,qty:g.qty,total:g.total,period:g.first===g.last?fmtDM(g.first):`${fmtDM(g.first)} a ${fmtDM(g.last)}`})),
-        ...items.filter(x=>x.kind!=='daily').map(x=>({description:x.description||x.category||'Extra',qty:1,total:Number(x.amount||0),period:fmtDM(x.occurredAt)}))
-      ];
-      const payMap=new Map();
-      pays.forEach(x=>{const g=payMap.get(x.method)||{method:x.method,qty:0,total:0};g.qty+=1;g.total+=Number(x.amount||0);payMap.set(x.method,g)});
-      const payGroups=[...payMap.values()];
-      const status=Number(s.balance||0)<=0?'ACERTO QUITADO':'ACERTO COM PENDÊNCIA';
-      const statusClass=Number(s.balance||0)<=0?'ok':'pending';
+      const model=settlementDocumentModel(a,s),p=model.patient,printItems=model.lines,payGroups=model.payGroups,status=model.status,statusClass=model.statusClass;
+      const pdfBlob=buildSettlementPdfBlob(a,s),pdfUrl=URL.createObjectURL(pdfBlob),fileName=settlementPdfFileName(a,s);
       win.document.open();
       win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Folha de Acerto — ${esc(p?.name||'Paciente')}</title><style>
         @page{size:A4 portrait;margin:13mm}
-        *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#172326;margin:0;font-size:10.5pt}
+        *{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;color:#172326;background:#eef3f3;padding:12px;font-size:9.5pt}.sheet{width:184mm;min-height:271mm;margin:0 auto;background:#fff;padding:0;display:flex;flex-direction:column}
         .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0b6f72;padding-bottom:10px;margin-bottom:12px}
         .brand{font-size:18pt;font-weight:800;color:#07575a}.brand small{display:block;font-size:9pt;color:#6d7b7e;font-weight:600;margin-top:2px}
         .status{font-size:8.5pt;font-weight:800;padding:6px 9px;border-radius:6px}.status.ok{background:#eaf7f0;color:#16794a}.status.pending{background:#fff7df;color:#8b5a0e}
-        .patient{font-size:17pt;font-weight:800;margin:0 0 10px}.grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:8px;margin-bottom:10px}
+        .patient{font-size:17pt;font-weight:800;margin:0 0 10px;overflow-wrap:anywhere}.grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:8px;margin-bottom:10px}
         .box{border:1px solid #dfe7e7;border-radius:7px;padding:8px}.box span{display:block;color:#6d7b7e;font-size:7.5pt;text-transform:uppercase;font-weight:700;letter-spacing:.03em}.box strong{display:block;margin-top:3px;font-size:10pt}
         .period{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
         .daily{border:1px solid #cfe4e4;background:#f3f9f9;border-radius:7px;padding:9px;margin:10px 0;display:flex;justify-content:space-between;align-items:center}.daily strong{font-size:14pt;color:#07575a}.daily small{display:block;color:#6d7b7e;margin-top:2px}
         .finance{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #dfe7e7;border-radius:7px;overflow:hidden;margin:10px 0 12px}.finance div{padding:8px;border-right:1px solid #dfe7e7}.finance div:last-child{border-right:0}.finance span{display:block;color:#6d7b7e;font-size:7.5pt}.finance strong{display:block;margin-top:3px;font-size:10.5pt}.finance .saldo strong{font-size:12pt}
         h2{font-size:9pt;text-transform:uppercase;letter-spacing:.05em;color:#5d6d70;margin:12px 0 6px}
         table{width:100%;border-collapse:collapse;font-size:8.5pt}th{background:#f5f8f8;color:#5d6d70;text-align:left;font-size:7.5pt;text-transform:uppercase}th,td{border:1px solid #e1e8e8;padding:5px 6px}th:last-child,td:last-child{text-align:right}
-        .proof{margin-top:14px;border-top:1px solid #bfcaca;padding-top:9px;min-height:250px}.proof h2{margin-top:0}.proof p{color:#6d7b7e;margin:3px 0 0;font-size:8.5pt}.proof-space{height:210px}
-        .footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid #d7dfdf;padding-top:8px;font-size:8pt;color:#6d7b7e}.sign{margin-top:28px;width:210px;border-top:1px solid #7b888a;padding-top:4px;text-align:center;color:#46575a}
-        .no-print{margin:0 0 15px;text-align:right}.no-print button{border:0;background:#0b6f72;color:#fff;padding:9px 14px;border-radius:7px;font-weight:700;cursor:pointer}
-        @media print{.no-print{display:none}.proof{break-inside:avoid}}
+        .proof{margin-top:12px;border:1px dashed #9caaaa;border-radius:6px;padding:9px;flex:1;min-height:145px}.proof h2{margin-top:0}.proof p{color:#6d7b7e;margin:3px 0 0;font-size:8pt}.proof-space{min-height:105px}
+        .footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid #d7dfdf;padding-top:8px;margin-top:10px;font-size:8pt;color:#6d7b7e}.sign{margin-top:28px;width:210px;border-top:1px solid #7b888a;padding-top:4px;text-align:center;color:#46575a}
+        .no-print{width:184mm;margin:0 auto 10px;display:flex;justify-content:flex-end;gap:7px}.no-print button,.no-print a{border:0;background:#0b6f72;color:#fff;padding:9px 13px;border-radius:7px;font-weight:700;cursor:pointer;text-decoration:none;font:inherit}.no-print .ghost{background:#fff;color:#435456;border:1px solid #cfd8d8}.doc-side{text-align:right}.doc-side small{display:block;color:#6d7b7e;font-size:7.5pt;margin-top:5px}
+        @media print{html,body{background:#fff!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}.sheet{width:auto;min-height:271mm;margin:0}.proof{break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}}
       </style></head><body>
-      <div class="no-print"><button onclick="window.print()">Imprimir</button></div>
-      <div class="top"><div><div class="brand">IMEC UTI<small>Folha de Acerto — Particular & Hotelaria</small></div></div><div class="status ${statusClass}">${status}</div></div>
+      <div class="no-print"><button onclick="window.print()">Imprimir / Salvar PDF</button><a href="${pdfUrl}" download="${esc(fileName)}">Baixar PDF</a><button class="ghost" onclick="window.close()">Fechar</button></div>
+      <main class="sheet">
+      <div class="top"><div><div class="brand">IMEC UTI<small>Folha de Acerto — Particular & Hotelaria</small></div></div><div class="doc-side"><div class="status ${statusClass}">${status}</div><small>Documento ${model.docId}</small></div></div>
       <div class="patient">${esc(p?.name||'Paciente')}</div>
       <div class="grid">
         <div class="box"><span>Modalidade</span><strong>${a.mode==='private'?'Particular':'Hotelaria'}</strong></div>
@@ -884,14 +1031,15 @@ function printSettlementSheet(a,knownSettlement=null){
         <div><span>Recebido</span><strong>${money(Number(s.received||0))}</strong></div>
         <div class="saldo"><span>Saldo</span><strong>${money(Number(s.balance||0))}</strong></div>
       </div>
-      <h2>Composição do acerto</h2>
-      <table><thead><tr><th>Período</th><th>Descrição</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${printItems.map(x=>`<tr><td>${esc(x.period)}</td><td>${esc(x.description)}</td><td>${Number(x.qty).toLocaleString('pt-BR',{maximumFractionDigits:1})}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table>
-      ${payGroups.length?`<h2>Pagamentos</h2><table><thead><tr><th>Forma</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${payGroups.map(x=>`<tr><td>${esc(x.method)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table>`:''}
+      <h2>Resumo da composição</h2>
+      <table><thead><tr><th>Período</th><th>Descrição</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${printItems.map(x=>`<tr><td>${esc(x.period)}</td><td>${esc(x.description)}</td><td>${Number(x.qty).toLocaleString('pt-BR',{maximumFractionDigits:1})}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table><div style="font-size:7.5pt;color:#6d7b7e;margin-top:4px">O detalhamento completo permanece disponível no sistema.</div>
+      ${payGroups.length?`<h2>Pagamentos</h2><table><thead><tr><th>Período</th><th>Forma</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${payGroups.map(x=>`<tr><td>${esc(x.period)}</td><td>${esc(x.method)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table>`:''}
       <div class="proof"><h2>Comprovantes de pagamento</h2><p>Anexar abaixo o(s) comprovante(s) original(is) de PIX, cartão, transferência ou outro meio utilizado.</p><div class="proof-space"></div></div>
       <div class="footer"><div><strong>Responsável pelo fechamento:</strong> ${esc(a.closer||'—')}<br><strong>Documento emitido por:</strong> ${esc(data.currentUser)} • ${fmtDT(new Date().toISOString())}</div><div class="sign">Conferência / Visto</div></div>
-      </body></html>`);
+      </main></body></html>`);
       win.document.close();
-      setTimeout(()=>{try{win.focus();win.print()}catch{}},350);
+      try{win.focus()}catch{}
+      setTimeout(()=>URL.revokeObjectURL(pdfUrl),900000);
     }catch(e){
       win.document.body.innerHTML='<p style="font-family:Arial;padding:30px;color:#b42318">Não foi possível gerar a folha: '+esc(e.message)+'</p>';
     }
@@ -944,11 +1092,12 @@ function dischargeModal(a){
   const renderActions=()=>{
     const box=document.getElementById('dActions');
     box.innerHTML='<button class="btn btn-secondary" data-close2>Cancelar</button>'+
-      (lastPreview?'<button class="btn btn-secondary sheet-trigger" id="dPrint">▤ Folha de Acerto</button>':'')+
+      (lastPreview?'<button class="btn btn-secondary sheet-trigger" id="dPrint">▤ Visualizar / imprimir</button><button class="btn btn-secondary sheet-trigger" id="dPdf">⇩ Baixar PDF</button>':'')+
       (!alreadyDischarged&&lastPreview?'<button class="btn btn-primary" id="dConfirm">✓ Confirmar alta</button>':'')+
       (alreadyDischarged?'<button class="btn btn-primary" id="dDone">Concluir</button>':'');
     box.querySelector('[data-close2]').onclick=closeModal;
     const pr=document.getElementById('dPrint');if(pr)pr.onclick=()=>printSettlementSheet(a,lastPreview);
+    const pd=document.getElementById('dPdf');if(pd)pd.onclick=()=>downloadSettlementPdf(a,lastPreview);
     const done=document.getElementById('dDone');if(done)done.onclick=closeModal;
     const cf=document.getElementById('dConfirm');if(cf)cf.onclick=confirmDischarge;
   };
@@ -987,9 +1136,8 @@ function dischargeModal(a){
       a=admission(a.id);
       lastPreview=await fetchSettlement(a,a.dischargeAt);
       closeModal();
-      toast(status==='finalized'?'Alta registrada e conta finalizada.':'Alta registrada com saldo pendente.');
+      toast((status==='finalized'?'Alta registrada e conta finalizada.':'Alta registrada com saldo pendente.')+' A Folha de Acerto já está disponível para imprimir ou baixar em PDF.');
       render();
-      setTimeout(()=>{if(confirm('Deseja imprimir a Folha de Acerto agora?'))printSettlementSheet(a,lastPreview)},100);
     }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
   };
 
@@ -1011,7 +1159,8 @@ function bindDetail(a){
     const cb=document.createElement('button');cb.className='btn btn-secondary';cb.dataset.action='corrections';cb.innerHTML='↺ Corrigir lançamento';cb.onclick=()=>correctionsModal(a);actions.insertBefore(cb,actions.firstChild);
   }
   if(actions&&a.dischargeAt&&!actions.querySelector('[data-action="settlement-sheet"]')){
-    const b=document.createElement('button');b.className='btn btn-secondary';b.dataset.action='settlement-sheet';b.innerHTML='▤ Folha de Acerto';b.onclick=()=>printSettlementSheet(a);actions.insertBefore(b,actions.firstChild);
+    const pdf=document.createElement('button');pdf.className='btn btn-secondary';pdf.dataset.action='settlement-pdf';pdf.innerHTML='⇩ Baixar PDF';pdf.onclick=()=>downloadSettlementPdf(a);actions.insertBefore(pdf,actions.firstChild);
+    const b=document.createElement('button');b.className='btn btn-secondary';b.dataset.action='settlement-sheet';b.innerHTML='▤ Imprimir acerto';b.onclick=()=>printSettlementSheet(a);actions.insertBefore(b,actions.firstChild);
   }
 }
 
