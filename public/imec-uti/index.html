@@ -1116,7 +1116,7 @@ function dischargeModal(a){
   const renderActions=()=>{
     const box=document.getElementById('dActions');
     box.innerHTML='<button class="btn btn-secondary" data-close2>Cancelar</button>'+
-      (lastPreview?'<button class="btn btn-secondary sheet-trigger" id="dPrint">▤ Visualizar / imprimir</button><button class="btn btn-secondary sheet-trigger" id="dPdf">⇩ Baixar PDF</button>':'')+
+      (alreadyDischarged&&lastPreview?'<button class="btn btn-secondary sheet-trigger" id="dPrint">▤ Visualizar / imprimir</button><button class="btn btn-secondary sheet-trigger" id="dPdf">⇩ Baixar PDF</button>':'')+
       (!alreadyDischarged&&lastPreview?'<button class="btn btn-primary" id="dConfirm">✓ Confirmar alta</button>':'')+
       (alreadyDischarged?'<button class="btn btn-primary" id="dDone">Concluir</button>':'');
     box.querySelector('[data-close2]').onclick=closeModal;
