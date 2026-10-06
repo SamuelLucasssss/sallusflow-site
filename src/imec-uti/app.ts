@@ -793,8 +793,7 @@ function bindPage(){
 async function backgroundRefresh(){if(!authState||remoteBusy||document.querySelector('.modal-backdrop'))return;try{await loadRemote({quiet:true});render()}catch{}}
 
 
-document.addEventListener('click',e=>{const nav=e.target.closest('[data-nav]');if(nav){state.page=nav.dataset.nav;state.selectedId=null;render();return}const act=e.target.closest('[data-action]');if(!act)return;const a=act.dataset.action;if(a==='new')newAdmissionModal();if(a==='export'){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),x=document.createElement('a');x.href=url;x.download=`imec-uti-backup-${new Date().toISOString().slice(0,10)}.json`;x.click();URL.revokeObjectURL(url)}if(a==='import')document.getElementById('importFile')?.click();if(a==='clear'&&confirm('Apagar os dados deste navegador e iniciar uma base vazia?')){data=blankData();save();toast('Base local limpa.');render()}});
-document.addEventListener('change',e=>{if(e.target?.id==='importFile'){const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save();toast('Backup importado com sucesso.');render()}catch{alert('Arquivo de backup inválido.')}};r.readAsText(f)}});
+document.addEventListener('click',e=>{const nav=e.target.closest('[data-nav]');if(nav){state.page=nav.dataset.nav;state.selectedId=null;render();return}const act=e.target.closest('[data-action]');if(!act)return;const a=act.dataset.action;if(a==='new')newAdmissionModal();if(a==='export'){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),x=document.createElement('a');x.href=url;x.download=`imec-uti-dados-visiveis-${new Date().toISOString().slice(0,10)}.json`;x.click();URL.revokeObjectURL(url)}});
 setInterval(backgroundRefresh,45000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')backgroundRefresh()});
 boot();
