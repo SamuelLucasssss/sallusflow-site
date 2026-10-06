@@ -7,7 +7,7 @@
     "dev": "astro dev --host 0.0.0.0",
     "build": "astro build",
     "preview": "astro preview --host 0.0.0.0",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.check.json",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "quality": "node scripts/quality-gate.mjs",
     "check": "npm run typecheck && npm run test && npm run quality && npm run build"
