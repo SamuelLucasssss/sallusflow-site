@@ -527,7 +527,12 @@ function patientCard(a){
   const p=patient(a.patientId),t=totals(a.id),r=currentRate(a),m=balanceMeta(t.balance);
   return `<button class="patient-card" data-open="${a.id}"><div class="patient-card-top"><div class="bed-chip">${String(a.bed).padStart(2,'0')}</div><span class="badge ${a.mode==='private'?'badge-brand':'badge-neutral'}">${a.mode==='private'?'Particular':'Hotelaria'}</span></div><h3>${esc(p?.name)}</h3><p>${a.mode==='private'?(r.ventilation?'Com ventilação':'Sem ventilação'):esc(r.label)}</p><div class="patient-meta"><span>▣ Entrada ${fmtDT(a.entryAt)}</span><span>◷ ${hospitalDays(a)}º dia</span></div><div class="patient-money"><div><span>Cobrado</span><strong>${money(t.billed)}</strong></div><div><span>Recebido líquido</span><strong>${money(t.netReceived)}</strong></div></div><div class="balance-strip ${Math.abs(t.balance)<=0.009?'paid':'open'}"><span>${m.label}</span><strong>${money(m.amount)}</strong><span>›</span></div></button>`;
 }
-function patientsPage(){const q=state.search.toLowerCase().trim();let rows=data.admissions.filter(a=>{const p=patient(a.patientId);const ms=!q||(p?.name||'').toLowerCase().includes(q)||cpfNorm(p?.cpf).includes(cpfNorm(q));const f=state.patientFilter;const mf=f==='all'||(f==='active'&&a.status==='active')||(f==='pending'&&a.status==='discharge_pending')||(f==='finalized'&&a.status==='finalized')||(f==='private'&&a.mode==='private')||(f==='hotel'&&a.mode==='hotel');return ms&&mf}).sort((a,b)=>new Date(b.entryAt)-new Date(a.entryAt));const fs=[['active','Internados'],['pending','Alta pendente'],['private','Particular'],['hotel','Hotelaria'],['finalized','Finalizados'],['all','Todos']];return `<section class="page-head"><div><span class="eyebrow">INTERNAÇÕES</span><h1>Pacientes</h1><p>Consulte rapidamente qualquer conta em andamento ou finalizada.</p></div></section><div class="toolbar"><div class="searchbox"><span>⌕</span><input id="searchPatients" placeholder="Buscar por nome ou CPF" value="${esc(state.search)}"></div><div class="filter-chips">${fs.map(([v,l])=>`<button data-filter="${v}" class="${state.patientFilter===v?'active':''}">${l}</button>`).join('')}</div></div><section class="panel table-panel">${rows.length?`<div class="patients-table"><div class="table-row table-header"><span>Paciente</span><span>Leito</span><span>Entrada</span><span>Cobrado</span><span>Recebido</span><span>Saldo</span><span>Status</span><span></span></div>${rows.map(a=>{const p=patient(a.patientId),t=totals(a.id);return `<button class="table-row" data-open="${a.id}"><span class="patient-cell"><strong>${esc(p?.name)}</strong><small>${a.mode==='private'?'Particular':'Hotelaria'}</small></span><span><strong>${String(a.bed).padStart(2,'0')}</strong></span><span>${fmtDT(a.entryAt)}</span><span>${money(t.billed)}</span><span>${money(t.received)}</span><span class="${t.balance>0?'money-open':'money-paid'}">${money(t.balance)}</span><span>${statusBadge(a.status)}</span><span>›</span></button>`}).join('')}</div>`:empty('Nenhum paciente encontrado','Altere os filtros ou faça uma nova internação.')}</section>`}
+function patientsPage(){
+  const q=state.search.toLowerCase().trim();
+  let rows=data.admissions.filter(a=>{const p=patient(a.patientId);const ms=!q||(p?.name||'').toLowerCase().includes(q)||cpfNorm(p?.cpf).includes(cpfNorm(q));const f=state.patientFilter;const mf=f==='all'||(f==='active'&&a.status==='active')||(f==='pending'&&a.status==='discharge_pending')||(f==='finalized'&&a.status==='finalized')||(f==='private'&&a.mode==='private')||(f==='hotel'&&a.mode==='hotel');return ms&&mf}).sort((a,b)=>new Date(b.entryAt)-new Date(a.entryAt));
+  const fs=[['active','Internados'],['pending','Alta pendente'],['private','Particular'],['hotel','Hotelaria'],['finalized','Finalizados'],['all','Todos']];
+  return `<section class="page-head"><div><span class="eyebrow">INTERNAÇÕES</span><h1>Pacientes</h1><p>Consulte rapidamente qualquer conta em andamento ou finalizada.</p></div></section><div class="toolbar"><div class="searchbox"><span>⌕</span><input id="searchPatients" placeholder="Buscar por nome ou CPF" value="${esc(state.search)}"></div><div class="filter-chips">${fs.map(([v,l])=>`<button data-filter="${v}" class="${state.patientFilter===v?'active':''}">${l}</button>`).join('')}</div></div><section class="panel table-panel">${rows.length?`<div class="patients-table"><div class="table-row table-header"><span>Paciente</span><span>Leito</span><span>Entrada</span><span>Cobrado</span><span>Recebido líq.</span><span>Saldo</span><span>Status</span><span></span></div>${rows.map(a=>{const p=patient(a.patientId),t=totals(a.id),m=balanceMeta(t.balance);return `<button class="table-row" data-open="${a.id}"><span class="patient-cell"><strong>${esc(p?.name)}</strong><small>${a.mode==='private'?'Particular':'Hotelaria'}</small></span><span><strong>${String(a.bed).padStart(2,'0')}</strong></span><span>${fmtDT(a.entryAt)}</span><span>${money(t.billed)}</span><span>${money(t.netReceived)}</span><span class="${Math.abs(t.balance)<=0.009?'money-paid':'money-open'}" title="${m.label}">${m.kind==='credit'?'Crédito '+money(m.amount):money(m.amount)}</span><span>${statusBadge(a.status)}</span><span>›</span></button>`}).join('')}</div>`:empty('Nenhum paciente encontrado','Altere os filtros ou faça uma nova internação.')}</section>`;
+}
 function financePage(){
   const pending=data.admissions.filter(a=>a.status==='active'||a.status==='discharge_pending').map(a=>({a,t:totals(a.id)})).filter(x=>Math.abs(x.t.balance)>0.009).sort((x,y)=>Math.abs(y.t.balance)-Math.abs(x.t.balance));
   const movements=[...data.payments.map(x=>({...x,flow:'in'})),...(data.refunds||[]).map(x=>({...x,flow:'out'}))].sort((a,b)=>new Date(b.occurredAt)-new Date(a.occurredAt));
@@ -757,9 +762,8 @@ function authCard(inner){
 }
 function renderAuth(message=''){
   const msg=message?`<div class="auth-message">${esc(message)}</div>`:'';
-  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu acesso individual para visualizar internações, recebimentos e saldos.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button></form><div class="auth-divider"><span>primeiro acesso</span></div><button id="showSignup" class="btn btn-secondary auth-submit">Criar meu acesso</button><p class="auth-foot">Contas novas ficam pendentes até serem liberadas por um administrador.</p>`);
+  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu acesso individual para visualizar internações, recebimentos e saldos.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button></form><p class="auth-foot">Acesso restrito à equipe autorizada. Novos usuários são cadastrados e liberados pelo administrador.</p>`);
   document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();const error=document.getElementById('authError');error.innerHTML='';try{setLoading(true,'Entrando…');const s=await authFetch('token?grant_type=password',{email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});storeAuth(s);await loadRemote()}catch(x){error.innerHTML=`<div class="form-error">⚠ ${esc(x.message)}</div>`}finally{setLoading(false)}};
-  document.getElementById('showSignup').onclick=renderSignup;
 }
 function renderSignup(){
   authCard(`<button id="backLogin" class="auth-back">← Voltar</button><div class="auth-copy"><span class="eyebrow">CRIAR ACESSO</span><h1>Novo usuário</h1><p>Use seu e-mail real. Você receberá uma confirmação antes do primeiro login.</p></div><form id="signupForm" class="auth-form"><label class="field"><span class="field-label">Nome</span><input id="signupName" required placeholder="Ex.: Samuel"></label><label class="field"><span class="field-label">E-mail</span><input id="signupEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="signupPassword" type="password" minlength="10" autocomplete="new-password" required placeholder="mínimo 10 caracteres"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Criar acesso</button></form><p class="auth-foot">Após confirmar o e-mail, volte a esta tela e entre normalmente.</p>`);
@@ -866,6 +870,8 @@ function settlementComposition(s){
 function settlementPreviewMarkup(a,s){
   const items=(s.items||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
   const pays=(s.payments||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
+  const refunds=(s.refunds||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
+  const bal=Number(s.balance||0),m=balanceMeta(bal),net=Number(s.received||0)-Number(s.refunded||0);
   return `
     <div class="settle-count">
       <div><strong>${Number(s.dailyUnits||0).toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong><span>${esc(settlementComposition(s))}</span></div>
@@ -874,20 +880,27 @@ function settlementPreviewMarkup(a,s){
     <div class="settle-kpis">
       <div class="settle-kpi"><span>Diárias</span><strong>${money(Number(s.dailyTotal||0))}</strong></div>
       <div class="settle-kpi"><span>Extras</span><strong>${money(Number(s.extrasTotal||0))}</strong></div>
-      <div class="settle-kpi"><span>Recebido</span><strong>${money(Number(s.received||0))}</strong></div>
-      <div class="settle-kpi balance ${Number(s.balance||0)>0?'open':'paid'}"><span>Saldo do acerto</span><strong>${money(Number(s.balance||0))}</strong></div>
+      <div class="settle-kpi"><span>Recebido líquido</span><strong>${money(net)}</strong>${Number(s.refunded||0)>0?`<small>Reembolsado: ${money(Number(s.refunded||0))}</small>`:''}</div>
+      <div class="settle-kpi balance ${Math.abs(bal)<=0.009?'paid':'open'}"><span>${m.label}</span><strong>${money(m.amount)}</strong></div>
     </div>
     <div class="settle-section-title">Composição da conta</div>
     <div class="settle-table-wrap"><table class="settle-table"><thead><tr><th>Data/hora</th><th>Descrição</th><th>Tipo</th><th>Valor</th></tr></thead><tbody>
       ${items.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(x.description||'Lançamento')}</td><td>${x.kind==='daily'?'Diária':esc(x.category||'Extra')}</td><td>${money(Number(x.amount||0))}</td></tr>`).join('')}
     </tbody></table></div>
     ${pays.length?`<div class="settle-section-title">Pagamentos realizados</div><div class="settle-table-wrap"><table class="settle-table"><thead><tr><th>Data/hora</th><th>Forma</th><th>Registrado por</th><th>Valor</th></tr></thead><tbody>${pays.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(x.method)}</td><td>${esc(x.createdBy||'—')}</td><td>${money(Number(x.amount||0))}</td></tr>`).join('')}</tbody></table></div>`:''}
-    ${Number(s.balance||0)>0?`<div class="settle-paybox"><h3>Registrar recebimento antes da alta</h3><div class="settle-paygrid">
-      ${field('Valor',`<div class="currency-input"><span>R$</span><input id="settlePayValue" inputmode="decimal" value="${Number(s.balance||0).toFixed(2)}"></div>`)}
+    ${refunds.length?`<div class="settle-section-title">Reembolsos realizados</div><div class="settle-table-wrap"><table class="settle-table"><thead><tr><th>Data/hora</th><th>Forma</th><th>Registrado por</th><th>Valor</th></tr></thead><tbody>${refunds.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(x.method)}</td><td>${esc(x.createdBy||'—')}</td><td>- ${money(Number(x.amount||0))}</td></tr>`).join('')}</tbody></table></div>`:''}
+    ${bal>0.009&&can('add_payment')?`<div class="settle-paybox"><h3>Registrar recebimento antes da alta</h3><div class="settle-paygrid">
+      ${field('Valor',`<div class="currency-input"><span>R$</span><input id="settlePayValue" inputmode="decimal" value="${bal.toFixed(2)}"></div>`)}
       ${field('Forma','<select id="settlePayMethod"><option>PIX</option><option>Cartão</option><option>Transferência</option><option>Dinheiro</option><option>Outro</option></select>')}
       ${field('Data/hora',`<input id="settlePayWhen" type="datetime-local" value="${nowLocalInput()}">`)}
       <button class="btn btn-secondary" id="settlePayBtn">↙ Receber</button>
     </div><div id="settlePayError"></div></div>`:''}
+    ${bal<-.009?(data.currentRole==='admin'?`<div class="settle-paybox"><h3>Crédito a devolver ao paciente</h3><div class="settle-paygrid">
+      ${field('Valor',`<div class="currency-input"><span>R$</span><input id="settleRefundValue" inputmode="decimal" value="${(-bal).toFixed(2)}"></div>`)}
+      ${field('Forma','<select id="settleRefundMethod"><option>PIX</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Outro</option></select>')}
+      ${field('Data/hora',`<input id="settleRefundWhen" type="datetime-local" value="${nowLocalInput()}">`)}
+      <button class="btn btn-secondary" id="settleRefundBtn">↗ Reembolsar</button>
+    </div><div id="settleRefundError"></div></div>`:`<div class="form-warning">⚠ Existe crédito de ${money(-bal)} a devolver. Um administrador deve registrar o reembolso antes da finalização.</div>`):''}
   `;
 }
 async function fetchSettlement(a,dis){
@@ -920,52 +933,18 @@ function settlementDocumentModel(a,s){
   const p=patient(a.patientId);
   const items=(s.items||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
   const pays=(s.payments||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
+  const refunds=(s.refunds||[]).slice().sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
   const dailyGroups=[];
-  items.filter(x=>x.kind==='daily').forEach(x=>{
-    const description=x.description||'Diária',amount=Number(x.amount||0),units=Number(x.units||1),last=dailyGroups[dailyGroups.length-1];
-    if(last&&last.description===description&&Math.abs(last.unitAmount-amount)<0.009){
-      last.qty+=units;last.total+=amount;last.last=x.occurredAt;
-    }else{
-      dailyGroups.push({description:description,unitAmount:amount,qty:units,total:amount,first:x.occurredAt,last:x.occurredAt});
-    }
-  });
-  let lines=dailyGroups.map(g=>({
-    description:g.description,
-    qty:g.qty,
-    total:g.total,
-    period:g.first===g.last?docDateShort(g.first):docDateShort(g.first)+' a '+docDateShort(g.last)
-  }));
-  lines=lines.concat(items.filter(x=>x.kind!=='daily').map(x=>({
-    description:x.description||x.category||'Extra',
-    qty:1,total:Number(x.amount||0),period:docDateShort(x.occurredAt)
-  })));
-  if(lines.length>6){
-    const kept=lines.slice(0,5),rest=lines.slice(5);
-    kept.push({
-      description:'Outros lançamentos - consultar sistema',
-      qty:rest.reduce((n,x)=>n+Number(x.qty||1),0),
-      total:rest.reduce((n,x)=>n+Number(x.total||0),0),
-      period:'Diversos'
-    });
-    lines=kept;
-  }
+  items.filter(x=>x.kind==='daily').forEach(x=>{const description=x.description||'Diária',amount=Number(x.amount||0),units=Number(x.units||1),last=dailyGroups[dailyGroups.length-1];if(last&&last.description===description&&Math.abs(last.unitAmount-amount)<0.009){last.qty+=units;last.total+=amount;last.last=x.occurredAt}else dailyGroups.push({description,unitAmount:amount,qty:units,total:amount,first:x.occurredAt,last:x.occurredAt})});
+  let lines=dailyGroups.map(g=>({description:g.description,qty:g.qty,total:g.total,period:g.first===g.last?docDateShort(g.first):docDateShort(g.first)+' a '+docDateShort(g.last)}));
+  lines=lines.concat(items.filter(x=>x.kind!=='daily').map(x=>({description:x.description||x.category||'Extra',qty:1,total:Number(x.amount||0),period:docDateShort(x.occurredAt)})));
+  if(lines.length>6){const kept=lines.slice(0,5),rest=lines.slice(5);kept.push({description:'Outros lançamentos - consultar sistema',qty:rest.reduce((n,x)=>n+Number(x.qty||1),0),total:rest.reduce((n,x)=>n+Number(x.total||0),0),period:'Diversos'});lines=kept}
   const payMap=new Map();
-  pays.forEach(x=>{
-    const key=x.method||'Outro',g=payMap.get(key)||{method:key,qty:0,total:0,first:x.occurredAt,last:x.occurredAt};
-    g.qty+=1;g.total+=Number(x.amount||0);g.last=x.occurredAt;payMap.set(key,g);
-  });
-  const payGroups=[...payMap.values()].map(g=>({
-    method:g.method,qty:g.qty,total:g.total,
-    period:g.first===g.last?docDateShort(g.first):docDateShort(g.first)+' a '+docDateShort(g.last)
-  }));
-  return {
-    patient:p,
-    lines:lines,
-    payGroups:payGroups,
-    status:Number(s.balance||0)<=0?'ACERTO QUITADO':'ACERTO COM PENDÊNCIA',
-    statusClass:Number(s.balance||0)<=0?'ok':'pending',
-    docId:settlementDocumentId(a)
-  };
+  pays.forEach(x=>{const key='Recebimento - '+(x.method||'Outro'),g=payMap.get(key)||{method:key,qty:0,total:0,first:x.occurredAt,last:x.occurredAt};g.qty++;g.total+=Number(x.amount||0);g.last=x.occurredAt;payMap.set(key,g)});
+  refunds.forEach(x=>{const key='Reembolso - '+(x.method||'Outro'),g=payMap.get(key)||{method:key,qty:0,total:0,first:x.occurredAt,last:x.occurredAt};g.qty++;g.total-=Number(x.amount||0);g.last=x.occurredAt;payMap.set(key,g)});
+  const payGroups=[...payMap.values()].map(g=>({method:g.method,qty:g.qty,total:g.total,period:g.first===g.last?docDateShort(g.first):docDateShort(g.first)+' a '+docDateShort(g.last)}));
+  const bal=Number(s.balance||0);
+  return {patient:p,lines,payGroups,status:bal<-.009?'CRÉDITO A DEVOLVER':bal>.009?'ACERTO COM PENDÊNCIA':'ACERTO QUITADO',statusClass:Math.abs(bal)<=.009?'ok':'pending',docId:settlementDocumentId(a)};
 }
 function pdfSafeText(v){
   return String(v??'').normalize('NFC').replace(/\u00a0/g,' ').replace(/[–—]/g,'-').replace(/•/g,'-').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[^\x20-\xFF]/g,'?');
