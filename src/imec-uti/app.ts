@@ -7,9 +7,30 @@ import {
   newAdmissionEstimate, roleLabel, balanceMeta
 } from './domain';
 import { SUPABASE_URL, SUPABASE_KEY } from './config';
+import { clearAuthLinkArtifacts, initialAuthLinkType, supabase } from './supabase-client';
+import {
+  ABSOLUTE_SESSION_MS, IDLE_TIMEOUT_MS, pwnedCountFromRange,
+  sessionExpiryReason, sha1Hex, validatePasswordPolicy
+} from './security';
 
 const USERS=['Samuel','Roberto','Aline'];
 let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:''};
+let data=blankData();
+let authState=null;
+let teamProfiles=[];
+let teamClosers=[];
+let remoteBusy=false;
+let pendingMfaEnrollment=null;
+let securityFlowBusy=false;
+let activityWriteAt=0;
+let inactivityTimer=null;
+const SESSION_STARTED_KEY='imec-uti-session-start-v1';
+const LAST_ACTIVITY_KEY='imec-uti-last-activity-v1';
+const STRONG_PASSWORD_KEY='imec-uti-strong-password-v1';
+const ROLE_PERMISSIONS={
+  commercial:new Set(['create_admission','add_extra','add_payment','adjust_rate','discharge','update_on_duty']),
+  operator:new Set(['create_admission','add_extra','discharge'])
+};
 
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
@@ -183,24 +204,20 @@ async function parseResponse(res){
   if(!res.ok){const msg=parsed?.message||parsed?.msg||parsed?.error_description||parsed?.error||`Erro ${res.status}`;throw new Error(msg)}
   return parsed;
 }
-async function authFetch(path,body){const res=await fetch(`${SUPABASE_URL}/auth/v1/${path}`,{method:'POST',headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});return parseResponse(res)}
-function storeAuth(session){authState=session;if(session)localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(session));else localStorage.removeItem(AUTH_STORAGE_KEY)}
-function restoreAuth(){try{return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||'null')}catch{return null}}
+async function syncAuthState(){
+  const {data:{session},error}=await supabase.auth.getSession();
+  if(error)throw error;
+  authState=session||null;
+  return authState;
+}
 async function ensureSession(){
-  if(!authState)return false;
-  const exp=Number(authState.expires_at||0)*1000;
-  if(exp && Date.now()<exp-60000)return true;
-  if(!authState.refresh_token)return false;
-  try{
-    const next=await authFetch('token?grant_type=refresh_token',{refresh_token:authState.refresh_token});
-    storeAuth(next);return true;
-  }catch{storeAuth(null);return false}
+  try{return !!(await syncAuthState())}catch{authState=null;return false}
 }
 async function rest(path,{method='GET',body,prefer}={}){
   if(!await ensureSession())throw new Error('Sessão expirada. Entre novamente.');
   const headers=authHeaders(authState.access_token,prefer?{'Prefer':prefer}:{});
   const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
-  if(res.status===401){storeAuth(null);throw new Error('Sessão expirada. Entre novamente.')}
+  if(res.status===401){authState=null;throw new Error('Sessão expirada. Entre novamente.')}
   return parseResponse(res);
 }
 async function rpc(name,args={}){return rest(`rpc/${name}`,{method:'POST',body:args,prefer:'return=representation'})}
@@ -208,6 +225,47 @@ async function edge(name,body={}){
   if(!await ensureSession())throw new Error('Sessão expirada. Entre novamente.');
   const res=await fetch(`${SUPABASE_URL}/functions/v1/${name}`,{method:'POST',headers:authHeaders(authState.access_token),body:JSON.stringify(body)});
   return parseResponse(res);
+}
+function securityStorageKey(base){return `${base}:${authState?.user?.id||'anonymous'}`}
+function startSessionClock(){
+  const key=securityStorageKey(SESSION_STARTED_KEY);
+  if(!localStorage.getItem(key))localStorage.setItem(key,String(Date.now()));
+  touchActivity(true);
+  if(inactivityTimer)clearInterval(inactivityTimer);
+  inactivityTimer=setInterval(()=>enforceClientSessionTimeout(),60000);
+}
+function clearSessionClock(){
+  if(inactivityTimer){clearInterval(inactivityTimer);inactivityTimer=null}
+  for(const store of [localStorage,sessionStorage]){
+    const keys=[];for(let i=0;i<store.length;i++){const key=store.key(i);if(key&&(key.startsWith(SESSION_STARTED_KEY+':')||key.startsWith(LAST_ACTIVITY_KEY+':')||key.startsWith(STRONG_PASSWORD_KEY+':')))keys.push(key)}
+    keys.forEach(key=>store.removeItem(key));
+  }
+}
+function touchActivity(force=false){
+  if(!authState)return;
+  const now=Date.now();
+  if(!force&&now-activityWriteAt<30000)return;
+  activityWriteAt=now;
+  localStorage.setItem(securityStorageKey(LAST_ACTIVITY_KEY),String(now));
+}
+async function enforceClientSessionTimeout(){
+  if(!authState)return false;
+  const start=Number(localStorage.getItem(securityStorageKey(SESSION_STARTED_KEY))||0);
+  const last=Number(localStorage.getItem(securityStorageKey(LAST_ACTIVITY_KEY))||0);
+  const reason=sessionExpiryReason(Date.now(),start,last,IDLE_TIMEOUT_MS,ABSOLUTE_SESSION_MS);
+  if(!reason)return false;
+  await logoutRemote(reason==='idle'?'Sessão encerrada após 30 minutos sem atividade.':'Sessão encerrada após 12 horas. Entre novamente.');
+  return true;
+}
+function strongPasswordConfirmed(){return sessionStorage.getItem(securityStorageKey(STRONG_PASSWORD_KEY))==='1'}
+function rememberStrongPassword(){sessionStorage.setItem(securityStorageKey(STRONG_PASSWORD_KEY),'1')}
+async function verifyPasswordSecurity(password){
+  const policy=validatePasswordPolicy(password);
+  if(!policy.valid)throw new Error(policy.errors[0]);
+  const hash=await sha1Hex(password);
+  const result=await edge('password-pwned-range',{prefix:hash.slice(0,5)});
+  if(pwnedCountFromRange(result?.range||'',hash.slice(5))>0)throw new Error('Esta senha já apareceu em vazamentos conhecidos. Escolha outra senha.');
+  return true;
 }
 function setLoading(on,text='Sincronizando…'){
   remoteBusy=on;
@@ -228,15 +286,15 @@ function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,se
     payments:(payments||[]).map(p=>({id:p.id,admissionId:p.admission_id,occurredAt:p.occurred_at,amount:Number(p.amount),method:p.method,notes:p.notes||undefined,createdBy:p.created_by_name})),
     refunds:(refunds||[]).map(r=>({id:r.id,admissionId:r.admission_id,occurredAt:r.occurred_at,amount:Number(r.amount),method:r.method,notes:r.notes||undefined,createdBy:r.created_by_name})),
     audits:(audits||[]).map(a=>({id:a.id,admissionId:a.admission_id||undefined,occurredAt:a.occurred_at,user:a.user_name,action:a.action,detail:a.detail})),
-    currentUser:profile.display_name,currentRole:profile.role,onDuty:settings?.on_duty_name||'Samuel',seededDemo:false
+    currentUser:profile.display_name,currentRole:profile.role,onDuty:settings?.on_duty_name||'Samuel',securityOnboardingAt:profile.security_onboarding_completed_at||null,seededDemo:false
   }
 }
 async function loadRemote({quiet=false}={}){
   if(!await ensureSession()){renderAuth();return false}
   const uid=authState.user?.id;
-  if(!uid){storeAuth(null);renderAuth();return false}
+  if(!uid){authState=null;renderAuth();return false}
   try{
-    const own=await rest(`profiles?id=eq.${encodeURIComponent(uid)}&select=id,display_name,email,role,active`);
+    const own=await rest(`profiles?id=eq.${encodeURIComponent(uid)}&select=id,display_name,email,role,active,security_onboarding_completed_at`);
     const profile=own?.[0];
     if(!profile){renderAccountState('Seu perfil ainda está sendo preparado.','Tente novamente em alguns segundos.');return false}
     if(!profile.active){data=blankData();data.currentUser=profile.display_name;data.currentRole=profile.role;renderPending(profile);return false}
@@ -257,7 +315,7 @@ async function loadRemote({quiet=false}={}){
     if(!quiet)render();
     return true;
   }catch(e){
-    if(String(e.message).toLowerCase().includes('sessão')){storeAuth(null);renderAuth();return false}
+    if(String(e.message).toLowerCase().includes('sessão')){authState=null;renderAuth();return false}
     renderAccountState('Não foi possível carregar os dados.',e.message||'Verifique a conexão e tente novamente.');return false
   }
 }
@@ -266,17 +324,110 @@ function authCard(inner){
 }
 function renderAuth(message=''){
   const msg=message?`<div class="auth-message">${esc(message)}</div>`:'';
-  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu acesso individual para visualizar internações, recebimentos e saldos.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button></form><p class="auth-foot">Acesso restrito à equipe autorizada. Novos usuários são cadastrados e liberados pelo administrador.</p>`);
-  document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();const error=document.getElementById('authError');error.innerHTML='';try{setLoading(true,'Entrando…');const s=await authFetch('token?grant_type=password',{email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});storeAuth(s);await loadRemote()}catch(x){error.innerHTML=`<div class="form-error">⚠ ${esc(x.message)}</div>`}finally{setLoading(false)}};
+  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu acesso individual. O segundo fator será solicitado na sequência.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button><button class="auth-link" type="button" id="forgotPasswordBtn">Esqueci minha senha</button></form><p class="auth-foot">Acesso restrito à equipe autorizada • MFA obrigatório • sessão protegida por inatividade.</p>`);
+  document.getElementById('forgotPasswordBtn').onclick=forgotPasswordModal;
+  document.getElementById('loginForm').onsubmit=async e=>{
+    e.preventDefault();const error=document.getElementById('authError');error.innerHTML='';
+    try{
+      setLoading(true,'Entrando…');
+      const {data:{session},error:loginError}=await supabase.auth.signInWithPassword({email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});
+      if(loginError)throw loginError;
+      authState=session;startSessionClock();await continueSecureBoot();
+    }catch(x){error.innerHTML=`<div class="form-error">⚠ ${esc(x.message)}</div>`}finally{setLoading(false)}
+  };
 }
-
+function forgotPasswordModal(){
+  openModal('Recuperar acesso','Enviaremos um link seguro para definir uma nova senha.',`<form class="form" id="recoveryForm">${field('E-mail','<input id="recoveryEmail" type="email" autocomplete="email" required placeholder="seu@email.com">')}<div id="recoveryError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Enviar link</button></div></form>`);
+  document.querySelector('[data-close2]').onclick=closeModal;
+  document.getElementById('recoveryForm').onsubmit=async e=>{
+    e.preventDefault();const er=document.getElementById('recoveryError');er.innerHTML='';
+    try{
+      setLoading(true,'Enviando recuperação…');
+      const {error}=await supabase.auth.resetPasswordForEmail(document.getElementById('recoveryEmail').value.trim(),{redirectTo:'https://www.sallusflow.com.br/imec-uti/'});
+      if(error)throw error;
+      closeModal();renderAuth('Se o e-mail estiver cadastrado, o link de recuperação foi enviado.');
+    }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+  };
+}
+function renderPasswordSetup(profile,{linkType=null}={}){
+  const recovery=linkType==='recovery',invite=linkType==='invite';
+  const title=recovery?'Defina sua nova senha':invite?'Proteja seu novo acesso':'Atualize a segurança da conta';
+  const copy=recovery?'Crie uma nova senha forte antes de voltar ao sistema.':invite?'Antes do primeiro acesso, defina uma senha forte e ative o autenticador.':'Sua conta precisa de uma senha forte, exclusiva e verificada contra vazamentos conhecidos.';
+  authCard(`<div class="security-step">1</div><div class="auth-copy center"><span class="eyebrow">SEGURANÇA DA CONTA</span><h1>${title}</h1><p>${copy}</p></div><form id="securePasswordForm" class="auth-form"><label class="field"><span class="field-label">Nova senha</span><input id="securePassword" type="password" minlength="12" autocomplete="new-password" required placeholder="12+ caracteres"></label><label class="field"><span class="field-label">Confirmar senha</span><input id="securePassword2" type="password" minlength="12" autocomplete="new-password" required placeholder="Repita a senha"></label><div class="password-rules">12+ caracteres • maiúscula • minúscula • número • símbolo • não vazada</div><div id="securePasswordError"></div><button class="btn btn-primary auth-submit">Salvar e continuar</button></form>`);
+  document.getElementById('securePasswordForm').onsubmit=async e=>{
+    e.preventDefault();const er=document.getElementById('securePasswordError');er.innerHTML='';
+    const password=document.getElementById('securePassword').value,confirm=document.getElementById('securePassword2').value;
+    if(password!==confirm){er.innerHTML='<div class="form-error">⚠ As senhas não coincidem.</div>';return}
+    try{
+      setLoading(true,'Validando senha…');await verifyPasswordSecurity(password);
+      const {error}=await supabase.auth.updateUser({password});if(error)throw error;
+      rememberStrongPassword();clearAuthLinkArtifacts();await syncAuthState();await continueSecureBoot();
+    }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+  };
+}
+async function renderMfaEnrollment(profile){
+  try{
+    setLoading(true,'Preparando autenticador…');
+    if(!pendingMfaEnrollment){
+      const {data,error}=await supabase.auth.mfa.enroll({factorType:'totp',friendlyName:'IMEC UTI'});
+      if(error)throw error;pendingMfaEnrollment=data;
+    }
+    const factor=pendingMfaEnrollment,qr=factor?.totp?.qr_code||'',secret=factor?.totp?.secret||'';
+    authCard(`<div class="security-step">2</div><div class="auth-copy center"><span class="eyebrow">MFA OBRIGATÓRIO</span><h1>Ative seu autenticador</h1><p>Escaneie o QR Code no Google Authenticator, Microsoft Authenticator, 1Password ou aplicativo compatível.</p></div><div class="mfa-qr"><img src="${esc(qr)}" alt="QR Code do autenticador"></div><div class="mfa-secret"><span>Chave manual</span><strong>${esc(secret)}</strong></div><form id="mfaEnrollForm" class="auth-form"><label class="field"><span class="field-label">Código de 6 dígitos</span><input id="mfaEnrollCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required placeholder="000000"></label><div id="mfaEnrollError"></div><button class="btn btn-primary auth-submit">Ativar MFA</button></form>`);
+    document.getElementById('mfaEnrollForm').onsubmit=async e=>{
+      e.preventDefault();const er=document.getElementById('mfaEnrollError');er.innerHTML='';
+      try{
+        setLoading(true,'Confirmando segundo fator…');
+        const {data:challenge,error:challengeError}=await supabase.auth.mfa.challenge({factorId:factor.id});if(challengeError)throw challengeError;
+        const {error:verifyError}=await supabase.auth.mfa.verify({factorId:factor.id,challengeId:challenge.id,code:document.getElementById('mfaEnrollCode').value.trim()});if(verifyError)throw verifyError;
+        pendingMfaEnrollment=null;await supabase.auth.refreshSession();await syncAuthState();await continueSecureBoot();
+      }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+    };
+  }catch(ex){renderAccountState('Não foi possível preparar o MFA.',ex.message||'Tente novamente.')}finally{setLoading(false)}
+}
+function renderMfaChallenge(factor){
+  authCard(`<div class="security-step">2</div><div class="auth-copy center"><span class="eyebrow">SEGUNDO FATOR</span><h1>Confirme seu acesso</h1><p>Digite o código atual do seu aplicativo autenticador.</p></div><form id="mfaChallengeForm" class="auth-form"><label class="field"><span class="field-label">Código de 6 dígitos</span><input id="mfaChallengeCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required autofocus placeholder="000000"></label><div id="mfaChallengeError"></div><button class="btn btn-primary auth-submit">Confirmar</button><button type="button" class="auth-link" id="mfaLogout">Usar outra conta</button></form>`);
+  document.getElementById('mfaLogout').onclick=()=>logoutRemote();
+  document.getElementById('mfaChallengeForm').onsubmit=async e=>{
+    e.preventDefault();const er=document.getElementById('mfaChallengeError');er.innerHTML='';
+    try{
+      setLoading(true,'Validando código…');
+      const {data:challenge,error:challengeError}=await supabase.auth.mfa.challenge({factorId:factor.id});if(challengeError)throw challengeError;
+      const {error:verifyError}=await supabase.auth.mfa.verify({factorId:factor.id,challengeId:challenge.id,code:document.getElementById('mfaChallengeCode').value.trim()});if(verifyError)throw verifyError;
+      await supabase.auth.refreshSession();await syncAuthState();await continueSecureBoot();
+    }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+  };
+}
+async function continueSecureBoot(){
+  if(securityFlowBusy)return;
+  securityFlowBusy=true;
+  try{
+    if(!await ensureSession()){renderAuth();return}
+    if(await enforceClientSessionTimeout())return;
+    startSessionClock();
+    const uid=authState.user?.id;if(!uid){renderAuth();return}
+    const own=await rest(`profiles?id=eq.${encodeURIComponent(uid)}&select=id,display_name,email,role,active,security_onboarding_completed_at`);
+    const profile=own?.[0];if(!profile){renderAccountState('Seu perfil ainda está sendo preparado.','Tente novamente em alguns segundos.');return}
+    if((initialAuthLinkType==='invite'||initialAuthLinkType==='recovery')&&!strongPasswordConfirmed()){renderPasswordSetup(profile,{linkType:initialAuthLinkType});return}
+    const [{data:aal,error:aalError},{data:factors,error:factorsError}]=await Promise.all([supabase.auth.mfa.getAuthenticatorAssuranceLevel(),supabase.auth.mfa.listFactors()]);
+    if(aalError)throw aalError;if(factorsError)throw factorsError;
+    const verified=(factors?.totp||[]).find(f=>f.status==='verified');
+    if(!verified){await renderMfaEnrollment(profile);return}
+    if(aal?.currentLevel!=='aal2'){renderMfaChallenge(verified);return}
+    if(!profile.security_onboarding_completed_at){
+      if(!strongPasswordConfirmed()){renderPasswordSetup(profile);return}
+      await rpc('mark_uti_security_onboarding_complete',{});
+    }
+    clearAuthLinkArtifacts();await loadRemote();
+  }catch(ex){renderAccountState('Não foi possível validar a segurança do acesso.',ex.message||'Tente novamente.')}finally{securityFlowBusy=false}
+}
 function renderPending(profile){
   authCard(`<div class="pending-icon">⌛</div><div class="auth-copy center"><span class="eyebrow">ACESSO PENDENTE</span><h1>Olá, ${esc(profile.display_name)}</h1><p>Seu acesso foi criado, mas ainda precisa ser liberado por um administrador da UTI.</p></div><div class="pending-email">${esc(profile.email||'')}</div><button id="retryPending" class="btn btn-primary auth-submit">Verificar liberação</button><button id="logoutPending" class="btn btn-secondary auth-submit">Sair</button>`);
   document.getElementById('retryPending').onclick=()=>withRemote(()=>loadRemote(),null);
   document.getElementById('logoutPending').onclick=logoutRemote;
 }
 function renderAccountState(title,detail){authCard(`<div class="pending-icon">!</div><div class="auth-copy center"><h1>${esc(title)}</h1><p>${esc(detail)}</p></div><button id="retryState" class="btn btn-primary auth-submit">Tentar novamente</button><button id="logoutState" class="btn btn-secondary auth-submit">Sair</button>`);document.getElementById('retryState').onclick=()=>loadRemote();document.getElementById('logoutState').onclick=logoutRemote}
-async function logoutRemote(){try{if(authState?.access_token)await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:authHeaders(authState.access_token)})}catch{}storeAuth(null);data=blankData();renderAuth()}
+async function logoutRemote(message=''){try{await supabase.auth.signOut({scope:'local'})}catch{}clearSessionClock();authState=null;data=blankData();renderAuth(message)}
 
 async function inviteUserModal(){
   if(data.currentRole!=='admin'){toast('Somente administradores podem convidar usuários.');return}
@@ -295,17 +446,25 @@ async function inviteUserModal(){
 }
 
 async function changePasswordModal(){
-  openModal('Alterar senha','A nova senha passa a valer imediatamente neste acesso.',`<form class="form" id="passwordForm">${field('Nova senha','<input id="newPassword" type="password" minlength="10" autocomplete="new-password" placeholder="Mínimo 8 caracteres">')}${field('Confirmar nova senha','<input id="confirmPassword" type="password" minlength="10" autocomplete="new-password" placeholder="Repita a nova senha">')}<div id="passwordError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Salvar nova senha</button></div></form>`);
+  openModal('Alterar senha','A nova senha precisa atender à política de segurança e não pode constar em vazamentos conhecidos.',`<form class="form" id="passwordForm">${field('Nova senha','<input id="newPassword" type="password" minlength="12" autocomplete="new-password" placeholder="12+ caracteres">')}${field('Confirmar nova senha','<input id="confirmPassword" type="password" minlength="12" autocomplete="new-password" placeholder="Repita a nova senha">')}<div class="password-rules">Maiúscula • minúscula • número • símbolo • 12+ caracteres • não vazada</div><div id="passwordError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Salvar nova senha</button></div></form>`);
   document.querySelector('[data-close2]').onclick=closeModal;
-  document.getElementById('passwordForm').onsubmit=async e=>{e.preventDefault();const a=document.getElementById('newPassword').value,b=document.getElementById('confirmPassword').value,er=document.getElementById('passwordError');er.innerHTML='';if(a.length<10){er.innerHTML='<div class="form-error">⚠ Use pelo menos 10 caracteres.</div>';return}if(a!==b){er.innerHTML='<div class="form-error">⚠ As senhas não coincidem.</div>';return}try{setLoading(true,'Alterando senha…');if(!await ensureSession())throw new Error('Sessão expirada. Entre novamente.');const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{method:'PUT',headers:authHeaders(authState.access_token),body:JSON.stringify({password:a})});await parseResponse(res);closeModal();toast('Senha alterada com sucesso.')}catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}};
+  document.getElementById('passwordForm').onsubmit=async e=>{
+    e.preventDefault();const a=document.getElementById('newPassword').value,b=document.getElementById('confirmPassword').value,er=document.getElementById('passwordError');er.innerHTML='';
+    if(a!==b){er.innerHTML='<div class="form-error">⚠ As senhas não coincidem.</div>';return}
+    try{setLoading(true,'Validando senha…');await verifyPasswordSecurity(a);const {error}=await supabase.auth.updateUser({password:a});if(error)throw error;rememberStrongPassword();closeModal();toast('Senha alterada com sucesso.')}
+    catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+  };
 }
-
-async function boot(){authState=restoreAuth();if(!authState){renderAuth();return}setLoading(true);try{await loadRemote()}finally{setLoading(false)}}
+async function boot(){
+  setLoading(true,'Validando acesso…');
+  try{await syncAuthState();if(!authState){renderAuth();return}startSessionClock();await continueSecureBoot()}
+  catch(ex){renderAuth('Sua sessão não pôde ser restaurada. Entre novamente.')}finally{setLoading(false)}
+}
 
 function can(permission){return data?.currentRole==='admin'||!!ROLE_PERMISSIONS[data?.currentRole]?.has(permission)}
 function settingsPage(){
   const members=teamProfiles.map(p=>`<div class="member-row"><div class="member-ident"><div class="avatar small">${esc((p.display_name||'?')[0])}</div><div><strong>${esc(p.display_name)}</strong><span>${esc(p.email||'Sem e-mail')}</span></div></div><div class="member-controls">${data.currentRole==='admin'?`<select data-member-role="${p.id}"><option value="operator" ${p.role==='operator'?'selected':''}>Operacional</option><option value="commercial" ${p.role==='commercial'?'selected':''}>Comercial</option><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option></select><label class="switch-label"><input type="checkbox" data-member-active="${p.id}" ${p.active?'checked':''}> <span>${p.active?'Ativo':'Pendente'}</span></label><button class="btn btn-secondary" data-save-member="${p.id}">Salvar</button>`:`<span class="badge ${p.active?'badge-good':'badge-warn'}">${p.active?'Ativo':'Pendente'}</span><span class="badge badge-neutral">${roleLabel(p.role)}</span>`}</div></div>`).join('');
-  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section><section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, trava de leito duplicado e diárias reconciliadas no servidor. O banco da oncologia permanece separado.</span></div></div></section></div>`
+  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section><section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada e protegida</strong><span>MFA obrigatório, sessão com expiração por inatividade, RLS ativo, auditoria por usuário, trava de leito duplicado e diárias reconciliadas no servidor.</span></div></div></section></div>`
 }
 
 async function submitNew(e){
@@ -795,5 +954,7 @@ async function backgroundRefresh(){if(!authState||remoteBusy||document.querySele
 
 document.addEventListener('click',e=>{const nav=e.target.closest('[data-nav]');if(nav){state.page=nav.dataset.nav;state.selectedId=null;render();return}const act=e.target.closest('[data-action]');if(!act)return;const a=act.dataset.action;if(a==='new')newAdmissionModal();if(a==='export'){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),x=document.createElement('a');x.href=url;x.download=`imec-uti-dados-visiveis-${new Date().toISOString().slice(0,10)}.json`;x.click();URL.revokeObjectURL(url)}});
 setInterval(backgroundRefresh,45000);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')backgroundRefresh()});
+['pointerdown','keydown','touchstart','scroll'].forEach(eventName=>window.addEventListener(eventName,()=>touchActivity(),{passive:true}));
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){touchActivity(true);enforceClientSessionTimeout().then(expired=>{if(!expired)backgroundRefresh()})}});
+supabase.auth.onAuthStateChange((event,session)=>{authState=session||null;if(event==='SIGNED_OUT'){clearSessionClock();data=blankData();renderAuth()}});
 boot();
