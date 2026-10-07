@@ -68,6 +68,7 @@ for (const edgePath of ['supabase/functions/invite-uti-user/index.ts','supabase/
   if (!edge.includes('@supabase/supabase-js@2.117.2')) fail(`Dependência Supabase não fixada em ${edgePath}`);
 }
 if (!read('supabase/functions/invite-uti-user/index.ts').includes('aal !== "aal2"')) fail('Convite administrativo não exige AAL2.');
+if (!read('supabase/functions/invite-uti-user/index.ts').includes('is_uti_admin_secure_session')) fail('Convite administrativo não valida sessão ativa no banco.');
 
 const config = read('src/imec-uti/config.ts');
 if (!config.includes('sb_publishable_')) fail('Frontend deve usar apenas chave publishable do Supabase.');
