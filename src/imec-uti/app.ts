@@ -332,7 +332,7 @@ function renderAuth(message=''){
       setLoading(true,'Entrando…');
       const {data:{session},error:loginError}=await supabase.auth.signInWithPassword({email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});
       if(loginError)throw loginError;
-      authState=session;startSessionClock();await continueSecureBoot();
+      authState=session;clearSessionClock();startSessionClock();await continueSecureBoot();
     }catch(x){error.innerHTML=`<div class="form-error">⚠ ${esc(x.message)}</div>`}finally{setLoading(false)}
   };
 }
@@ -426,7 +426,7 @@ function renderPending(profile){
   document.getElementById('retryPending').onclick=()=>withRemote(()=>loadRemote(),null);
   document.getElementById('logoutPending').onclick=logoutRemote;
 }
-function renderAccountState(title,detail){authCard(`<div class="pending-icon">!</div><div class="auth-copy center"><h1>${esc(title)}</h1><p>${esc(detail)}</p></div><button id="retryState" class="btn btn-primary auth-submit">Tentar novamente</button><button id="logoutState" class="btn btn-secondary auth-submit">Sair</button>`);document.getElementById('retryState').onclick=()=>loadRemote();document.getElementById('logoutState').onclick=logoutRemote}
+function renderAccountState(title,detail){authCard(`<div class="pending-icon">!</div><div class="auth-copy center"><h1>${esc(title)}</h1><p>${esc(detail)}</p></div><button id="retryState" class="btn btn-primary auth-submit">Tentar novamente</button><button id="logoutState" class="btn btn-secondary auth-submit">Sair</button>`);document.getElementById('retryState').onclick=()=>continueSecureBoot();document.getElementById('logoutState').onclick=logoutRemote}
 async function logoutRemote(message=''){try{await supabase.auth.signOut({scope:'local'})}catch{}clearSessionClock();authState=null;data=blankData();renderAuth(message)}
 
 async function inviteUserModal(){
@@ -457,7 +457,7 @@ async function changePasswordModal(){
 }
 async function boot(){
   setLoading(true,'Validando acesso…');
-  try{await syncAuthState();if(!authState){renderAuth();return}startSessionClock();await continueSecureBoot()}
+  try{await syncAuthState();if(!authState){clearSessionClock();renderAuth();return}if(initialAuthLinkType)clearSessionClock();startSessionClock();await continueSecureBoot()}
   catch(ex){renderAuth('Sua sessão não pôde ser restaurada. Entre novamente.')}finally{setLoading(false)}
 }
 
