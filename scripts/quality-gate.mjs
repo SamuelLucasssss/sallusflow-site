@@ -75,7 +75,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 26) fail(`Esperadas 26 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 27) fail(`Esperadas 27 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 
 for (const file of migrations) {
