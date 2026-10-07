@@ -48,16 +48,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Confirme o segundo fator antes de convidar usuários." }), { status: 403, headers: cors });
     }
 
-    const adminClient = createClient(url, service, { auth: { persistSession: false } });
-    const { data: profile, error: profileError } = await adminClient
-      .from("profiles")
-      .select("id,active,role")
-      .eq("id", userData.user.id)
-      .single();
+    // Authorization must be decided with the caller's JWT at the database boundary.
+    // This validates the session_id against auth.sessions and re-checks active/admin + AAL2.
+    const { data: secureAdminSession, error: secureAdminError } = await userClient
+      .rpc("is_uti_admin_secure_session");
 
-    if (profileError || !profile?.active || profile.role !== "admin") {
-      return new Response(JSON.stringify({ error: "Somente administradores podem convidar usuários." }), { status: 403, headers: cors });
+    if (secureAdminError || secureAdminSession !== true) {
+      return new Response(JSON.stringify({ error: "Sessão administrativa inválida, encerrada ou sem permissão." }), { status: 403, headers: cors });
     }
+
+    const adminClient = createClient(url, service, { auth: { persistSession: false } });
 
     const body = await req.json();
     const email = String(body?.email || "").trim().toLowerCase();
