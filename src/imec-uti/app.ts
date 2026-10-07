@@ -7,9 +7,24 @@ import {
   newAdmissionEstimate, roleLabel, balanceMeta
 } from './domain';
 import { SUPABASE_URL, SUPABASE_KEY } from './config';
+import {
+  AUTH_STORAGE_KEY, ACTIVITY_STORAGE_KEY, IDLE_TIMEOUT_MS, APP_URL,
+  jwtAal, normalizeSession, parseAuthRedirect, cleanAuthRedirectUrl,
+  passwordPolicy, sha1Hex, pwnedCountFromRange, isIdle
+} from './security';
 
 const USERS=['Samuel','Roberto','Aline'];
+const ROLE_PERMISSIONS={
+  commercial:new Set(['create_admission','add_extra','add_payment','adjust_rate','discharge','update_on_duty']),
+  operator:new Set(['create_admission','add_extra','discharge'])
+};
 let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:''};
+let data=blankData();
+let authState=null;
+let teamProfiles=[];
+let teamClosers=[];
+let remoteBusy=false;
+let idleGuardStarted=false;
 
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
@@ -183,18 +198,62 @@ async function parseResponse(res){
   if(!res.ok){const msg=parsed?.message||parsed?.msg||parsed?.error_description||parsed?.error||`Erro ${res.status}`;throw new Error(msg)}
   return parsed;
 }
-async function authFetch(path,body){const res=await fetch(`${SUPABASE_URL}/auth/v1/${path}`,{method:'POST',headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});return parseResponse(res)}
-function storeAuth(session){authState=session;if(session)localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(session));else localStorage.removeItem(AUTH_STORAGE_KEY)}
-function restoreAuth(){try{return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||'null')}catch{return null}}
+async function authFetch(path,body){
+  const res=await fetch(`${SUPABASE_URL}/auth/v1/${path}`,{method:'POST',headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  return parseResponse(res)
+}
+async function authApi(path,{method='GET',body}={}){
+  if(!authState?.access_token)throw new Error('Sessão ausente.');
+  const res=await fetch(`${SUPABASE_URL}/auth/v1/${path}`,{method,headers:authHeaders(authState.access_token),body:body===undefined?undefined:JSON.stringify(body)});
+  return parseResponse(res)
+}
+function touchActivity(){
+  const now=Date.now();
+  try{localStorage.setItem(ACTIVITY_STORAGE_KEY,String(now))}catch{}
+}
+function lastActivity(){
+  try{return Number(localStorage.getItem(ACTIVITY_STORAGE_KEY)||0)}catch{return 0}
+}
+function sessionIdle(){
+  const last=lastActivity();
+  return last>0&&isIdle(last,Date.now(),IDLE_TIMEOUT_MS)
+}
+function startIdleGuard(){
+  if(idleGuardStarted)return;
+  idleGuardStarted=true;
+  let lastWrite=0;
+  const activity=()=>{
+    const now=Date.now();
+    if(now-lastWrite<15000)return;
+    lastWrite=now;touchActivity();
+  };
+  ['pointerdown','keydown','touchstart','scroll'].forEach(evt=>window.addEventListener(evt,activity,{passive:true}));
+  setInterval(()=>{if(authState&&sessionIdle())expireIdleSession()},60000);
+}
+async function expireIdleSession(){
+  if(!authState)return;
+  try{await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:authHeaders(authState.access_token)})}catch{}
+  storeAuth(null);data=blankData();renderAuth('Sua sessão foi encerrada após 20 minutos sem atividade.');
+}
+function storeAuth(session){
+  authState=session?normalizeSession(session):null;
+  try{
+    if(authState){localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(authState));touchActivity()}
+    else{localStorage.removeItem(AUTH_STORAGE_KEY);localStorage.removeItem(ACTIVITY_STORAGE_KEY)}
+  }catch{}
+}
+function restoreAuth(){try{return normalizeSession(JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||'null'))}catch{return null}}
+async function refreshAuth(){
+  if(!authState?.refresh_token)throw new Error('Sessão expirada. Entre novamente.');
+  const next=await authFetch('token?grant_type=refresh_token',{refresh_token:authState.refresh_token});
+  storeAuth(next);return authState;
+}
 async function ensureSession(){
   if(!authState)return false;
+  if(sessionIdle()){await expireIdleSession();return false}
   const exp=Number(authState.expires_at||0)*1000;
   if(exp && Date.now()<exp-60000)return true;
-  if(!authState.refresh_token)return false;
-  try{
-    const next=await authFetch('token?grant_type=refresh_token',{refresh_token:authState.refresh_token});
-    storeAuth(next);return true;
-  }catch{storeAuth(null);return false}
+  try{await refreshAuth();return true}catch{storeAuth(null);return false}
 }
 async function rest(path,{method='GET',body,prefer}={}){
   if(!await ensureSession())throw new Error('Sessão expirada. Entre novamente.');
@@ -217,6 +276,77 @@ function setLoading(on,text='Sincronizando…'){
 }
 async function withRemote(work,success){if(remoteBusy)return;try{setLoading(true);const r=await work();if(success)toast(success);return r}catch(e){alert(e.message||'Não foi possível concluir a operação.');throw e}finally{setLoading(false)}}
 
+async function currentAuthUser(){
+  if(!await ensureSession())return null;
+  const user=await authApi('user');
+  if(user&&!authState.user){authState={...authState,user};storeAuth(authState)}
+  return user;
+}
+function verifiedTotpFactors(user){return (user?.factors||[]).filter(f=>f.factor_type==='totp'&&f.status==='verified')}
+function unverifiedTotpFactors(user){return (user?.factors||[]).filter(f=>f.factor_type==='totp'&&f.status!=='verified')}
+async function cleanupUnverifiedFactors(){
+  const user=await currentAuthUser();
+  for(const factor of unverifiedTotpFactors(user)){
+    try{await authApi(`factors/${encodeURIComponent(factor.id)}`,{method:'DELETE'})}catch{}
+  }
+}
+async function verifyMfaCode(factorId,code){
+  const challenge=await authApi(`factors/${encodeURIComponent(factorId)}/challenge`,{method:'POST',body:{}});
+  const verified=await authApi(`factors/${encodeURIComponent(factorId)}/verify`,{method:'POST',body:{challenge_id:challenge.id,code}});
+  if(verified?.access_token)storeAuth({...authState,...verified});
+  else await refreshAuth();
+  if(jwtAal(authState?.access_token)!=='aal2')throw new Error('Não foi possível elevar a segurança da sessão.');
+}
+async function renderMfaChallenge(user){
+  const factor=verifiedTotpFactors(user)[0];
+  if(!factor){await renderMfaEnrollment();return}
+  authCard(`<div class="security-shield">◈</div><div class="auth-copy center"><span class="eyebrow">SEGUNDO FATOR</span><h1>Confirme seu acesso</h1><p>Digite o código de 6 dígitos do seu aplicativo autenticador.</p></div><form id="mfaChallengeForm" class="auth-form"><label class="field"><span class="field-label">Código do autenticador</span><input id="mfaCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000"></label><div id="mfaError"></div><button class="btn btn-primary auth-submit">Confirmar acesso</button><button id="mfaLogout" type="button" class="btn btn-secondary auth-submit">Sair</button></form>`);
+  document.getElementById('mfaLogout').onclick=logoutRemote;
+  document.getElementById('mfaChallengeForm').onsubmit=async e=>{
+    e.preventDefault();const er=document.getElementById('mfaError');er.innerHTML='';
+    try{setLoading(true,'Validando segundo fator…');await verifyMfaCode(factor.id,document.getElementById('mfaCode').value.trim());await loadRemote()}
+    catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+  };
+}
+async function renderMfaEnrollment(){
+  try{
+    setLoading(true,'Preparando autenticação em dois fatores…');
+    await cleanupUnverifiedFactors();
+    const enrolled=await authApi('factors',{method:'POST',body:{factor_type:'totp',friendly_name:'IMEC UTI'}});
+    const qr=enrolled?.totp?.qr_code||'',secret=enrolled?.totp?.secret||'';
+    authCard(`<div class="security-shield">◈</div><div class="auth-copy center"><span class="eyebrow">PROTEÇÃO OBRIGATÓRIA</span><h1>Ative a autenticação em dois fatores</h1><p>Escaneie o QR Code no Google Authenticator, Microsoft Authenticator, 1Password ou outro aplicativo TOTP.</p></div><div class="mfa-qr"><img src="${esc(qr)}" alt="QR Code para autenticação em dois fatores"></div><div class="mfa-secret"><span>Chave manual</span><code>${esc(secret)}</code></div><form id="mfaEnrollForm" class="auth-form"><label class="field"><span class="field-label">Código de 6 dígitos</span><input id="mfaEnrollCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000"></label><div id="mfaEnrollError"></div><button class="btn btn-primary auth-submit">Ativar e continuar</button><button id="mfaEnrollLogout" type="button" class="btn btn-secondary auth-submit">Sair</button></form>`);
+    document.getElementById('mfaEnrollLogout').onclick=logoutRemote;
+    document.getElementById('mfaEnrollForm').onsubmit=async e=>{
+      e.preventDefault();const er=document.getElementById('mfaEnrollError');er.innerHTML='';
+      try{
+        setLoading(true,'Ativando proteção…');
+        await verifyMfaCode(enrolled.id,document.getElementById('mfaEnrollCode').value.trim());
+        try{await rpc('mark_uti_security_onboarding_complete',{})}catch{}
+        await loadRemote();
+      }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+    };
+  }catch(ex){renderAccountState('Não foi possível preparar o segundo fator.',ex.message||'Tente novamente.')}
+  finally{setLoading(false)}
+}
+async function securityGate(){
+  if(!await ensureSession())return false;
+  const user=await currentAuthUser();
+  if(!user){storeAuth(null);renderAuth();return false}
+  if(jwtAal(authState.access_token)==='aal2')return true;
+  const factors=verifiedTotpFactors(user);
+  if(factors.length){await renderMfaChallenge(user);return false}
+  await renderMfaEnrollment();return false;
+}
+async function checkPasswordSafety(password){
+  const policy=passwordPolicy(password);
+  if(!policy.ok)throw new Error(policy.message);
+  const hash=await sha1Hex(password);
+  const result=await edge('password-pwned-range',{prefix:hash.slice(0,5)});
+  const count=pwnedCountFromRange(result?.range||'',hash);
+  if(count>0)throw new Error('Esta senha aparece em vazamentos conhecidos. Escolha uma senha diferente.');
+  return true;
+}
+
 function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings,profiles,closers,profile}){
   const rateMap={};(rates||[]).forEach(r=>(rateMap[r.admission_id]??=[]).push({id:r.id,effectiveAt:r.effective_at,standardRate:Number(r.standard_rate),negotiatedRate:Number(r.negotiated_rate),ventilation:r.ventilation??undefined,label:r.label,changedBy:r.changed_by_name}));
   teamProfiles=profiles||[];
@@ -228,15 +358,15 @@ function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,se
     payments:(payments||[]).map(p=>({id:p.id,admissionId:p.admission_id,occurredAt:p.occurred_at,amount:Number(p.amount),method:p.method,notes:p.notes||undefined,createdBy:p.created_by_name})),
     refunds:(refunds||[]).map(r=>({id:r.id,admissionId:r.admission_id,occurredAt:r.occurred_at,amount:Number(r.amount),method:r.method,notes:r.notes||undefined,createdBy:r.created_by_name})),
     audits:(audits||[]).map(a=>({id:a.id,admissionId:a.admission_id||undefined,occurredAt:a.occurred_at,user:a.user_name,action:a.action,detail:a.detail})),
-    currentUser:profile.display_name,currentRole:profile.role,onDuty:settings?.on_duty_name||'Samuel',seededDemo:false
+    currentUser:profile.display_name,currentRole:profile.role,onDuty:settings?.on_duty_name||'Samuel',securityAal:jwtAal(authState?.access_token),seededDemo:false
   }
 }
 async function loadRemote({quiet=false}={}){
-  if(!await ensureSession()){renderAuth();return false}
+  if(!await securityGate())return false;
   const uid=authState.user?.id;
   if(!uid){storeAuth(null);renderAuth();return false}
   try{
-    const own=await rest(`profiles?id=eq.${encodeURIComponent(uid)}&select=id,display_name,email,role,active`);
+    const own=await rest(`profiles?id=eq.${encodeURIComponent(uid)}&select=id,display_name,email,role,active,security_onboarding_completed_at`);
     const profile=own?.[0];
     if(!profile){renderAccountState('Seu perfil ainda está sendo preparado.','Tente novamente em alguns segundos.');return false}
     if(!profile.active){data=blankData();data.currentUser=profile.display_name;data.currentRole=profile.role;renderPending(profile);return false}
@@ -250,15 +380,17 @@ async function loadRemote({quiet=false}={}){
       rest('refunds?cancelled_at=is.null&select=*&order=occurred_at.asc'),
       rest('audits?select=*&order=occurred_at.asc'),
       rest('app_settings?id=eq.1&select=*'),
-      rest('profiles?select=id,display_name,email,role,active,created_at&order=created_at.asc'),
+      rest('profiles?select=id,display_name,email,role,active,created_at,security_onboarding_completed_at&order=created_at.asc'),
       rest('commercial_closers?active=eq.true&select=id,code,display_name,commission_amount,active&order=display_name.asc')
     ]);
     data=mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings:settingsRows?.[0],profiles,closers,profile});
     if(!quiet)render();
     return true;
   }catch(e){
-    if(String(e.message).toLowerCase().includes('sessão')){storeAuth(null);renderAuth();return false}
-    renderAccountState('Não foi possível carregar os dados.',e.message||'Verifique a conexão e tente novamente.');return false
+    const msg=String(e.message||'');
+    if(msg.toLowerCase().includes('sessão')){storeAuth(null);renderAuth();return false}
+    if(msg.toLowerCase().includes('mfa')||msg.toLowerCase().includes('segundo fator')){await securityGate();return false}
+    renderAccountState('Não foi possível carregar os dados.',msg||'Verifique a conexão e tente novamente.');return false
   }
 }
 function authCard(inner){
@@ -266,12 +398,21 @@ function authCard(inner){
 }
 function renderAuth(message=''){
   const msg=message?`<div class="auth-message">${esc(message)}</div>`:'';
-  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu acesso individual para visualizar internações, recebimentos e saldos.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button></form><p class="auth-foot">Acesso restrito à equipe autorizada. Novos usuários são cadastrados e liberados pelo administrador.</p>`);
+  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu acesso individual para visualizar internações, recebimentos e saldos.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button><button class="auth-link" id="forgotPasswordBtn" type="button">Esqueci minha senha</button></form><p class="auth-foot">Acesso restrito à equipe autorizada. MFA obrigatório e sessão protegida por inatividade.</p>`);
+  document.getElementById('forgotPasswordBtn').onclick=renderForgotPassword;
   document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();const error=document.getElementById('authError');error.innerHTML='';try{setLoading(true,'Entrando…');const s=await authFetch('token?grant_type=password',{email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});storeAuth(s);await loadRemote()}catch(x){error.innerHTML=`<div class="form-error">⚠ ${esc(x.message)}</div>`}finally{setLoading(false)}};
 }
-
+function renderForgotPassword(){
+  authCard(`<div class="auth-copy"><span class="eyebrow">RECUPERAÇÃO SEGURA</span><h1>Recuperar senha</h1><p>Informe seu e-mail. Se ele estiver cadastrado, você receberá um link de recuperação.</p></div><form id="recoverForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="recoverEmail" type="email" autocomplete="email" required></label><div id="recoverMessage"></div><button class="btn btn-primary auth-submit">Enviar link</button><button id="recoverBack" type="button" class="btn btn-secondary auth-submit">Voltar</button></form>`);
+  document.getElementById('recoverBack').onclick=()=>renderAuth();
+  document.getElementById('recoverForm').onsubmit=async e=>{
+    e.preventDefault();const box=document.getElementById('recoverMessage');
+    try{setLoading(true,'Enviando recuperação…');await authFetch(`recover?redirect_to=${encodeURIComponent(APP_URL)}`,{email:document.getElementById('recoverEmail').value.trim()})}catch{}
+    finally{setLoading(false);box.innerHTML='<div class="auth-message">Se o e-mail estiver cadastrado, o link de recuperação foi enviado.</div>'}
+  };
+}
 function renderPending(profile){
-  authCard(`<div class="pending-icon">⌛</div><div class="auth-copy center"><span class="eyebrow">ACESSO PENDENTE</span><h1>Olá, ${esc(profile.display_name)}</h1><p>Seu acesso foi criado, mas ainda precisa ser liberado por um administrador da UTI.</p></div><div class="pending-email">${esc(profile.email||'')}</div><button id="retryPending" class="btn btn-primary auth-submit">Verificar liberação</button><button id="logoutPending" class="btn btn-secondary auth-submit">Sair</button>`);
+  authCard(`<div class="pending-icon">⌛</div><div class="auth-copy center"><span class="eyebrow">ACESSO PENDENTE</span><h1>Olá, ${esc(profile.display_name)}</h1><p>Seu acesso está protegido, mas ainda precisa ser liberado por um administrador da UTI.</p></div><div class="pending-email">${esc(profile.email||'')}</div><button id="retryPending" class="btn btn-primary auth-submit">Verificar liberação</button><button id="logoutPending" class="btn btn-secondary auth-submit">Sair</button>`);
   document.getElementById('retryPending').onclick=()=>withRemote(()=>loadRemote(),null);
   document.getElementById('logoutPending').onclick=logoutRemote;
 }
@@ -280,7 +421,7 @@ async function logoutRemote(){try{if(authState?.access_token)await fetch(`${SUPA
 
 async function inviteUserModal(){
   if(data.currentRole!=='admin'){toast('Somente administradores podem convidar usuários.');return}
-  openModal('Convidar usuário','O convite será enviado com retorno direto para o IMEC UTI.',`<form class="form" id="inviteForm">${field('Nome','<input id="inviteName" autocomplete="off" required placeholder="Nome do usuário">')}<div class="form-grid two">${field('E-mail','<input id="inviteEmail" type="email" autocomplete="off" required placeholder="usuario@empresa.com">')}${field('Perfil','<select id="inviteRole"><option value="operator">Operacional</option><option value="commercial">Comercial</option><option value="admin">Administrador</option></select>')}</div><div class="security-note"><span>✓</span><div><strong>Convite seguro</strong><span>O link direciona para https://www.sallusflow.com.br/imec-uti/ e o acesso permanece pendente até ser liberado.</span></div></div><div id="inviteError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Enviar convite</button></div></form>`);
+  openModal('Convidar usuário','O convite será enviado com retorno direto para o IMEC UTI.',`<form class="form" id="inviteForm">${field('Nome','<input id="inviteName" autocomplete="off" required placeholder="Nome do usuário">')}<div class="form-grid two">${field('E-mail','<input id="inviteEmail" type="email" autocomplete="off" required placeholder="usuario@empresa.com">')}${field('Perfil','<select id="inviteRole"><option value="operator">Operacional</option><option value="commercial">Comercial</option><option value="admin">Administrador</option></select>')}</div><div class="security-note"><span>✓</span><div><strong>Convite seguro</strong><span>O usuário define senha própria, ativa MFA e permanece pendente até ser liberado.</span></div></div><div id="inviteError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Enviar convite</button></div></form>`);
   document.querySelector('[data-close2]').onclick=closeModal;
   document.getElementById('inviteForm').onsubmit=async e=>{
     e.preventDefault();if(remoteBusy)return;
@@ -294,18 +435,46 @@ async function inviteUserModal(){
   };
 }
 
-async function changePasswordModal(){
-  openModal('Alterar senha','A nova senha passa a valer imediatamente neste acesso.',`<form class="form" id="passwordForm">${field('Nova senha','<input id="newPassword" type="password" minlength="10" autocomplete="new-password" placeholder="Mínimo 8 caracteres">')}${field('Confirmar nova senha','<input id="confirmPassword" type="password" minlength="10" autocomplete="new-password" placeholder="Repita a nova senha">')}<div id="passwordError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Salvar nova senha</button></div></form>`);
+async function passwordEditor({title='Definir nova senha',subtitle='Use uma senha exclusiva para este sistema.',afterSave}={}){
+  openModal(title,subtitle,`<form class="form" id="passwordForm">${field('Nova senha','<input id="newPassword" type="password" minlength="12" autocomplete="new-password" placeholder="Mínimo 12 caracteres">','Use maiúsculas, minúsculas, números e símbolos.')}${field('Confirmar nova senha','<input id="confirmPassword" type="password" minlength="12" autocomplete="new-password" placeholder="Repita a nova senha">')}<div id="passwordError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Salvar senha</button></div></form>`);
   document.querySelector('[data-close2]').onclick=closeModal;
-  document.getElementById('passwordForm').onsubmit=async e=>{e.preventDefault();const a=document.getElementById('newPassword').value,b=document.getElementById('confirmPassword').value,er=document.getElementById('passwordError');er.innerHTML='';if(a.length<10){er.innerHTML='<div class="form-error">⚠ Use pelo menos 10 caracteres.</div>';return}if(a!==b){er.innerHTML='<div class="form-error">⚠ As senhas não coincidem.</div>';return}try{setLoading(true,'Alterando senha…');if(!await ensureSession())throw new Error('Sessão expirada. Entre novamente.');const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{method:'PUT',headers:authHeaders(authState.access_token),body:JSON.stringify({password:a})});await parseResponse(res);closeModal();toast('Senha alterada com sucesso.')}catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}};
+  document.getElementById('passwordForm').onsubmit=async e=>{
+    e.preventDefault();const a=document.getElementById('newPassword').value,b=document.getElementById('confirmPassword').value,er=document.getElementById('passwordError');er.innerHTML='';
+    if(a!==b){er.innerHTML='<div class="form-error">⚠ As senhas não coincidem.</div>';return}
+    try{
+      setLoading(true,'Validando senha…');await checkPasswordSafety(a);
+      const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{method:'PUT',headers:authHeaders(authState.access_token),body:JSON.stringify({password:a})});await parseResponse(res);
+      closeModal();toast('Senha atualizada com segurança.');
+      if(afterSave)await afterSave();
+    }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+  };
 }
-
-async function boot(){authState=restoreAuth();if(!authState){renderAuth();return}setLoading(true);try{await loadRemote()}finally{setLoading(false)}}
+async function changePasswordModal(){return passwordEditor({title:'Alterar senha',subtitle:'A senha nova será validada contra vazamentos conhecidos.'})}
+async function renderCallbackPassword(type){
+  const title=type==='recovery'?'Crie sua nova senha':'Proteja seu novo acesso';
+  authCard(`<div class="security-shield">◈</div><div class="auth-copy center"><span class="eyebrow">${type==='recovery'?'RECUPERAÇÃO':'PRIMEIRO ACESSO'}</span><h1>${title}</h1><p>Antes de continuar, defina uma senha forte e exclusiva.</p></div><button id="callbackPasswordBtn" class="btn btn-primary auth-submit">Definir senha</button><button id="callbackLogoutBtn" class="btn btn-secondary auth-submit">Cancelar</button>`);
+  document.getElementById('callbackLogoutBtn').onclick=logoutRemote;
+  document.getElementById('callbackPasswordBtn').onclick=()=>passwordEditor({title,afterSave:async()=>{await renderMfaEnrollment()}});
+}
+async function boot(){
+  startIdleGuard();
+  const callback=parseAuthRedirect(window.location.href);
+  if(callback.session){
+    storeAuth(callback.session);
+    try{
+      const user=await authApi('user');authState={...authState,user};storeAuth(authState);
+    }catch{}
+    history.replaceState({},document.title,cleanAuthRedirectUrl(window.location.href));
+    if(callback.type==='invite'||callback.type==='recovery'){await renderCallbackPassword(callback.type);return}
+  }else authState=restoreAuth();
+  if(!authState){renderAuth();return}
+  setLoading(true);try{await loadRemote()}finally{setLoading(false)}
+}
 
 function can(permission){return data?.currentRole==='admin'||!!ROLE_PERMISSIONS[data?.currentRole]?.has(permission)}
 function settingsPage(){
   const members=teamProfiles.map(p=>`<div class="member-row"><div class="member-ident"><div class="avatar small">${esc((p.display_name||'?')[0])}</div><div><strong>${esc(p.display_name)}</strong><span>${esc(p.email||'Sem e-mail')}</span></div></div><div class="member-controls">${data.currentRole==='admin'?`<select data-member-role="${p.id}"><option value="operator" ${p.role==='operator'?'selected':''}>Operacional</option><option value="commercial" ${p.role==='commercial'?'selected':''}>Comercial</option><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option></select><label class="switch-label"><input type="checkbox" data-member-active="${p.id}" ${p.active?'checked':''}> <span>${p.active?'Ativo':'Pendente'}</span></label><button class="btn btn-secondary" data-save-member="${p.id}">Salvar</button>`:`<span class="badge ${p.active?'badge-good':'badge-warn'}">${p.active?'Ativo':'Pendente'}</span><span class="badge badge-neutral">${roleLabel(p.role)}</span>`}</div></div>`).join('');
-  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section><section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, trava de leito duplicado e diárias reconciliadas no servidor. O banco da oncologia permanece separado.</span></div></div></section></div>`
+  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section><section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-status"><div><strong>MFA obrigatório • sessão AAL2</strong><span>Expiração automática após 20 minutos sem atividade.</span></div><span class="badge badge-good">${data.securityAal==='aal2'?'Protegido':'Verificar'}</span></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, senha verificada contra vazamentos, trava de leito duplicado e diárias reconciliadas no servidor.</span></div></div></section></div>`
 }
 
 async function submitNew(e){

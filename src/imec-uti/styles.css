@@ -413,3 +413,11 @@ button.table-row:hover { background:#fafcfc; }
   .settle-paygrid{grid-template-columns:1fr 1fr}
   .settle-paygrid button{grid-column:1/-1}
 }
+
+
+/* Package 3 — security UX */
+.auth-link{border:0;background:transparent;color:var(--brand,#0b6f72);font:inherit;font-weight:700;cursor:pointer;padding:10px 0;text-decoration:underline;text-underline-offset:3px}
+.security-shield{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;margin:0 auto 14px;background:rgba(11,111,114,.10);font-size:28px}
+.mfa-qr{display:grid;place-items:center;margin:18px 0}.mfa-qr img{width:min(240px,72vw);height:auto;border-radius:16px;background:#fff;padding:12px;border:1px solid rgba(15,23,42,.12)}
+.mfa-secret{display:flex;flex-direction:column;gap:6px;margin:12px 0 18px;padding:12px 14px;border-radius:12px;background:rgba(15,23,42,.04);text-align:center}.mfa-secret span{font-size:12px;color:#64748b}.mfa-secret code{font-size:14px;word-break:break-all}
+.security-status{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.18)}.security-status strong{display:block}.security-status span{font-size:12px;color:#64748b}
