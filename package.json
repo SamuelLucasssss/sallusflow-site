@@ -17,7 +17,8 @@
     "astro": "7.3.6",
     "@astrojs/react": "7.0.0",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "@supabase/supabase-js": "2.117.2"
   },
   "devDependencies": {
     "@types/react": "19.2.15",
