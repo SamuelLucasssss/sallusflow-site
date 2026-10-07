@@ -110,3 +110,24 @@ export function balanceMeta(value: unknown): BalanceMeta {
   if (n > 0.009) return { label: 'Saldo a receber', amount: n, kind: 'debt' };
   return { label: 'Saldo', amount: 0, kind: 'paid' };
 }
+
+
+export type HealthStatusMeta = {
+  label: string;
+  tone: 'good' | 'warn' | 'bad';
+  stale: boolean;
+};
+
+export function healthStatusMeta(
+  status: string | null | undefined,
+  checkedAt: Date | string | number | null | undefined,
+  now: Date | string | number = new Date(),
+): HealthStatusMeta {
+  const checkedMs = checkedAt == null ? NaN : new Date(checkedAt).getTime();
+  const nowMs = new Date(now).getTime();
+  const stale = !Number.isFinite(checkedMs) || !Number.isFinite(nowMs) || nowMs - checkedMs > 45 * 60 * 1000;
+  if (stale) return { label: 'Monitor atrasado', tone: 'warn', stale: true };
+  if (status === 'critical') return { label: 'Crítico', tone: 'bad', stale: false };
+  if (status === 'warn') return { label: 'Atenção', tone: 'warn', stale: false };
+  return { label: 'Saudável', tone: 'good', stale: false };
+}
