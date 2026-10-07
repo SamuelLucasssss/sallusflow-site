@@ -42,9 +42,32 @@ for (const required of [
   'p_expected_version:Number(fresh.accountVersion)',
   "edge('invite-uti-user'",
   'Entrada retroativa',
+  'let data=blankData()',
+  'let authState=null',
+  'let remoteBusy=false',
+  'async function securityGate()',
+  'async function renderMfaEnrollment()',
+  'async function renderMfaChallenge(',
+  'async function checkPasswordSafety(',
+  'IDLE_TIMEOUT_MS',
+  'parseAuthRedirect',
 ]) {
   if (!app.includes(required)) fail(`Proteção crítica ausente do app: ${required}`);
 }
+
+const security = read('src/imec-uti/security.ts');
+for (const required of ['IDLE_TIMEOUT_MS = 20 * 60 * 1000','passwordPolicy','sha1Hex','pwnedCountFromRange','parseAuthRedirect','jwtAal']) {
+  if (!security.includes(required)) fail(`Primitiva de segurança ausente: ${required}`);
+}
+const vercelConfig = read('vercel.json');
+for (const header of ['Content-Security-Policy','Strict-Transport-Security','X-Content-Type-Options','Permissions-Policy','frame-ancestors']) {
+  if (!vercelConfig.includes(header)) fail(`Header de segurança ausente: ${header}`);
+}
+for (const edgePath of ['supabase/functions/invite-uti-user/index.ts','supabase/functions/password-pwned-range/index.ts']) {
+  const edge = read(edgePath);
+  if (!edge.includes('@supabase/supabase-js@2.117.2')) fail(`Dependência Supabase não fixada em ${edgePath}`);
+}
+if (!read('supabase/functions/invite-uti-user/index.ts').includes('aal !== "aal2"')) fail('Convite administrativo não exige AAL2.');
 
 const config = read('src/imec-uti/config.ts');
 if (!config.includes('sb_publishable_')) fail('Frontend deve usar apenas chave publishable do Supabase.');
@@ -52,7 +75,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 23) fail(`Esperadas 23 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 26) fail(`Esperadas 26 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 
 for (const file of migrations) {
