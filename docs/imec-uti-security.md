@@ -66,8 +66,11 @@ Both Edge Functions require a valid JWT and use a pinned Supabase client version
 `invite-uti-user` additionally requires:
 - valid user token;
 - JWT AAL2;
+- an active `auth.sessions` row matching the JWT `session_id`;
 - active profile;
 - admin role.
+
+The privileged invitation path re-checks authorization through `is_uti_admin_secure_session()` using the caller's JWT before the Edge Function creates a service-role client. Revoked sessions therefore cannot continue to invite users with a still-unexpired access token.
 
 Allowed browser origins are restricted to the production domain and legitimate Vercel previews.
 
