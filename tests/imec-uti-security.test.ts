@@ -30,7 +30,7 @@ test('range HIBP é comparado somente pelo sufixo', () => {
 });
 
 test('timeout distingue inatividade de limite absoluto', () => {
-  const now = 10_000_000;
+  const now = 100_000_000;
   assert.equal(sessionExpiryReason(now, now - 60_000, now - IDLE_TIMEOUT_MS - 1), 'idle');
   assert.equal(sessionExpiryReason(now, now - ABSOLUTE_SESSION_MS - 1, now - 1_000), 'absolute');
   assert.equal(sessionExpiryReason(now, now - 60_000, now - 60_000), null);
