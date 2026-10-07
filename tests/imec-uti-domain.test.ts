@@ -10,6 +10,7 @@ import {
   parseLocal,
   roleLabel,
   sameDay,
+  healthStatusMeta,
 } from '../src/imec-uti/domain.ts';
 
 test('hotelaria respeita a tabela por leito', () => {
@@ -52,4 +53,17 @@ test('formatação de CPF e papéis permanece estável', () => {
   assert.equal(roleLabel('admin'), 'Administrador');
   assert.equal(roleLabel('commercial'), 'Comercial');
   assert.equal(roleLabel('operator'), 'Operacional');
+});
+
+
+test('saúde operacional diferencia ok, alerta e crítico', () => {
+  const now = new Date('2026-10-07T18:00:00.000Z');
+  assert.deepEqual(healthStatusMeta('ok', '2026-10-07T17:50:00.000Z', now), { label: 'Saudável', tone: 'good', stale: false });
+  assert.deepEqual(healthStatusMeta('warn', '2026-10-07T17:50:00.000Z', now), { label: 'Atenção', tone: 'warn', stale: false });
+  assert.deepEqual(healthStatusMeta('critical', '2026-10-07T17:50:00.000Z', now), { label: 'Crítico', tone: 'bad', stale: false });
+});
+
+test('health check com mais de 45 minutos é tratado como atrasado', () => {
+  const now = new Date('2026-10-07T18:00:00.000Z');
+  assert.deepEqual(healthStatusMeta('ok', '2026-10-07T17:14:59.000Z', now), { label: 'Monitor atrasado', tone: 'warn', stale: true });
 });
