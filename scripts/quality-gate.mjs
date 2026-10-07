@@ -52,7 +52,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 23) fail(`Esperadas 23 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 25) fail(`Esperadas 25 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 
 for (const file of migrations) {
@@ -65,4 +65,7 @@ if (errors.length) {
   console.error('\nQUALITY GATE FAILED\n- ' + errors.join('\n- '));
   process.exit(1);
 }
-console.log(`Quality gate OK: ${functionNames.length} funções únicas, ${migrations.length} migrations, dependências fixas.`);
+for (const required of ['let data=blankData();','let authState=null;','const ROLE_PERMISSIONS=','mfa.enroll','mfa.challenge','mfa.verify','resetPasswordForEmail','mark_uti_security_onboarding_complete','password-pwned-range']) { if (!app.includes(required)) fail(`Hardening de autenticação ausente: ${required}`); }
+const vercelConfig = read('vercel.json');
+for (const header of ['Content-Security-Policy','Strict-Transport-Security','X-Frame-Options','Permissions-Policy']) { if (!vercelConfig.includes(header)) fail(`Header de segurança ausente: ${header}`); }
+console.log(`Quality gate OK: ${functionNames.length} funções únicas, ${migrations.length} migrations, dependências fixas e hardening de autenticação presente.`);
