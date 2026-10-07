@@ -1,496 +1,25 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b6f72"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="IMEC UTI"><meta name="description" content="Controle de internações particulares, hotelaria e recebimentos da IMEC UTI"><title>IMEC UTI | Particular & Hotelaria</title><style>:root {
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #172326;
-  background: #f4f7f7;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  --brand: #0b6f72;
-  --brand-strong: #07575a;
-  --brand-soft: #e7f3f3;
-  --brand-soft-2: #f2f9f9;
-  --text: #172326;
-  --muted: #6d7b7e;
-  --line: #dfe7e7;
-  --surface: #ffffff;
-  --surface-2: #f8fafa;
-  --good: #16794a;
-  --good-soft: #eaf7f0;
-  --warn: #a16207;
-  --warn-soft: #fff7df;
-  --bad: #b42318;
-  --bad-soft: #fff0ee;
-  --shadow: 0 14px 40px rgba(25, 55, 57, .07);
-  --radius: 18px;
-}
+// @ts-nocheck
+import {
+  PRIVATE_NO_VENT, PRIVATE_VENT, HOTEL_SIMPLE, HOTEL_SUITE,
+  money, businessParts, zonedLocalToDate, fmtDT, fmtDM, nowLocalInput,
+  toLocalInput, parseLocal, cpfNorm, cpfMask, dayKey, monthKey,
+  sameDay, sameMonth, bedRate, bedLabel, late, spParts,
+  newAdmissionEstimate, roleLabel, balanceMeta
+} from './domain';
+import { SUPABASE_URL, SUPABASE_KEY } from './config';
 
-* { box-sizing: border-box; }
-html { background: #f4f7f7; }
-body { margin: 0; min-width: 320px; min-height: 100vh; background: #f4f7f7; }
-button, input, select, textarea { font: inherit; }
-button { cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .5; }
-
-.app-shell { min-height: 100vh; }
-.sidebar {
-  position: fixed; inset: 0 auto 0 0; width: 244px; background: #fff; border-right: 1px solid var(--line);
-  padding: 22px 16px; display: flex; flex-direction: column; z-index: 40;
-}
-.brand, .mobile-brand { display: flex; align-items: center; gap: 11px; }
-.brand-mark {
-  width: 39px; height: 39px; display: grid; place-items: center; border-radius: 12px;
-  color: #fff; background: linear-gradient(150deg, var(--brand), #139296); font-weight: 850; font-size: 20px;
-  box-shadow: 0 8px 20px rgba(11,111,114,.22);
-}
-.brand strong, .mobile-brand strong { display:block; font-size: 14px; letter-spacing: .01em; }
-.brand span, .mobile-brand span { display:block; color: var(--muted); font-size: 10px; margin-top: 2px; }
-.side-new { width: 100%; margin: 28px 0 20px; }
-.sidebar nav { display:flex; flex-direction:column; gap:5px; }
-.side-item {
-  border: 0; background: transparent; color: #4f6063; display:flex; align-items:center; gap:11px;
-  padding: 11px 12px; border-radius: 12px; text-align:left; font-size: 13px; font-weight: 650;
-}
-.side-item:hover { background:#f5f8f8; }
-.side-item.active { background: var(--brand-soft); color: var(--brand-strong); }
-.side-bottom { margin-top:auto; display:flex; flex-direction:column; gap:12px; }
-.duty { background: var(--surface-2); border:1px solid var(--line); padding:12px; border-radius:14px; }
-.duty > span { display:block; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.08em; font-weight:700; }
-.duty strong { display:flex; align-items:center; gap:7px; font-size:12px; margin-top:7px; }
-.online-dot { width:7px; height:7px; border-radius:50%; background:#22a06b; box-shadow:0 0 0 4px #e8f7ef; }
-.user-chip { display:flex; align-items:center; gap:9px; padding:6px 4px; }
-.user-chip > div:nth-child(2) { flex:1; }
-.user-chip strong { display:block; font-size:12px; }
-.user-chip span { display:block; font-size:10px; color:var(--muted); margin-top:1px; }
-.avatar { width:34px; height:34px; border-radius:11px; background:#153d3f; color:#fff; display:grid; place-items:center; font-size:12px; font-weight:800; }
-.avatar.small { width:29px; height:29px; border-radius:9px; }
-
-.app-main { margin-left:244px; min-height:100vh; }
-.topbar { height:68px; display:flex; justify-content:flex-end; align-items:center; padding:0 34px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.86); backdrop-filter:blur(18px); position:sticky; top:0; z-index:30; }
-.mobile-brand { display:none; }
-.top-actions { display:flex; align-items:center; gap:10px; }
-.top-user { border:0; background:transparent; display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:11px; color:var(--text); font-size:12px; font-weight:700; }
-.top-user:hover { background:#f4f7f7; }
-.content { max-width:1450px; margin:0 auto; padding:34px; }
-
-.btn { min-height:40px; border-radius:11px; border:1px solid transparent; padding:0 14px; display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:750; font-size:12px; transition:.15s ease; }
-.btn-primary { color:#fff; background:var(--brand); box-shadow:0 7px 18px rgba(11,111,114,.16); }
-.btn-primary:hover { background:var(--brand-strong); transform:translateY(-1px); }
-.btn-secondary { color:#314245; background:#fff; border-color:var(--line); box-shadow:none; }
-.btn-secondary:hover { background:#f8fafa; }
-.btn-ghost { background:transparent; color:var(--brand); }
-.btn-danger { color:var(--bad); background:var(--bad-soft); border-color:#f3c7c1; }
-.icon-btn { width:38px; height:38px; border:1px solid var(--line); border-radius:11px; background:#fff; display:grid; place-items:center; color:#506063; }
-.icon-btn:hover { background:#f7f9f9; }
-
-.page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:25px; }
-.page-head h1 { margin:5px 0 5px; font-size:28px; line-height:1.1; letter-spacing:-.035em; }
-.page-head p { margin:0; color:var(--muted); font-size:13px; }
-.eyebrow { font-size:9px; letter-spacing:.13em; font-weight:850; color:var(--brand); }
-.demo-banner { margin:-8px 0 22px; background:#eff8f8; border:1px solid #cfe7e7; border-radius:13px; padding:10px 13px; display:flex; align-items:center; justify-content:space-between; color:#31595b; font-size:11px; }
-.demo-banner > div { display:flex; align-items:center; gap:8px; }
-
-.metric-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
-.finance-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); }
-.metric-card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px; display:flex; gap:12px; min-height:104px; box-shadow:0 5px 24px rgba(30,60,62,.035); }
-.metric-icon { width:39px; height:39px; border-radius:12px; background:#f0f5f5; color:#51676a; display:grid; place-items:center; flex:0 0 auto; }
-.metric-good .metric-icon { background:var(--good-soft); color:var(--good); }
-.metric-warn .metric-icon { background:var(--warn-soft); color:var(--warn); }
-.metric-copy { min-width:0; }
-.metric-copy span { display:block; color:var(--muted); font-size:10px; font-weight:700; margin:2px 0 6px; }
-.metric-copy strong { display:block; font-size:20px; letter-spacing:-.04em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.metric-copy small { display:block; color:var(--muted); font-size:9px; margin-top:7px; }
-
-.dashboard-grid { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(280px,.8fr); gap:16px; margin-bottom:16px; }
-.panel { background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 5px 28px rgba(27,58,60,.035); padding:18px; }
-.panel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; }
-.panel-head h2 { margin:0 0 3px; font-size:14px; letter-spacing:-.01em; }
-.panel-head p { margin:0; color:var(--muted); font-size:10px; }
-.badge { display:inline-flex; align-items:center; border-radius:999px; padding:5px 8px; font-size:9px; font-weight:800; white-space:nowrap; }
-.badge-neutral { background:#f1f4f4; color:#667477; }
-.badge-good { background:var(--good-soft); color:var(--good); }
-.badge-warn { background:var(--warn-soft); color:var(--warn); }
-.badge-bad { background:var(--bad-soft); color:var(--bad); }
-.badge-brand { background:var(--brand-soft); color:var(--brand-strong); }
-
-.attention-list, .finance-list, .receipt-list { display:flex; flex-direction:column; }
-.attention-row, .finance-row { width:100%; border:0; border-top:1px solid #edf1f1; background:transparent; display:flex; align-items:center; gap:12px; padding:13px 4px; text-align:left; color:var(--text); }
-.attention-row:first-child, .finance-row:first-child { border-top:0; }
-.attention-row:hover, .finance-row:hover { background:#fafcfc; }
-.status-rail { width:3px; height:34px; border-radius:6px; }
-.rail-bad { background:var(--bad); }
-.rail-warn { background:#d18b19; }
-.attention-main, .finance-row > div:first-child { min-width:0; flex:1; }
-.attention-main strong, .finance-name strong { display:block; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.attention-main span, .finance-row > div:first-child > span { display:block; color:var(--muted); font-size:9px; margin-top:3px; }
-.attention-value, .finance-amount { text-align:right; }
-.attention-value span, .finance-amount span { display:block; color:var(--muted); font-size:9px; }
-.attention-value strong, .finance-amount strong { display:block; font-size:12px; margin-top:3px; }
-.finance-name { display:flex; gap:8px; align-items:center; }
-.mini-stats { display:flex; flex-direction:column; }
-.mini-stats > div { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:13px 0; border-top:1px solid #edf1f1; }
-.mini-stats > div:first-child { border-top:0; }
-.mini-stats span { color:var(--muted); font-size:10px; }
-.mini-stats strong { font-size:13px; }
-
-.patient-card-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-.patient-card { border:1px solid var(--line); background:#fff; border-radius:15px; text-align:left; padding:14px; color:var(--text); transition:.15s ease; }
-.patient-card:hover { border-color:#bfd6d7; transform:translateY(-1px); box-shadow:0 9px 24px rgba(25,60,62,.06); }
-.patient-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:13px; }
-.bed-chip { min-width:33px; height:29px; padding:0 8px; display:grid; place-items:center; border-radius:9px; background:#153d3f; color:white; font-size:11px; font-weight:850; }
-.patient-card h3 { margin:0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.patient-card > p { margin:3px 0 11px; color:var(--muted); font-size:9px; }
-.patient-meta { display:flex; flex-direction:column; gap:5px; color:var(--muted); font-size:9px; padding-bottom:11px; border-bottom:1px solid #edf1f1; }
-.patient-meta span { display:flex; align-items:center; gap:5px; }
-.patient-money { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:11px 0; }
-.patient-money span, .balance-strip span { display:block; color:var(--muted); font-size:8px; }
-.patient-money strong { display:block; font-size:11px; margin-top:3px; }
-.balance-strip { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:8px; border-radius:10px; padding:9px 10px; }
-.balance-strip strong { font-size:12px; }
-.balance-strip.open { background:var(--bad-soft); color:var(--bad); }
-.balance-strip.paid { background:var(--good-soft); color:var(--good); }
-
-.toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
-.searchbox { flex:1; max-width:380px; height:40px; border:1px solid var(--line); background:#fff; border-radius:11px; padding:0 11px; display:flex; align-items:center; gap:8px; color:#809092; }
-.searchbox input { width:100%; border:0; outline:0; background:transparent; color:var(--text); font-size:11px; }
-.filter-chips, .tabs { display:flex; gap:6px; overflow:auto; scrollbar-width:none; }
-.filter-chips::-webkit-scrollbar, .tabs::-webkit-scrollbar { display:none; }
-.filter-chips button, .tabs button { border:1px solid var(--line); background:#fff; color:#667679; border-radius:999px; padding:8px 11px; font-size:9px; font-weight:750; white-space:nowrap; }
-.filter-chips button.active, .tabs button.active { background:#153d3f; border-color:#153d3f; color:#fff; }
-.tabs { margin-bottom:12px; }
-.tabs button span { display:inline-grid; place-items:center; min-width:16px; height:16px; margin-left:4px; border-radius:99px; background:rgba(255,255,255,.15); }
-.table-panel { padding:4px 0; overflow:hidden; }
-.patients-table { overflow:auto; }
-.table-row { min-width:980px; width:100%; display:grid; grid-template-columns:2fr .45fr .95fr .8fr .8fr .8fr .85fr 24px; gap:12px; align-items:center; padding:12px 17px; border:0; border-top:1px solid #edf1f1; background:#fff; text-align:left; color:var(--text); font-size:10px; }
-button.table-row:hover { background:#fafcfc; }
-.table-header { color:#849194; text-transform:uppercase; letter-spacing:.06em; font-size:8px; font-weight:800; border-top:0; }
-.patient-cell strong { display:block; font-size:11px; }
-.patient-cell small { display:block; color:var(--muted); font-size:8px; margin-top:2px; }
-.money-open { color:var(--bad); font-weight:800; }
-.money-paid { color:var(--good); font-weight:800; }
-
-.receipt-row { display:grid; grid-template-columns:34px 1fr auto; gap:10px; align-items:center; border-top:1px solid #edf1f1; padding:12px 3px; }
-.receipt-row:first-child { border-top:0; }
-.receipt-icon { width:32px; height:32px; display:grid; place-items:center; border-radius:10px; background:var(--good-soft); color:var(--good); }
-.receipt-row > div:nth-child(2) strong { display:block; font-size:11px; }
-.receipt-row > div:nth-child(2) span { display:block; color:var(--muted); font-size:9px; margin-top:3px; }
-.receipt-row > strong { font-size:11px; color:var(--good); }
-
-.detail-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
-.back-btn { border:0; background:transparent; color:#536467; display:flex; align-items:center; gap:6px; font-size:11px; font-weight:750; padding:8px 0; }
-.detail-actions { display:flex; gap:7px; }
-.detail-hero { background:linear-gradient(135deg,#ffffff,#fbfdfd); border:1px solid var(--line); border-radius:20px; padding:20px; margin-bottom:12px; }
-.detail-identity { display:flex; gap:14px; align-items:center; }
-.bed-large { width:52px; height:52px; border-radius:14px; display:grid; place-items:center; background:#153d3f; color:white; font-weight:850; font-size:16px; }
-.detail-badges { display:flex; gap:6px; margin-bottom:5px; }
-.detail-identity h1 { margin:0; font-size:22px; letter-spacing:-.03em; }
-.detail-identity p { margin:4px 0 0; color:var(--muted); font-size:10px; }
-.detail-meta-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:1px; background:var(--line); margin-top:18px; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-.detail-meta-grid > div { background:#fff; padding:11px; }
-.detail-meta-grid span { display:block; color:var(--muted); font-size:8px; margin-bottom:4px; }
-.detail-meta-grid strong { display:block; font-size:10px; }
-.money-hero { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
-.money-hero > div { background:#fff; border:1px solid var(--line); border-radius:15px; padding:15px; }
-.money-hero span { display:block; font-size:9px; color:var(--muted); }
-.money-hero strong { display:block; margin-top:5px; font-size:20px; letter-spacing:-.04em; }
-.money-hero .balance.open { background:var(--bad-soft); border-color:#f2c4bf; color:var(--bad); }
-.money-hero .balance.paid { background:var(--good-soft); border-color:#cce8d8; color:var(--good); }
-.quick-actions { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin-bottom:12px; }
-.quick-actions button { border:1px solid var(--line); background:#fff; border-radius:13px; min-height:68px; display:flex; align-items:center; gap:10px; text-align:left; padding:11px; color:#2f4143; }
-.quick-actions button:hover:not(:disabled) { border-color:#bcd4d5; background:#fcfefe; }
-.quick-actions button > div { width:35px; height:35px; display:grid; place-items:center; border-radius:10px; background:var(--brand-soft); color:var(--brand); }
-.quick-actions button span { font-size:10px; font-weight:750; }
-.detail-columns { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr); gap:12px; }
-.side-stack { display:flex; flex-direction:column; gap:12px; }
-.timeline { display:flex; flex-direction:column; }
-.timeline-row { display:grid; grid-template-columns:30px 1fr auto; gap:10px; align-items:center; padding:11px 0; border-top:1px solid #edf1f1; }
-.timeline-row:first-child { border-top:0; }
-.timeline-dot { width:28px; height:28px; display:grid; place-items:center; border-radius:9px; background:#f0f4f4; color:#637477; }
-.timeline-row.payment .timeline-dot { background:var(--good-soft); color:var(--good); }
-.timeline-row > div:nth-child(2) strong { display:block; font-size:10px; }
-.timeline-row > div:nth-child(2) span, .timeline-row > div:nth-child(2) small { display:block; color:var(--muted); font-size:8px; margin-top:2px; }
-.timeline-row > strong { font-size:10px; }
-.good-text { color:var(--good); }
-.coverage-list { display:flex; flex-direction:column; }
-.coverage-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-top:1px solid #edf1f1; }
-.coverage-row:first-child { border-top:0; }
-.coverage-row > div:first-child strong { display:block; font-size:10px; }
-.coverage-row > div:first-child span { display:block; color:var(--muted); font-size:8px; margin-top:2px; max-width:150px; }
-.coverage-right { text-align:right; }
-.coverage-right > span { display:block; font-size:9px; margin-bottom:4px; }
-.audit-list > div { padding:9px 0; border-top:1px solid #edf1f1; }
-.audit-list > div:first-child { border-top:0; }
-.audit-list span { display:block; font-size:8px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:800; }
-.audit-list strong { display:block; font-size:9px; margin:2px 0; }
-.audit-list small { color:var(--muted); font-size:8px; }
-
-.empty-state { text-align:center; padding:30px 16px; color:var(--muted); }
-.empty-icon { width:42px; height:42px; margin:0 auto 9px; border-radius:13px; display:grid; place-items:center; background:#f1f5f5; color:#6f8183; }
-.empty-state strong { display:block; color:#46575a; font-size:11px; }
-.empty-state p { margin:4px 0 0; font-size:9px; }
-
-.modal-backdrop { position:fixed; inset:0; background:rgba(17,34,36,.46); backdrop-filter:blur(4px); z-index:100; display:grid; place-items:center; padding:20px; overflow:auto; }
-.modal-card { width:min(570px,100%); max-height:calc(100vh - 40px); overflow:auto; background:#fff; border-radius:20px; border:1px solid rgba(255,255,255,.6); box-shadow:0 28px 80px rgba(12,30,31,.28); padding:19px; }
-.modal-card.modal-wide { width:min(860px,100%); }
-.modal-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; margin-bottom:18px; }
-.modal-head h2 { margin:0; font-size:18px; letter-spacing:-.02em; }
-.modal-head p { margin:4px 0 0; color:var(--muted); font-size:10px; }
-.form { display:flex; flex-direction:column; gap:14px; }
-.form-section { display:flex; flex-direction:column; gap:10px; padding-top:2px; }
-.form-section + .form-section { border-top:1px solid #edf1f1; padding-top:14px; }
-.form-section h3 { margin:0; font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:#627275; }
-.form-grid { display:grid; gap:10px; }
-.form-grid.two { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.form-grid.three { grid-template-columns:repeat(3,minmax(0,1fr)); }
-.field { display:flex; flex-direction:column; gap:6px; min-width:0; }
-.field-label { color:#405154; font-size:9px; font-weight:800; }
-.field small { color:var(--muted); font-size:8px; line-height:1.35; }
-.field input, .field select, .field textarea { width:100%; border:1px solid #d8e2e2; background:#fff; border-radius:10px; outline:0; color:var(--text); padding:10px 11px; font-size:11px; transition:.15s; }
-.field input, .field select { height:40px; }
-.field textarea { resize:vertical; min-height:60px; }
-.field input:focus, .field select:focus, .field textarea:focus { border-color:#7fb7b9; box-shadow:0 0 0 3px rgba(11,111,114,.08); }
-.read-value { height:40px; border:1px solid #e0e7e7; background:#f7f9f9; border-radius:10px; display:flex; align-items:center; padding:0 11px; color:#4c5c5f; font-size:11px; font-weight:750; }
-.segmented { display:grid; grid-template-columns:1fr 1fr; background:#f0f4f4; padding:3px; border-radius:10px; min-height:40px; }
-.segmented button { border:0; background:transparent; border-radius:8px; color:#687679; font-size:9px; font-weight:800; }
-.segmented button.active { background:#fff; color:var(--brand-strong); box-shadow:0 2px 7px rgba(30,50,52,.08); }
-.currency-input { display:flex; align-items:center; border:1px solid #d8e2e2; border-radius:10px; overflow:hidden; height:40px; }
-.currency-input:focus-within { border-color:#7fb7b9; box-shadow:0 0 0 3px rgba(11,111,114,.08); }
-.currency-input span { color:#748386; font-size:9px; font-weight:800; padding-left:10px; }
-.currency-input input { border:0!important; box-shadow:none!important; height:38px!important; padding-left:6px!important; }
-.currency-input.large { height:51px; }
-.currency-input.large span { font-size:12px; }
-.currency-input.large input { height:49px!important; font-size:19px; font-weight:800; }
-.hint-warn { color:var(--warn)!important; margin-top:2px; }
-.summary-box { display:flex; gap:1px; background:#dfe7e7; border:1px solid #dfe7e7; border-radius:12px; overflow:hidden; }
-.summary-box > div { flex:1; background:#f8fafa; padding:10px 11px; }
-.summary-box span { display:block; color:var(--muted); font-size:8px; }
-.summary-box strong { display:block; font-size:11px; margin-top:3px; }
-.warn-text { color:var(--warn); }
-.form-error, .form-warning, .form-success { border-radius:11px; padding:10px 11px; display:flex; align-items:flex-start; gap:7px; font-size:9px; line-height:1.45; }
-.form-error { color:var(--bad); background:var(--bad-soft); border:1px solid #f1cbc6; }
-.form-warning { color:#8b5a0e; background:var(--warn-soft); border:1px solid #f2dfae; }
-.form-success { color:var(--good); background:var(--good-soft); border:1px solid #cfe9db; }
-.modal-actions { display:flex; justify-content:flex-end; gap:8px; padding-top:2px; }
-.closing-box { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-.closing-box > div { background:#fff; padding:11px; }
-.closing-box span { display:block; color:var(--muted); font-size:8px; }
-.closing-box strong { display:block; margin-top:4px; font-size:13px; }
-.closing-box .open { background:var(--bad-soft); color:var(--bad); }
-.closing-box .paid { background:var(--good-soft); color:var(--good); }
-
-.settings-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-.settings-grid .danger-panel { grid-column:1/-1; }
-.settings-fields { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.backup-actions { display:flex; gap:8px; flex-wrap:wrap; }
-.security-note { display:flex; align-items:flex-start; gap:9px; margin-top:14px; padding:11px; border-radius:11px; background:var(--brand-soft-2); color:#3b6264; }
-.security-note div { display:flex; flex-direction:column; gap:2px; }
-.security-note strong { font-size:9px; }
-.security-note span { font-size:8px; line-height:1.45; color:#637b7d; }
-.danger-panel { border-color:#f0d6d2; }
-.danger-confirm { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:10px; color:var(--bad); }
-.danger-confirm > div { display:flex; gap:7px; }
-.toast { position:fixed; right:22px; bottom:22px; z-index:150; display:flex; align-items:center; gap:8px; padding:11px 14px; border-radius:12px; background:#173f41; color:#fff; font-size:10px; font-weight:750; box-shadow:0 15px 40px rgba(12,37,39,.2); }
-.bottom-nav { display:none; }
-.mobile-only, .print-only { display:none; }
-
-@media (max-width: 1120px) {
-  .metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .finance-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); }
-  .patient-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .detail-meta-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
-}
-
-@media (max-width: 820px) {
-  body { background:#f7f9f9; }
-  .sidebar { display:none; }
-  .app-main { margin-left:0; }
-  .topbar { height:60px; padding:0 15px; justify-content:space-between; }
-  .mobile-brand { display:flex; }
-  .mobile-brand .brand-mark { width:32px; height:32px; border-radius:10px; font-size:16px; }
-  .content { padding:20px 14px 92px; }
-  .page-head { align-items:flex-start; margin-bottom:18px; }
-  .page-head > .btn { display:none; }
-  .page-head h1 { font-size:24px; }
-  .top-user span { display:none; }
-  .mobile-only { display:grid; }
-  .bottom-nav { display:grid; position:fixed; left:10px; right:10px; bottom:10px; height:64px; grid-template-columns:repeat(5,1fr); align-items:center; background:rgba(255,255,255,.96); backdrop-filter:blur(18px); border:1px solid var(--line); border-radius:18px; padding:5px 8px; z-index:50; box-shadow:0 15px 45px rgba(22,45,47,.14); }
-  .bottom-nav button { border:0; background:transparent; color:#7a898b; display:flex; height:50px; flex-direction:column; justify-content:center; align-items:center; gap:3px; font-size:8px; font-weight:750; }
-  .bottom-nav button.active { color:var(--brand); }
-  .bottom-nav .bottom-plus { width:45px; height:45px; align-self:center; justify-self:center; border-radius:14px; background:var(--brand); color:#fff; box-shadow:0 8px 18px rgba(11,111,114,.25); }
-  .metric-grid, .finance-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
-  .metric-card { min-height:92px; padding:13px; }
-  .metric-icon { width:34px; height:34px; }
-  .metric-copy strong { font-size:16px; }
-  .dashboard-grid, .detail-columns { grid-template-columns:1fr; }
-  .patient-card-grid { grid-template-columns:1fr; }
-  .toolbar { align-items:stretch; flex-direction:column; }
-  .searchbox { max-width:none; }
-  .filter-chips { margin-right:-14px; padding-right:14px; }
-  .detail-meta-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .money-hero { grid-template-columns:repeat(3,1fr); gap:7px; }
-  .money-hero > div { padding:12px 10px; }
-  .money-hero strong { font-size:15px; }
-  .quick-actions { grid-template-columns:repeat(2,1fr); }
-  .settings-grid { grid-template-columns:1fr; }
-  .settings-grid .danger-panel { grid-column:auto; }
-  .modal-backdrop { padding:0; place-items:end center; }
-  .modal-card, .modal-card.modal-wide { width:100%; max-height:92vh; border-radius:22px 22px 0 0; padding:18px 15px calc(18px + env(safe-area-inset-bottom)); }
-  .form-grid.three { grid-template-columns:1fr; }
-  .form-grid.two { grid-template-columns:1fr; }
-  .summary-box { flex-direction:column; }
-  .summary-box > div { width:100%; }
-  .closing-box { grid-template-columns:1fr; }
-  .settings-fields { grid-template-columns:1fr; }
-  .toast { left:14px; right:14px; bottom:88px; justify-content:center; }
-}
-
-@media (max-width: 520px) {
-  .metric-grid, .finance-metrics { grid-template-columns:1fr 1fr; }
-  .metric-card { gap:9px; padding:12px; }
-  .metric-icon { display:none; }
-  .detail-identity { align-items:flex-start; }
-  .detail-identity h1 { font-size:19px; }
-  .detail-identity p { line-height:1.45; }
-  .detail-meta-grid { grid-template-columns:1fr 1fr; }
-  .money-hero { grid-template-columns:1fr; }
-  .quick-actions button { min-height:62px; }
-  .danger-confirm { flex-direction:column; align-items:flex-start; }
-  .modal-actions { position:sticky; bottom:-18px; margin:0 -15px -18px; padding:12px 15px calc(12px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
-  .modal-actions .btn { flex:1; }
-}
-
-@media print {
-  body { background:#fff; }
-  .sidebar,.topbar,.bottom-nav,.no-print,.toast { display:none!important; }
-  .app-main { margin:0; }
-  .content { padding:0; max-width:none; }
-  .print-area { box-shadow:none!important; break-inside:avoid; }
-  .detail-hero,.panel,.money-hero>div { border-color:#d8d8d8; }
-  .detail-columns { grid-template-columns:1fr; }
-  .print-only { display:flex; justify-content:space-between; margin-top:20px; padding-top:10px; border-top:1px solid #ddd; font-size:8px; color:#777; }
-}
-
-#toast{opacity:0;pointer-events:none;transform:translateY(8px);transition:.2s}#toast.show{opacity:1;transform:none} .bottom-nav b{font-size:15px;font-weight:800} 
-
-.auth-shell{min-height:100vh;display:grid;place-items:center;padding:28px;background:radial-gradient(circle at 20% 15%,#e7f3f3 0,transparent 34%),#f4f7f7}.auth-card{width:min(440px,100%);background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:var(--shadow)}.auth-logo{display:flex;align-items:center;gap:11px;margin-bottom:34px}.auth-logo strong{display:block;font-size:15px}.auth-logo span{display:block;color:var(--muted);font-size:10px;margin-top:2px}.auth-copy h1{font-size:27px;letter-spacing:-.04em;margin:8px 0}.auth-copy p{color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 24px}.auth-copy.center{text-align:center}.auth-form{display:flex;flex-direction:column;gap:14px}.auth-submit{width:100%;margin-top:4px}.auth-divider{display:flex;align-items:center;gap:12px;margin:22px 0;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.1em}.auth-divider:before,.auth-divider:after{content:'';height:1px;background:var(--line);flex:1}.auth-foot{font-size:10px;color:var(--muted);line-height:1.5;text-align:center;margin:14px 0 0}.auth-message{background:var(--good-soft);color:var(--good);border:1px solid #cce9d9;padding:11px 12px;border-radius:12px;font-size:11px;margin-bottom:18px}.auth-back{border:0;background:transparent;color:var(--brand);font-weight:750;padding:0;margin:0 0 24px}.pending-icon{width:58px;height:58px;border-radius:18px;background:var(--warn-soft);color:var(--warn);display:grid;place-items:center;margin:0 auto 18px;font-size:24px}.pending-email{font-size:11px;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:10px 12px;text-align:center;margin-bottom:14px}.global-sync{position:fixed;top:15px;left:50%;transform:translate(-50%,-12px);background:#153d3f;color:#fff;border-radius:999px;padding:9px 14px;font-size:10px;font-weight:750;z-index:9999;opacity:0;pointer-events:none;transition:.2s;box-shadow:0 8px 24px rgba(0,0,0,.18)}.global-sync.show{opacity:1;transform:translate(-50%,0)}.member-list{display:flex;flex-direction:column;gap:8px}.member-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:11px 0;border-top:1px solid #edf1f1}.member-row:first-child{border-top:0}.member-ident{display:flex;align-items:center;gap:10px;min-width:0}.member-ident strong{display:block;font-size:12px}.member-ident span{display:block;color:var(--muted);font-size:9px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px}.member-controls{display:flex;align-items:center;gap:8px}.member-controls select{height:34px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:0 8px;font-size:10px}.switch-label{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}.read-value{min-height:40px;border:1px solid var(--line);background:var(--surface-2);border-radius:11px;padding:10px 12px;font-size:12px;font-weight:650}.empty-state{color:var(--muted);font-size:11px;padding:14px 0}@media(max-width:700px){.auth-card{padding:24px 20px;border-radius:20px}.member-row{align-items:flex-start;flex-direction:column}.member-controls{width:100%;flex-wrap:wrap}.member-controls select{flex:1;min-width:140px}.global-sync{top:10px}}
-.bootstrap-box{margin:14px 0 18px;padding:13px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)}.bootstrap-box strong{display:block;font-size:11px}.bootstrap-box>span{display:block;color:var(--muted);font-size:9px;line-height:1.5;margin:4px 0 10px}.bootstrap-box input{width:100%;height:40px;border:1px solid var(--line);border-radius:10px;padding:0 11px;margin-bottom:8px;background:#fff}.bootstrap-box .form-error{margin-top:8px}
-/* Alta, acerto e folha de acerto */
-.settlement-modal .modal-card{width:min(900px,100%)}
-.settle-intro{display:grid;grid-template-columns:1.25fr .75fr;gap:12px;margin-bottom:12px}
-.settle-patient,.settle-rule{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface-2)}
-.settle-patient span,.settle-rule span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.06em;font-weight:800}
-.settle-patient strong{display:block;font-size:15px;margin-top:3px}
-.settle-patient small,.settle-rule small{display:block;color:var(--muted);font-size:9px;margin-top:4px;line-height:1.4}
-.settle-rule{background:var(--brand-soft-2);border-color:#d5e9e9}
-.settle-rule strong{display:block;color:var(--brand-strong);font-size:10px;margin-top:3px}
-.settle-actions-top{display:flex;gap:8px;align-items:flex-end}
-.settle-actions-top .field{flex:1}
-.settlement-preview{margin-top:4px}
-.settle-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
-.settle-kpi{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
-.settle-kpi span{display:block;color:var(--muted);font-size:8px}
-.settle-kpi strong{display:block;font-size:13px;margin-top:3px}
-.settle-kpi.balance{background:var(--brand-soft-2);border-color:#cbe4e4}
-.settle-kpi.balance.open strong{color:var(--warn)}
-.settle-kpi.balance.paid strong{color:var(--good)}
-.settle-count{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px 12px;background:#f8fafa;border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
-.settle-count strong{font-size:14px}
-.settle-count span{display:block;color:var(--muted);font-size:9px;margin-top:2px}
-.settle-table-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto;margin-top:10px}
-.settle-table{width:100%;border-collapse:collapse;min-width:560px}
-.settle-table th,.settle-table td{padding:8px 10px;border-bottom:1px solid #edf1f1;text-align:left;font-size:9px}
-.settle-table th{background:#f8fafa;color:#627275;font-size:8px;text-transform:uppercase;letter-spacing:.04em}
-.settle-table td:last-child,.settle-table th:last-child{text-align:right}
-.settle-table tr:last-child td{border-bottom:0}
-.settle-section-title{margin:14px 0 7px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#627275}
-.settle-paybox{margin-top:12px;padding:12px;border:1px solid #d8e6e6;border-radius:13px;background:#f9fbfb}
-.settle-paybox h3{margin:0 0 9px;font-size:11px}
-.settle-paygrid{display:grid;grid-template-columns:1.1fr .9fr .9fr auto;gap:8px;align-items:end}
-.settle-paygrid .field input,.settle-paygrid .field select{height:38px}
-.sheet-trigger{white-space:nowrap}
-@media(max-width:720px){
-  .settle-intro{grid-template-columns:1fr}
-  .settle-actions-top{display:grid;grid-template-columns:1fr}
-  .settle-kpis{grid-template-columns:1fr 1fr}
-  .settle-paygrid{grid-template-columns:1fr 1fr}
-  .settle-paygrid button{grid-column:1/-1}
-}
-
-</style></head><body><div id="app"></div><div id="modal"></div><div id="toast" class="toast"></div><script>
-const STORAGE_KEY = 'imec-uti-standalone-v1';
-const PRIVATE_NO_VENT=7000, PRIVATE_VENT=10000, HOTEL_SIMPLE=400, HOTEL_SUITE=500, COMMISSION=80;
 const USERS=['Samuel','Roberto','Aline'];
 let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:''};
 
-const BUSINESS_TZ='America/Sao_Paulo';
-const uid=()=>crypto.randomUUID();
-const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v||0));
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-const businessParts=d=>Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:BUSINESS_TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(d)).filter(x=>x.type!=='literal').map(x=>[x.type,Number(x.value)]));
-function zonedLocalToDate(v){const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);if(!m)return new Date(v);const [_,ys,mos,ds,hs,mis,ss='0']=m,y=+ys,mo=+mos,d=+ds,h=+hs,mi=+mis,s=+ss;const wall=Date.UTC(y,mo-1,d,h,mi,s);let guess=wall;for(let i=0;i<3;i++){const p=businessParts(new Date(guess));const represented=Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second);guess=wall-(represented-guess)}return new Date(guess)}
-const fmtDT=iso=>new Intl.DateTimeFormat('pt-BR',{timeZone:BUSINESS_TZ,day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(iso));
-const fmtDM=iso=>new Intl.DateTimeFormat('pt-BR',{timeZone:BUSINESS_TZ,day:'2-digit',month:'2-digit'}).format(new Date(iso));
-const nowLocalInput=()=>toLocalInput(new Date());
-function toLocalInput(d){const p=businessParts(d),pad=n=>String(n).padStart(2,'0');return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`}
-const parseLocal=v=>zonedLocalToDate(v).toISOString();
-const cpfNorm=v=>String(v||'').replace(/\D/g,'').slice(0,11);
-function cpfMask(v){v=cpfNorm(v);return v?v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4'):'Não informado'}
-const dayKey=a=>{const p=businessParts(a);return `${p.year}-${p.month}-${p.day}`};
-const monthKey=a=>{const p=businessParts(a);return `${p.year}-${p.month}`};
-const sameDay=(a,b=new Date())=>dayKey(a)===dayKey(b);
-const sameMonth=(a,b=new Date())=>monthKey(a)===monthKey(b);
-const bedRate=bed=>bed>=17?HOTEL_SUITE:HOTEL_SIMPLE;
-const bedLabel=bed=>bed>=17?'Hotelaria com suíte':'Hotelaria individual';
-const late=v=>{const m=String(v).match(/T(\d{2}):/);return m?Number(m[1])>=18:businessParts(v).hour>=18};
-
 function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
-function isoDaysAgoAt(days,h,m=0){const p=businessParts(new Date()),u=new Date(Date.UTC(p.year,p.month-1,p.day-days));return localDateAt(u.getUTCFullYear(),u.getUTCMonth()+1,u.getUTCDate(),h,m).toISOString()}
-function demoData(){
-  const p1={id:uid(),name:'João Batista da Silva',cpf:'12345678900',createdAt:new Date().toISOString()};
-  const p2={id:uid(),name:'Maria Aparecida Gomes',cpf:'98765432100',createdAt:new Date().toISOString()};
-  const p3={id:uid(),name:'Carlos Henrique Souza',createdAt:new Date().toISOString()};
-  const a1={id:uid(),patientId:p1.id,bed:4,mode:'private',entryAt:isoDaysAgoAt(3,20,20),status:'active',closer:'Samuel',createdBy:'Aline',halfInitial:true,createdAt:isoDaysAgoAt(3,20,20),rateHistory:[{id:uid(),effectiveAt:isoDaysAgoAt(3,20,20),standardRate:PRIVATE_NO_VENT,negotiatedRate:PRIVATE_NO_VENT,ventilation:false,label:'Particular sem ventilação',changedBy:'Samuel'}]};
-  const a2={id:uid(),patientId:p2.id,bed:18,mode:'hotel',entryAt:isoDaysAgoAt(1,9,10),status:'active',closer:'Aline',createdBy:'Aline',halfInitial:false,createdAt:isoDaysAgoAt(1,9,10),rateHistory:[{id:uid(),effectiveAt:isoDaysAgoAt(1,9,10),standardRate:HOTEL_SUITE,negotiatedRate:450,label:'Hotelaria com suíte',changedBy:'Aline'}]};
-  const a3={id:uid(),patientId:p3.id,bed:7,mode:'private',entryAt:isoDaysAgoAt(5,14),dischargeAt:isoDaysAgoAt(1,11,30),status:'discharge_pending',closer:'Roberto',createdBy:'Roberto',halfInitial:false,createdAt:isoDaysAgoAt(5,14),rateHistory:[{id:uid(),effectiveAt:isoDaysAgoAt(5,14),standardRate:PRIVATE_NO_VENT,negotiatedRate:6500,ventilation:false,label:'Particular sem ventilação',changedBy:'Roberto'},{id:uid(),effectiveAt:isoDaysAgoAt(2,7),standardRate:PRIVATE_VENT,negotiatedRate:PRIVATE_VENT,ventilation:true,label:'Particular com ventilação',changedBy:'Roberto'}]};
-  let data={patients:[p1,p2,p3],admissions:[a1,a2,a3],charges:[],payments:[],audits:[],currentUser:'Samuel',onDuty:'Samuel',seededDemo:true};
-  data.admissions.forEach(a=>ensureCharges(data,a,new Date()));
-  data.charges.push({id:uid(),admissionId:a1.id,occurredAt:isoDaysAgoAt(1,15,10),kind:'extra',category:'Cardiologia',description:'Avaliação de cardiologia',amount:500,createdBy:'Aline'});
-  data.charges.push({id:uid(),admissionId:a3.id,occurredAt:isoDaysAgoAt(2,13,40),kind:'extra',category:'Hemodiálise',description:'Sessão de hemodiálise',amount:1200,createdBy:'Roberto'});
-  data.payments.push(
-    {id:uid(),admissionId:a1.id,occurredAt:isoDaysAgoAt(3,21),amount:3500,method:'PIX',createdBy:'Aline'},
-    {id:uid(),admissionId:a1.id,occurredAt:isoDaysAgoAt(2,15,20),amount:7000,method:'PIX',createdBy:'Aline'},
-    {id:uid(),admissionId:a1.id,occurredAt:isoDaysAgoAt(1,16,35),amount:5000,method:'PIX',createdBy:'Aline'},
-    {id:uid(),admissionId:a2.id,occurredAt:isoDaysAgoAt(1,10),amount:450,method:'PIX',createdBy:'Aline'},
-    {id:uid(),admissionId:a3.id,occurredAt:isoDaysAgoAt(4,12),amount:13000,method:'PIX',createdBy:'Roberto'},
-    {id:uid(),admissionId:a3.id,occurredAt:isoDaysAgoAt(2,18),amount:15000,method:'Transferência',createdBy:'Roberto'}
-  );
-  data.admissions.forEach(a=>data.audits.push({id:uid(),admissionId:a.id,occurredAt:a.createdAt,user:a.createdBy,action:'Internação criada',detail:`Leito ${String(a.bed).padStart(2,'0')}`}));
-  return data;
-}
-function load(){try{const raw=localStorage.getItem(STORAGE_KEY);return raw?JSON.parse(raw):demoData()}catch{return demoData()}}
-let data=load();
-function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(data))}
-
 function currentRate(a,at=new Date()){return [...a.rateHistory].filter(r=>new Date(r.effectiveAt)<=at).sort((x,y)=>new Date(y.effectiveAt)-new Date(x.effectiveAt))[0]||a.rateHistory[0]}
-function localDateAt(y,mo,d,h=7,mi=0){const pad=n=>String(n).padStart(2,'0');return zonedLocalToDate(`${y}-${pad(mo)}-${pad(d)}T${pad(h)}:${pad(mi)}`)}
-function addLocalDaysAtSeven(date,days=1){const p=businessParts(date),u=new Date(Date.UTC(p.year,p.month-1,p.day+days));return localDateAt(u.getUTCFullYear(),u.getUTCMonth()+1,u.getUTCDate(),7,0)}
-function nextSevenAfter(date){const d=new Date(date),p=businessParts(d),seven=localDateAt(p.year,p.month,p.day,7,0);return d<seven?seven:addLocalDaysAtSeven(seven,1)}
-function ensureCharges(d,a,now=new Date()){
-  if(a.status==='cancelled')return;
-  const keys=new Set(d.charges.filter(c=>c.admissionId===a.id&&c.cycleKey).map(c=>c.cycleKey));
-  const entry=new Date(a.entryAt);const end=a.dischargeAt?new Date(a.dischargeAt):now;
-  const er=currentRate(a,entry);const initial=`initial:${a.id}:${entry.toISOString()}`;
-  if(entry<=end&&!keys.has(initial))d.charges.push({id:uid(),admissionId:a.id,occurredAt:a.entryAt,kind:'daily',category:a.mode==='private'?'Diária UTI':'Hotelaria',description:a.halfInitial?`½ diária inicial — ${er.label}`:`Diária inicial — ${er.label}`,amount:a.halfInitial?er.negotiatedRate/2:er.negotiatedRate,cycleKey:initial,createdBy:d.currentUser});
-  let cycle=nextSevenAfter(entry), guard=0;
-  while(cycle<end&&guard++<3650){const k=`cycle:${a.id}:${cycle.toISOString()}`;if(!keys.has(k)){const r=currentRate(a,cycle);d.charges.push({id:uid(),admissionId:a.id,occurredAt:cycle.toISOString(),kind:'daily',category:a.mode==='private'?'Diária UTI':'Hotelaria',description:`Diária — ${r.label}`,amount:r.negotiatedRate,cycleKey:k,createdBy:d.currentUser});keys.add(k)}cycle=addLocalDaysAtSeven(cycle,1)}
-}
-function refreshCharges(){data.admissions.filter(a=>a.status==='active'||a.status==='discharge_pending').forEach(a=>ensureCharges(data,a,new Date()));save()}
 function totals(id){const billed=data.charges.filter(c=>c.admissionId===id).reduce((s,c)=>s+c.amount,0),received=data.payments.filter(p=>p.admissionId===id).reduce((s,p)=>s+p.amount,0),refunded=(data.refunds||[]).filter(r=>r.admissionId===id).reduce((s,r)=>s+r.amount,0),netReceived=received-refunded;return {billed,received,refunded,netReceived,balance:billed-received+refunded}}
 function patient(id){return data.patients.find(p=>p.id===id)}
 function admission(id){return data.admissions.find(a=>a.id===id)}
 function hospitalDays(a){const st=new Date(a.entryAt), en=a.dischargeAt?new Date(a.dischargeAt):new Date();return Math.max(1,Math.ceil(Math.max(0,en-st)/86400000))}
 function statusBadge(s){return s==='active'?'<span class="badge badge-brand">Internado</span>':s==='discharge_pending'?'<span class="badge badge-warn">Alta pendente</span>':s==='finalized'?'<span class="badge badge-good">Finalizado</span>':'<span class="badge badge-neutral">Cancelado</span>'}
 function toast(text){const el=document.getElementById('toast');el.innerHTML=`✓ ${esc(text)}`;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400)}
-function audit(aid,action,detail){data.audits.push({id:uid(),admissionId:aid,occurredAt:new Date().toISOString(),user:data.currentUser,action,detail})}
-
 function shell(){
  document.getElementById('app').innerHTML=`
  <aside class="sidebar">
@@ -503,7 +32,7 @@ function shell(){
  <nav class="bottom-nav"><button data-nav="home" class="${state.page==='home'?'active':''}"><b>⌂</b><span>Início</span></button><button data-nav="patients" class="${state.page==='patients'?'active':''}"><b>◉</b><span>Pacientes</span></button><button class="bottom-plus" data-action="new">＋</button><button data-nav="finance" class="${state.page==='finance'?'active':''}"><b>R$</b><span>Financeiro</span></button><button data-nav="settings" class="${state.page==='settings'?'active':''}"><b>⚙</b><span>Ajustes</span></button></nav>`;
 }
 function navItem(p,i,l){return `<button class="side-item ${state.page===p?'active':''}" data-nav="${p}"><span>${i}</span><span>${l}</span></button>`}
-function render(){refreshCharges();shell();const c=document.getElementById('content'); if(state.selectedId){const a=admission(state.selectedId); if(a){c.innerHTML=patientDetail(a);bindDetail(a);return}state.selectedId=null}
+function render(){shell();const c=document.getElementById('content'); if(state.selectedId){const a=admission(state.selectedId); if(a){c.innerHTML=patientDetail(a);bindDetail(a);return}state.selectedId=null}
  c.innerHTML=state.page==='home'?dashboard():state.page==='patients'?patientsPage():state.page==='finance'?financePage():settingsPage();bindPage();}
 
 function metric(label,value,note='',tone=''){return `<div class="metric-card ${tone?'metric-'+tone:''}"><div class="metric-icon">${label.includes('Receb')?'↙':label.includes('Saldo')?'$':'▣'}</div><div class="metric-copy"><span>${label}</span><strong>${value}</strong>${note?`<small>${note}</small>`:''}</div></div>`}
@@ -546,8 +75,6 @@ function financePage(){
   else body=fin.length?`<div class="finance-list">${fin.map(a=>{const p=patient(a.patientId),t=totals(a.id);return `<button class="finance-row" data-open="${a.id}"><div><div class="finance-name"><strong>${esc(p?.name)}</strong><span class="badge badge-good">Finalizado</span></div><span>Alta ${a.dischargeAt?fmtDT(a.dischargeAt):'—'} • ${a.mode==='private'?'Particular':'Hotelaria'}</span></div><div class="finance-amount"><span>Total</span><strong>${money(t.billed)}</strong></div><span>›</span></button>`}).join('')}</div>`:empty('Nenhuma conta finalizada','Internações quitadas e encerradas aparecerão aqui.');
   return `<section class="page-head"><div><span class="eyebrow">CAIXA & RECEBIMENTOS</span><h1>Financeiro</h1><p>Entradas, reembolsos e contas que precisam de fechamento.</p></div></section><div class="metric-grid finance-metrics">${metric('A receber',money(totalOpen),'',totalOpen>0?'warn':'good')}${metric('Crédito a devolver',money(totalCredit),'',totalCredit>0?'warn':'good')}${metric('Caixa líquido hoje',money(payToday-refToday),'','good')}${metric('Caixa líquido no mês',money(payMonth-refMonth))}</div><div class="tabs"><button data-ftab="pending" class="${state.financeTab==='pending'?'active':''}">Pendências <span>${pending.length}</span></button><button data-ftab="receipts" class="${state.financeTab==='receipts'?'active':''}">Movimentações</button><button data-ftab="finalized" class="${state.financeTab==='finalized'?'active':''}">Finalizados</button></div><section class="panel">${body}</section>`;
 }
-function settingsPage(){return `<section class="page-head"><div><span class="eyebrow">PREFERÊNCIAS</span><h1>Configurações</h1><p>Usuário atual, plantão e segurança dos dados locais.</p></div></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Identificação dos lançamentos e escala comercial.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário atual</span><select id="currentUser">${USERS.map(u=>`<option ${u===data.currentUser?'selected':''}>${u}</option>`).join('')}</select></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Backup local</h2><p>Exporte um backup regularmente.</p></div></div><div class="backup-actions"><button class="btn btn-secondary" data-action="export">⇩ Exportar backup</button><button class="btn btn-secondary" data-action="import">⇧ Importar backup</button><input id="importFile" type="file" accept="application/json" hidden></div><div class="security-note"><span>◈</span><div><strong>V1 isolada</strong><span>Os dados ficam neste navegador e não usam o banco da oncologia. Antes do uso simultâneo por três usuários, migrar para um banco próprio da UTI.</span></div></div></section><section class="panel danger-panel"><div class="panel-head"><div><h2>Dados locais</h2><p>Limpe os dados fictícios quando quiser iniciar uma base vazia.</p></div></div><button class="btn btn-danger" data-action="clear">⌫ Limpar e começar vazio</button></section></div>`}
-
 function patientDetail(a){
   const p=patient(a.patientId),t=totals(a.id),r=currentRate(a),charges=data.charges.filter(c=>c.admissionId===a.id),payments=data.payments.filter(x=>x.admissionId===a.id),refunds=(data.refunds||[]).filter(x=>x.admissionId===a.id),m=balanceMeta(t.balance);
   const daily=charges.filter(c=>c.kind==='daily').sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt));
@@ -583,24 +110,6 @@ function newAdmissionModal(){
   document.getElementById('nHalf').value=late(document.getElementById('nEntry').value)?'1':'0';
   document.getElementById('newForm').onsubmit=submitNew;updateNew();
 }
-function spParts(value){
-  const d=value instanceof Date?value:new Date(value);
-  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d);
-  const o=Object.fromEntries(parts.map(x=>[x.type,x.value]));
-  return {year:+o.year,month:+o.month,day:+o.day,hour:+o.hour,minute:+o.minute};
-}
-function newAdmissionEstimate(entryValue,x){
-  if(!entryValue||!x?.value||x.value<=0)return {additional:0,units:0,total:0,retro:false};
-  const entryIso=parseLocal(entryValue),ep=spParts(entryIso),np=spParts(new Date());
-  const entryDay=Date.UTC(ep.year,ep.month-1,ep.day);
-  const today=Date.UTC(np.year,np.month-1,np.day);
-  const limit=today-(np.hour<7?86400000:0);
-  const diff=Math.floor((limit-entryDay)/86400000);
-  const additional=Math.max(0,diff-1);
-  const initialUnits=x.half?.5:1;
-  return {additional,units:initialUnits+additional,total:(x.value*initialUnits)+(x.value*additional),retro:additional>0};
-}
-
 function newCalc(){const bed=Number(document.getElementById('nBed').value),mode=document.getElementById('nMode').value,vent=document.getElementById('nVent').value==='1',raw=document.getElementById('nValue').value.replace(',','.');const standard=mode==='private'?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):(bed>=10&&bed<=19?bedRate(bed):0);const value=raw?Number(raw):standard;return {bed,mode,vent,standard,value,half:document.getElementById('nHalf').value==='1'}}
 function updateNew(){
   const x=newCalc(),entry=document.getElementById('nEntry').value,est=newAdmissionEstimate(entry,x);
@@ -613,37 +122,6 @@ function updateNew(){
   const retro=document.getElementById('nRetroPreview');
   if(retro)retro.innerHTML=est.retro?`<div class="form-warning"><strong>Entrada retroativa</strong><br>Ao confirmar, o sistema registrará <strong>${est.units.toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong> já vencidas até ontem, total estimado de <strong>${money(est.total)}</strong>. O dia de hoje permanece provisório e não entra na cobrança enquanto o paciente estiver internado.</div>`:'';
 }
-function submitNew(e){e.preventDefault();const name=document.getElementById('nName').value.trim(),cpf=cpfNorm(document.getElementById('nCpf').value),entry=document.getElementById('nEntry').value,closer=document.getElementById('nCloser').value,note=document.getElementById('nNote').value.trim(),x=newCalc(),err=document.getElementById('nError');const fail=m=>{err.innerHTML=`<div class="form-error">⚠ ${m}</div>`;return false};if(!name)return fail('Informe o nome do paciente.');if(!x.bed||x.bed<1||x.bed>19)return fail('Selecione um leito entre 01 e 19.');if(x.mode==='hotel'&&x.bed<10)return fail('Hotelaria está disponível nos leitos 10 a 19.');if(data.admissions.some(a=>a.status==='active'&&a.bed===x.bed))return fail(`O leito ${String(x.bed).padStart(2,'0')} já possui uma internação ativa.`);const existing=cpf?data.patients.find(p=>cpfNorm(p.cpf)===cpf):null;if(existing&&data.admissions.some(a=>a.patientId===existing.id&&a.status==='active'))return fail('Este CPF já possui uma internação ativa.');if(!x.value||x.value<=0)return fail('Informe um valor de diária válido.');const pid=existing?.id||uid(),aid=uid(),now=new Date().toISOString(),entryIso=parseLocal(entry),label=x.mode==='private'?(x.vent?'Particular com ventilação':'Particular sem ventilação'):bedLabel(x.bed);if(!existing)data.patients.push({id:pid,name,cpf:cpf||undefined,createdAt:now});const a={id:aid,patientId:pid,bed:x.bed,mode:x.mode,entryAt:entryIso,status:'active',closer,createdBy:data.currentUser,halfInitial:x.half,notes:note||undefined,createdAt:now,rateHistory:[{id:uid(),effectiveAt:entryIso,standardRate:x.standard,negotiatedRate:x.value,ventilation:x.mode==='private'?x.vent:undefined,label,changedBy:data.currentUser}]};data.admissions.push(a);audit(aid,'Internação criada',`Leito ${String(x.bed).padStart(2,'0')} • ${label} • ${money(x.value)}`);ensureCharges(data,a,new Date());data.seededDemo=false;save();closeModal();state.selectedId=aid;toast(existing?'Nova internação vinculada ao paciente já cadastrado.':'Internação criada com sucesso.');render()}
-function paymentModal(a){const t=totals(a.id);openModal('Registrar pagamento',`Saldo atual: ${money(t.balance)}`,`<form class="form" id="payForm">${field('Valor recebido','<div class="currency-input large"><span>R$</span><input id="pValue" autofocus inputmode="decimal" placeholder="0,00"></div>')}<div class="form-grid two">${field('Data e hora',`<input id="pWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Forma de pagamento','<select id="pMethod"><option>PIX</option><option>Cartão</option><option>Transferência</option><option>Dinheiro</option><option>Outro</option></select>')}</div>${field('Observação','<textarea id="pNotes" rows="2" placeholder="Ex.: pagamento parcial da família"></textarea>','Opcional')}<div id="payWarn"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">↙ Registrar recebimento</button></div></form>`);document.querySelector('[data-close2]').onclick=closeModal;document.getElementById('pValue').oninput=e=>document.getElementById('payWarn').innerHTML=Number(e.target.value.replace(',','.'))>t.balance?'<div class="form-warning">⚠ O valor informado é maior que o saldo atual.</div>':'';document.getElementById('payForm').onsubmit=e=>{e.preventDefault();const v=Number(document.getElementById('pValue').value.replace(',','.'));if(!v||v<=0)return;data.payments.push({id:uid(),admissionId:a.id,occurredAt:parseLocal(document.getElementById('pWhen').value),amount:v,method:document.getElementById('pMethod').value,notes:document.getElementById('pNotes').value.trim()||undefined,createdBy:data.currentUser});const after=totals(a.id);if(a.status==='discharge_pending'&&after.balance<=0){a.status='finalized';audit(a.id,'Pagamento registrado e conta finalizada',`${money(v)} • ${document.getElementById('pMethod').value}`);toast('Pagamento registrado e conta finalizada.')}else{audit(a.id,'Pagamento registrado',`${money(v)} • ${document.getElementById('pMethod').value}`);toast('Pagamento registrado.')}save();closeModal();render()}}
-function extraModal(a){const cats=['Cardiologia','Outra especialidade','Hemodiálise','Torgena','Ecalta','Medicamento de alto custo','Outro medicamento','Outro serviço'];openModal('Adicionar extra','Especialidades, hemodiálise, medicamentos e outros serviços.',`<form class="form" id="extraForm">${field('Categoria',`<select id="eCat">${cats.map(x=>`<option>${x}</option>`).join('')}</select>`)}${field('Descrição','<input id="eDesc" placeholder="Descrição do serviço ou medicamento">','Para medicamentos de alto custo, utilize a cotação do dia')}<div class="form-grid three">${field('Quantidade','<input id="eQty" value="1" inputmode="decimal">')}${field('Valor unitário','<div class="currency-input"><span>R$</span><input id="eUnit" inputmode="decimal" placeholder="0,00"></div>')}${field('Data e hora',`<input id="eWhen" type="datetime-local" value="${nowLocalInput()}">`)}</div><div class="summary-box"><div><span>Total do extra</span><strong id="eTotal">R$ 0,00</strong></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">＋ Adicionar cobrança</button></div></form>`);document.querySelector('[data-close2]').onclick=closeModal;const up=()=>{const q=Number(document.getElementById('eQty').value.replace(',','.'))||0,u=Number(document.getElementById('eUnit').value.replace(',','.'))||0;document.getElementById('eTotal').textContent=money(q*u)};document.getElementById('eQty').oninput=up;document.getElementById('eUnit').oninput=up;document.getElementById('extraForm').onsubmit=e=>{e.preventDefault();const q=Number(document.getElementById('eQty').value.replace(',','.'))||0,u=Number(document.getElementById('eUnit').value.replace(',','.'))||0,v=q*u;if(v<=0)return;const cat=document.getElementById('eCat').value,desc=document.getElementById('eDesc').value.trim()||cat;data.charges.push({id:uid(),admissionId:a.id,occurredAt:parseLocal(document.getElementById('eWhen').value),kind:'extra',category:cat,description:desc,amount:v,createdBy:data.currentUser});audit(a.id,'Extra adicionado',`${cat} • ${money(v)}`);save();closeModal();toast('Cobrança adicional lançada.');render()}}
-function dischargeModal(a){
-  const isPending=a.status==='discharge_pending',def=a.dischargeAt?toLocalInput(new Date(a.dischargeAt)):nowLocalInput();
-  openModal(isPending?'Fechamento financeiro':'Registrar alta',isPending?'Confira o saldo para finalizar a conta.':'A alta encerra a geração de novas diárias.',`<div class="form">${field('Data e hora da alta',`<input id="dWhen" type="datetime-local" value="${def}" ${isPending?'disabled':''}>`)}<div id="dPreview"></div><div class="modal-actions"><button class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary" id="dSave">Registrar</button></div></div>`);
-  document.querySelector('[data-close2]').onclick=closeModal;
-  const getDis=()=>a.dischargeAt||parseLocal(document.getElementById('dWhen').value);
-  const preview=()=>{
-    const dis=getDis(),saveBtn=document.getElementById('dSave');
-    if(new Date(dis)<new Date(a.entryAt)){
-      saveBtn.disabled=true;
-      document.getElementById('dPreview').innerHTML='<div class="form-error">⚠ A alta não pode ser anterior à entrada do paciente.</div>';
-      return {invalid:true};
-    }
-    saveBtn.disabled=false;
-    const clone=structuredClone(data),ca=clone.admissions.find(x=>x.id===a.id);ca.dischargeAt=dis;ensureCharges(clone,ca,new Date(dis));
-    const billed=clone.charges.filter(c=>c.admissionId===a.id).reduce((s,c)=>s+c.amount,0),received=clone.payments.filter(p=>p.admissionId===a.id).reduce((s,p)=>s+p.amount,0),bal=billed-received;
-    document.getElementById('dPreview').innerHTML=`<div class="closing-box"><div><span>Total cobrado</span><strong>${money(billed)}</strong></div><div><span>Total recebido</span><strong>${money(received)}</strong></div><div class="${bal>0?'open':'paid'}"><span>Saldo</span><strong>${money(bal)}</strong></div></div>${bal>0?'<div class="form-warning">⚠ A conta ficará em <strong>Alta pendente</strong>.</div>':'<div class="form-success">✓ Saldo quitado. A internação será finalizada.</div>'}`;
-    return {bal,invalid:false};
-  };
-  document.getElementById('dWhen').oninput=preview;preview();
-  document.getElementById('dSave').onclick=()=>{
-    const dis=getDis();if(new Date(dis)<new Date(a.entryAt))return;
-    a.dischargeAt=dis;ensureCharges(data,a,new Date(dis));const t=totals(a.id);a.status=t.balance<=0?'finalized':'discharge_pending';
-    audit(a.id,a.status==='finalized'?'Conta finalizada':'Alta registrada',a.status==='finalized'?'Saldo quitado':`Saldo pendente ${money(t.balance)}`);save();closeModal();toast(a.status==='finalized'?'Internação finalizada.':'Alta registrada; saldo permanece pendente.');render();
-  };
-}
-function rateModal(a){const r=currentRate(a),isPrivate=a.mode==='private';openModal('Ajustar diária','A alteração vale dali para frente; cobranças anteriores permanecem intactas.',`<form class="form" id="rateForm">${isPrivate?field('Ventilação mecânica',`<select id="rVent"><option value="0" ${!r.ventilation?'selected':''}>Não</option><option value="1" ${r.ventilation?'selected':''}>Sim</option></select>`):''}<div class="form-grid two">${field('Validade a partir de',`<input id="rWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Nova diária',`<div class="currency-input"><span>R$</span><input id="rValue" value="${r.negotiatedRate}" inputmode="decimal"></div>`)}</div><div class="summary-box"><div><span>Valor padrão</span><strong id="rStandard">—</strong></div><div><span>Valor aplicado</span><strong id="rApplied">${money(r.negotiatedRate)}</strong></div></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">↻ Salvar condição</button></div></form>`);document.querySelector('[data-close2]').onclick=closeModal;const upd=()=>{const vent=isPrivate&&document.getElementById('rVent').value==='1',std=isPrivate?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):bedRate(a.bed),val=Number(document.getElementById('rValue').value.replace(',','.'))||0;document.getElementById('rStandard').textContent=money(std);document.getElementById('rApplied').textContent=money(val)};if(isPrivate)document.getElementById('rVent').onchange=e=>{const std=e.target.value==='1'?PRIVATE_VENT:PRIVATE_NO_VENT;document.getElementById('rValue').value=std;upd()};document.getElementById('rValue').oninput=upd;upd();document.getElementById('rateForm').onsubmit=e=>{e.preventDefault();const vent=isPrivate&&document.getElementById('rVent').value==='1',std=isPrivate?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):bedRate(a.bed),v=Number(document.getElementById('rValue').value.replace(',','.')),eff=parseLocal(document.getElementById('rWhen').value),label=isPrivate?(vent?'Particular com ventilação':'Particular sem ventilação'):bedLabel(a.bed);if(!v||v<=0)return;a.rateHistory.push({id:uid(),effectiveAt:eff,standardRate:std,negotiatedRate:v,ventilation:isPrivate?vent:undefined,label,changedBy:data.currentUser});audit(a.id,'Diária ajustada',`A partir de ${fmtDT(eff)} • ${label} • ${money(v)}`);save();closeModal();toast('Nova condição salva para as próximas diárias.');render()}}
-
-function bindPage(){document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{state.selectedId=b.dataset.open;render()});const s=document.getElementById('searchPatients');if(s)s.oninput=e=>{state.search=e.target.value;render()};document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.patientFilter=b.dataset.filter;render()});document.querySelectorAll('[data-ftab]').forEach(b=>b.onclick=()=>{state.financeTab=b.dataset.ftab;render()});const cu=document.getElementById('currentUser');if(cu)cu.onchange=e=>{data.currentUser=e.target.value;save();render()};const od=document.getElementById('onDuty');if(od)od.onchange=e=>{data.onDuty=e.target.value;save();toast('Plantão comercial atualizado.');render()};}
 function refundModal(a){
   if(data.currentRole!=='admin'){toast('Somente administradores podem registrar reembolsos.');return}
   const t=totals(a.id),credit=Math.max(0,-t.balance);
@@ -695,23 +173,6 @@ function correctionsModal(a){
     }catch(ex){alert(ex.message)}finally{setLoading(false)}
   });
 }
-
-function bindDetail(a){document.querySelectorAll('[data-action="back"]').forEach(b=>b.onclick=()=>{state.selectedId=null;render()});document.querySelectorAll('[data-action="payment"]').forEach(b=>b.onclick=()=>paymentModal(a));document.querySelectorAll('[data-action="extra"]').forEach(b=>b.onclick=()=>extraModal(a));document.querySelectorAll('[data-action="rate"]').forEach(b=>b.onclick=()=>rateModal(a));document.querySelectorAll('[data-action="discharge"]').forEach(b=>b.onclick=()=>dischargeModal(a));document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=()=>window.print())}
-
-
-
-// --- PRODUÇÃO: Supabase central, autenticação e sincronização multiusuário ---
-const SUPABASE_URL='https://nxaxkczyeythvzdxqwyu.supabase.co';
-const SUPABASE_KEY='sb_publishable_5icXK3ANBlaetf6DshGQfw_M5wSptqI';
-const AUTH_STORAGE_KEY='imec-uti-auth-v1';
-let authState=null;
-let teamProfiles=[];
-let teamClosers=[];
-let remoteBusy=false;
-
-function load(){return blankData()}
-function save(){}
-function refreshCharges(){}
 
 function authHeaders(accessToken, extra={}){return {'apikey':SUPABASE_KEY,'Authorization':`Bearer ${accessToken}`,'Content-Type':'application/json',...extra}}
 async function parseResponse(res){
@@ -841,13 +302,7 @@ async function changePasswordModal(){
 
 async function boot(){authState=restoreAuth();if(!authState){renderAuth();return}setLoading(true);try{await loadRemote()}finally{setLoading(false)}}
 
-function roleLabel(r){return r==='admin'?'Administrador':r==='commercial'?'Comercial':'Operacional'}
-const ROLE_PERMISSIONS={
-  commercial:new Set(['create_admission','add_extra','add_payment','adjust_rate','discharge','update_on_duty']),
-  operator:new Set(['create_admission','add_extra','discharge'])
-};
 function can(permission){return data?.currentRole==='admin'||!!ROLE_PERMISSIONS[data?.currentRole]?.has(permission)}
-function balanceMeta(v){const n=Number(v||0);if(n<-.009)return {label:'Crédito a devolver',amount:-n,kind:'credit'};if(n>.009)return {label:'Saldo a receber',amount:n,kind:'debt'};return {label:'Saldo',amount:0,kind:'paid'}}
 function settingsPage(){
   const members=teamProfiles.map(p=>`<div class="member-row"><div class="member-ident"><div class="avatar small">${esc((p.display_name||'?')[0])}</div><div><strong>${esc(p.display_name)}</strong><span>${esc(p.email||'Sem e-mail')}</span></div></div><div class="member-controls">${data.currentRole==='admin'?`<select data-member-role="${p.id}"><option value="operator" ${p.role==='operator'?'selected':''}>Operacional</option><option value="commercial" ${p.role==='commercial'?'selected':''}>Comercial</option><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option></select><label class="switch-label"><input type="checkbox" data-member-active="${p.id}" ${p.active?'checked':''}> <span>${p.active?'Ativo':'Pendente'}</span></label><button class="btn btn-secondary" data-save-member="${p.id}">Salvar</button>`:`<span class="badge ${p.active?'badge-good':'badge-warn'}">${p.active?'Ativo':'Pendente'}</span><span class="badge badge-neutral">${roleLabel(p.role)}</span>`}</div></div>`).join('');
   return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section><section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, trava de leito duplicado e diárias reconciliadas no servidor. O banco da oncologia permanece separado.</span></div></div></section></div>`
@@ -925,9 +380,6 @@ function extraModal(a){
   };
 }
 function rateModal(a){const r=currentRate(a),isPrivate=a.mode==='private';openModal('Ajustar diária','A alteração vale dali para frente; cobranças anteriores permanecem intactas.',`<form class="form" id="rateForm">${isPrivate?field('Ventilação mecânica',`<select id="rVent"><option value="0" ${!r.ventilation?'selected':''}>Não</option><option value="1" ${r.ventilation?'selected':''}>Sim</option></select>`):''}<div class="form-grid two">${field('Validade a partir de',`<input id="rWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Nova diária',`<div class="currency-input"><span>R$</span><input id="rValue" value="${r.negotiatedRate}" inputmode="decimal"></div>`)}</div><div class="summary-box"><div><span>Valor padrão</span><strong id="rStandard">—</strong></div><div><span>Valor aplicado</span><strong id="rApplied">${money(r.negotiatedRate)}</strong></div></div><div id="rateError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">↻ Salvar condição</button></div></form>`);document.querySelector('[data-close2]').onclick=closeModal;const upd=()=>{const vent=isPrivate&&document.getElementById('rVent').value==='1',std=isPrivate?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):bedRate(a.bed),val=Number(document.getElementById('rValue').value.replace(',','.'))||0;document.getElementById('rStandard').textContent=money(std);document.getElementById('rApplied').textContent=money(val)};if(isPrivate)document.getElementById('rVent').onchange=e=>{const std=e.target.value==='1'?PRIVATE_VENT:PRIVATE_NO_VENT;document.getElementById('rValue').value=std;upd()};document.getElementById('rValue').oninput=upd;upd();document.getElementById('rateForm').onsubmit=async e=>{e.preventDefault();if(remoteBusy)return;const vent=isPrivate&&document.getElementById('rVent').value==='1',v=Number(document.getElementById('rValue').value.replace(',','.'));if(!v||v<=0)return;try{setLoading(true,'Salvando condição…');await rpc('adjust_uti_rate',{p_admission_id:a.id,p_effective_at:parseLocal(document.getElementById('rWhen').value),p_negotiated_rate:v,p_ventilation:isPrivate?vent:null});await loadRemote({quiet:true});closeModal();toast('Nova condição salva para as próximas diárias.');render()}catch(ex){document.getElementById('rateError').innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}}}
-function dischargeModal(a){const isPending=a.status==='discharge_pending',def=a.dischargeAt?toLocalInput(new Date(a.dischargeAt)):nowLocalInput();openModal(isPending?'Fechamento financeiro':'Registrar alta',isPending?'Confira o saldo para finalizar a conta.':'A alta encerra a geração de novas diárias.',`<div class="form">${field('Data e hora da alta',`<input id="dWhen" type="datetime-local" value="${def}" ${isPending?'disabled':''}>`)}<div id="dPreview"></div><div id="dError"></div><div class="modal-actions"><button class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary" id="dSave">Registrar</button></div></div>`);document.querySelector('[data-close2]').onclick=closeModal;const getDis=()=>a.dischargeAt||parseLocal(document.getElementById('dWhen').value);const preview=()=>{const dis=getDis(),saveBtn=document.getElementById('dSave');if(new Date(dis)<new Date(a.entryAt)){saveBtn.disabled=true;document.getElementById('dPreview').innerHTML='<div class="form-error">⚠ A alta não pode ser anterior à entrada do paciente.</div>';return}saveBtn.disabled=false;const clone=structuredClone(data),ca=clone.admissions.find(x=>x.id===a.id);ca.dischargeAt=dis;ensureCharges(clone,ca,new Date(dis));const billed=clone.charges.filter(c=>c.admissionId===a.id).reduce((s,c)=>s+c.amount,0),received=clone.payments.filter(p=>p.admissionId===a.id).reduce((s,p)=>s+p.amount,0),bal=billed-received;document.getElementById('dPreview').innerHTML=`<div class="closing-box"><div><span>Total cobrado</span><strong>${money(billed)}</strong></div><div><span>Total recebido</span><strong>${money(received)}</strong></div><div class="${bal>0?'open':'paid'}"><span>Saldo</span><strong>${money(bal)}</strong></div></div>${bal>0?'<div class="form-warning">⚠ A conta ficará em <strong>Alta pendente</strong>.</div>':'<div class="form-success">✓ Saldo quitado. A internação será finalizada.</div>'}`};document.getElementById('dWhen').oninput=preview;preview();document.getElementById('dSave').onclick=async()=>{const dis=getDis();if(new Date(dis)<new Date(a.entryAt))return;try{setLoading(true,'Registrando alta…');const status=await rpc('discharge_uti',{p_admission_id:a.id,p_discharge_at:dis});await loadRemote({quiet:true});closeModal();toast(status==='finalized'?'Internação finalizada.':'Alta registrada; saldo permanece pendente.');render()}catch(ex){document.getElementById('dError').innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}}}
-
-
 function accommodationLabel(a){
   return a.bed<=9?'Salão':a.bed<=16?'Humanizado':'Humanizado com suíte';
 }
@@ -1341,9 +793,7 @@ function bindPage(){
 async function backgroundRefresh(){if(!authState||remoteBusy||document.querySelector('.modal-backdrop'))return;try{await loadRemote({quiet:true});render()}catch{}}
 
 
-document.addEventListener('click',e=>{const nav=e.target.closest('[data-nav]');if(nav){state.page=nav.dataset.nav;state.selectedId=null;render();return}const act=e.target.closest('[data-action]');if(!act)return;const a=act.dataset.action;if(a==='new')newAdmissionModal();if(a==='export'){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),x=document.createElement('a');x.href=url;x.download=`imec-uti-backup-${new Date().toISOString().slice(0,10)}.json`;x.click();URL.revokeObjectURL(url)}if(a==='import')document.getElementById('importFile')?.click();if(a==='clear'&&confirm('Apagar os dados deste navegador e iniciar uma base vazia?')){data=blankData();save();toast('Base local limpa.');render()}});
-document.addEventListener('change',e=>{if(e.target?.id==='importFile'){const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{data=JSON.parse(r.result);save();toast('Backup importado com sucesso.');render()}catch{alert('Arquivo de backup inválido.')}};r.readAsText(f)}});
+document.addEventListener('click',e=>{const nav=e.target.closest('[data-nav]');if(nav){state.page=nav.dataset.nav;state.selectedId=null;render();return}const act=e.target.closest('[data-action]');if(!act)return;const a=act.dataset.action;if(a==='new')newAdmissionModal();if(a==='export'){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),x=document.createElement('a');x.href=url;x.download=`imec-uti-dados-visiveis-${new Date().toISOString().slice(0,10)}.json`;x.click();URL.revokeObjectURL(url)}});
 setInterval(backgroundRefresh,45000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')backgroundRefresh()});
 boot();
-</script></body></html>
