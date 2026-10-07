@@ -4,7 +4,7 @@ import {
   money, businessParts, zonedLocalToDate, fmtDT, fmtDM, nowLocalInput,
   toLocalInput, parseLocal, cpfNorm, cpfMask, dayKey, monthKey,
   sameDay, sameMonth, bedRate, bedLabel, late, spParts,
-  newAdmissionEstimate, roleLabel, balanceMeta
+  newAdmissionEstimate, roleLabel, balanceMeta, healthStatusMeta
 } from './domain';
 import { SUPABASE_URL, SUPABASE_KEY } from './config';
 import {
@@ -27,7 +27,7 @@ let remoteBusy=false;
 let idleGuardStarted=false;
 
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
+function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],health:null,currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
 function currentRate(a,at=new Date()){return [...a.rateHistory].filter(r=>new Date(r.effectiveAt)<=at).sort((x,y)=>new Date(y.effectiveAt)-new Date(x.effectiveAt))[0]||a.rateHistory[0]}
 function totals(id){const billed=data.charges.filter(c=>c.admissionId===id).reduce((s,c)=>s+c.amount,0),received=data.payments.filter(p=>p.admissionId===id).reduce((s,p)=>s+p.amount,0),refunded=(data.refunds||[]).filter(r=>r.admissionId===id).reduce((s,r)=>s+r.amount,0),netReceived=received-refunded;return {billed,received,refunded,netReceived,balance:billed-received+refunded}}
 function patient(id){return data.patients.find(p=>p.id===id)}
@@ -347,7 +347,7 @@ async function checkPasswordSafety(password){
   return true;
 }
 
-function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings,profiles,closers,profile}){
+function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings,profiles,closers,profile,health}){
   const rateMap={};(rates||[]).forEach(r=>(rateMap[r.admission_id]??=[]).push({id:r.id,effectiveAt:r.effective_at,standardRate:Number(r.standard_rate),negotiatedRate:Number(r.negotiated_rate),ventilation:r.ventilation??undefined,label:r.label,changedBy:r.changed_by_name}));
   teamProfiles=profiles||[];
   teamClosers=closers||[];
@@ -358,6 +358,7 @@ function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,se
     payments:(payments||[]).map(p=>({id:p.id,admissionId:p.admission_id,occurredAt:p.occurred_at,amount:Number(p.amount),method:p.method,notes:p.notes||undefined,createdBy:p.created_by_name})),
     refunds:(refunds||[]).map(r=>({id:r.id,admissionId:r.admission_id,occurredAt:r.occurred_at,amount:Number(r.amount),method:r.method,notes:r.notes||undefined,createdBy:r.created_by_name})),
     audits:(audits||[]).map(a=>({id:a.id,admissionId:a.admission_id||undefined,occurredAt:a.occurred_at,user:a.user_name,action:a.action,detail:a.detail})),
+    health:health?.[0]?{id:health[0].id,checkedAt:health[0].checked_at,status:health[0].status,issues:health[0].issues||[],metrics:health[0].metrics||{},source:health[0].source}:null,
     currentUser:profile.display_name,currentRole:profile.role,onDuty:settings?.on_duty_name||'Samuel',securityAal:jwtAal(authState?.access_token),seededDemo:false
   }
 }
@@ -371,7 +372,7 @@ async function loadRemote({quiet=false}={}){
     if(!profile){renderAccountState('Seu perfil ainda está sendo preparado.','Tente novamente em alguns segundos.');return false}
     if(!profile.active){data=blankData();data.currentUser=profile.display_name;data.currentRole=profile.role;renderPending(profile);return false}
     try{await rpc('sync_uti_charges',{})}catch(e){console.warn('sync daily charges',e)}
-    const [patients,admissions,rates,charges,payments,refunds,audits,settingsRows,profiles,closers]=await Promise.all([
+    const [patients,admissions,rates,charges,payments,refunds,audits,settingsRows,profiles,closers,health]=await Promise.all([
       rest('patients?select=*&order=created_at.asc'),
       rest('admissions?select=*&order=entry_at.desc'),
       rest('rate_periods?select=*&order=effective_at.asc'),
@@ -381,9 +382,10 @@ async function loadRemote({quiet=false}={}){
       rest('audits?select=*&order=occurred_at.asc'),
       rest('app_settings?id=eq.1&select=*'),
       rest('profiles?select=id,display_name,email,role,active,created_at,security_onboarding_completed_at&order=created_at.asc'),
-      rest('commercial_closers?active=eq.true&select=id,code,display_name,commission_amount,active&order=display_name.asc')
+      rest('commercial_closers?active=eq.true&select=id,code,display_name,commission_amount,active&order=display_name.asc'),
+      profile.role==='admin'?rest('system_health_checks?select=id,checked_at,status,issues,metrics,source&order=checked_at.desc&limit=1'):Promise.resolve([])
     ]);
-    data=mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings:settingsRows?.[0],profiles,closers,profile});
+    data=mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings:settingsRows?.[0],profiles,closers,profile,health});
     if(!quiet)render();
     return true;
   }catch(e){
@@ -472,9 +474,25 @@ async function boot(){
 }
 
 function can(permission){return data?.currentRole==='admin'||!!ROLE_PERMISSIONS[data?.currentRole]?.has(permission)}
+function operationalHealthPanel(){
+  if(data.currentRole!=='admin')return '';
+  const h=data.health,meta=healthStatusMeta(h?.status,h?.checkedAt),metrics=h?.metrics||{},issues=Array.isArray(h?.issues)?h.issues:[];
+  const inconsistencyCount=Number(metrics.duplicate_active_beds||0)+Number(metrics.duplicate_charge_cycles||0)+Number(metrics.missing_rates||0)+Number(metrics.state_mismatches||0);
+  const issueMarkup=issues.length?issues.map(i=>`<div class="health-issue ${i.severity==='critical'?'critical':'warn'}"><span>${i.severity==='critical'?'!':'△'}</span><div><strong>${esc(i.message||i.code||'Alerta operacional')}</strong><small>${i.count?esc(i.count)+' ocorrência(s)':''}</small></div></div>`).join(''):'<div class="health-empty">✓ Nenhuma inconsistência operacional detectada.</div>';
+  return `<section class="panel health-panel"><div class="panel-head"><div><h2>Saúde operacional</h2><p>Monitor automático de integridade, faturamento e controles críticos.</p></div><span class="badge badge-${meta.tone}">${meta.label}</span></div>
+    <div class="health-kpis">
+      <div><span>Última verificação</span><strong>${h?.checkedAt?fmtDT(h.checkedAt):'Sem registro'}</strong><small>Automática a cada 15 min</small></div>
+      <div><span>Faturamento automático</span><strong>${metrics.billing_job_active?'Ativo':'Verificar'}</strong><small>${metrics.billing_last_success?'Último sucesso '+fmtDT(metrics.billing_last_success):'Sem execução registrada'}</small></div>
+      <div><span>Admins ativos</span><strong>${Number(metrics.active_admins||0)}</strong><small>MFA server-side: ${metrics.mfa_required?'ativo':'inativo'}</small></div>
+      <div><span>Inconsistências</span><strong>${inconsistencyCount}</strong><small>${Number(metrics.active_admissions||0)} conta(s) aberta(s)</small></div>
+    </div>
+    <div class="health-issues">${issueMarkup}</div>
+    ${meta.stale?'<div class="health-stale">O monitor não registra uma checagem recente. Atualize a tela e investigue o cron.</div>':''}
+  </section>`;
+}
 function settingsPage(){
   const members=teamProfiles.map(p=>`<div class="member-row"><div class="member-ident"><div class="avatar small">${esc((p.display_name||'?')[0])}</div><div><strong>${esc(p.display_name)}</strong><span>${esc(p.email||'Sem e-mail')}</span></div></div><div class="member-controls">${data.currentRole==='admin'?`<select data-member-role="${p.id}"><option value="operator" ${p.role==='operator'?'selected':''}>Operacional</option><option value="commercial" ${p.role==='commercial'?'selected':''}>Comercial</option><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option></select><label class="switch-label"><input type="checkbox" data-member-active="${p.id}" ${p.active?'checked':''}> <span>${p.active?'Ativo':'Pendente'}</span></label><button class="btn btn-secondary" data-save-member="${p.id}">Salvar</button>`:`<span class="badge ${p.active?'badge-good':'badge-warn'}">${p.active?'Ativo':'Pendente'}</span><span class="badge badge-neutral">${roleLabel(p.role)}</span>`}</div></div>`).join('');
-  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section><section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-status"><div><strong>MFA obrigatório • sessão AAL2</strong><span>Expiração automática após 20 minutos sem atividade.</span></div><span class="badge badge-good">${data.securityAal==='aal2'?'Protegido':'Verificar'}</span></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, senha verificada contra vazamentos, trava de leito duplicado e diárias reconciliadas no servidor.</span></div></div></section></div>`
+  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section>${operationalHealthPanel()}<section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-status"><div><strong>MFA obrigatório • sessão AAL2</strong><span>Expiração automática após 20 minutos sem atividade.</span></div><span class="badge badge-good">${data.securityAal==='aal2'?'Protegido':'Verificar'}</span></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, senha verificada contra vazamentos, trava de leito duplicado e diárias reconciliadas no servidor.</span></div></div></section></div>`
 }
 
 async function submitNew(e){
