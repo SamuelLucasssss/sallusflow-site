@@ -51,6 +51,8 @@ for (const required of [
   'async function checkPasswordSafety(',
   'IDLE_TIMEOUT_MS',
   'parseAuthRedirect',
+  'operationalHealthPanel',
+  'system_health_checks?select=id,checked_at,status,issues,metrics,source',
 ]) {
   if (!app.includes(required)) fail(`Proteção crítica ausente do app: ${required}`);
 }
@@ -59,6 +61,13 @@ const security = read('src/imec-uti/security.ts');
 for (const required of ['IDLE_TIMEOUT_MS = 20 * 60 * 1000','passwordPolicy','sha1Hex','pwnedCountFromRange','parseAuthRedirect','jwtAal']) {
   if (!security.includes(required)) fail(`Primitiva de segurança ausente: ${required}`);
 }
+const resilience = read('supabase/migrations/20261007175954_package4_operational_resilience.sql');
+for (const required of ['system_health_checks','private.run_uti_health_check','imec-uti-health-check','*/15 * * * *','90 days']) {
+  if (!resilience.includes(required)) fail(`Proteção de resiliência ausente: ${required}`);
+}
+const domain = read('src/imec-uti/domain.ts');
+if (!domain.includes('healthStatusMeta')) fail('Sem semântica de status para o monitor operacional.');
+
 const vercelConfig = read('vercel.json');
 for (const header of ['Content-Security-Policy','Strict-Transport-Security','X-Content-Type-Options','Permissions-Policy','frame-ancestors']) {
   if (!vercelConfig.includes(header)) fail(`Header de segurança ausente: ${header}`);
@@ -76,7 +85,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 27) fail(`Esperadas 27 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 28) fail(`Esperadas 28 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 
 for (const file of migrations) {
