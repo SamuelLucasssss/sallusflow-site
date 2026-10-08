@@ -80,6 +80,11 @@ for (const required of ['alertStatusMeta','healthWindowSummary']) {
   if (!domain.includes(required)) fail(`Sem semântica gerencial de observabilidade: ${required}`);
 }
 
+const observabilityIndexes = read('supabase/migrations/20261008111321_package5_observability_index_foreign_keys.sql');
+for (const required of ['system_alerts_health_check_id_idx','system_alerts_acknowledged_by_idx']) {
+  if (!observabilityIndexes.includes(required)) fail(`Índice de observabilidade ausente: ${required}`);
+}
+
 const vercelConfig = read('vercel.json');
 for (const header of ['Content-Security-Policy','Strict-Transport-Security','X-Content-Type-Options','Permissions-Policy','frame-ancestors']) {
   if (!vercelConfig.includes(header)) fail(`Header de segurança ausente: ${header}`);
@@ -97,7 +102,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 29) fail(`Esperadas 29 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 30) fail(`Esperadas 30 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 
 for (const file of migrations) {
