@@ -610,3 +610,57 @@ body.modal-open { overflow: hidden; }
   #modal { display: none !important; }
   body { padding: 0 !important; }
 }
+
+
+/* Package 6 — legibility and printable hierarchy */
+:root { line-height: 1.5; }
+.page-head p { line-height: 1.5; }
+.panel-head p,
+.metric-copy span,
+.metric-copy small,
+.patient-card > p,
+.patient-meta,
+.patient-money span,
+.balance-strip span,
+.attention-main span,
+.attention-value span,
+.finance-row > div:first-child > span,
+.finance-amount span,
+.receipt-row > div:nth-child(2) span,
+.field-label,
+.field small,
+.member-ident span,
+.obs-kpis span,
+.obs-kpis small,
+.obs-alert-copy small,
+.obs-audit-row small,
+.obs-audit-row p,
+.health-issue small,
+.health-stale {
+  font-size: 11px;
+  line-height: 1.45;
+}
+.field input,
+.field select,
+.field textarea,
+.searchbox input { font-size: 13px; }
+
+@media (max-width: 820px) {
+  .bottom-nav button { font-size: 10px; }
+  input, select, textarea { font-size: 16px !important; }
+  .network-status { font-size: 12px; }
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  .print-area { break-inside: auto; }
+  .detail-columns { display: block; }
+  .detail-columns > .panel,
+  .side-stack .panel { margin-bottom: 12px; }
+  .detail-hero,
+  .money-hero,
+  .timeline-row,
+  .coverage-row,
+  .print-footer { break-inside: avoid; }
+  h1, h2, h3 { break-after: avoid; }
+}
