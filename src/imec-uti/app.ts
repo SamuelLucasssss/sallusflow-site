@@ -1074,7 +1074,7 @@ function bindDetail(a){
   document.querySelectorAll('[data-action="extra"]').forEach(b=>b.onclick=()=>extraModal(a));
   document.querySelectorAll('[data-action="rate"]').forEach(b=>b.onclick=()=>rateModal(a));
   document.querySelectorAll('[data-action="discharge"]').forEach(b=>{const sp=b.querySelector('span');if(sp)sp.textContent=a.dischargeAt?'Acerto / saída':'Alta e acerto';b.onclick=()=>dischargeModal(a)});
-  document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=async()=>{try{setLoading(true,'Registrando impressão…');await logDocumentOutput(a.id,'print_requested','admission_statement');window.print()}catch(ex){alert('Não foi possível registrar a impressão: '+ex.message)}finally{setLoading(false)}});
+  document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=async()=>{try{setLoading(true,'Registrando impressão…');await logDocumentOutput(a.id,'print_requested','admission_statement');setLoading(false);window.print()}catch(ex){alert('Não foi possível registrar a impressão: '+ex.message)}finally{setLoading(false)}});
   const actions=document.querySelector('.detail-actions');
   const hasCorrectable=data.payments.some(x=>x.admissionId===a.id)||data.charges.some(x=>x.admissionId===a.id&&x.kind!=='daily')||(data.refunds||[]).some(x=>x.admissionId===a.id);
   if(actions&&data.currentRole==='admin'&&hasCorrectable&&!actions.querySelector('[data-action="corrections"]')){
