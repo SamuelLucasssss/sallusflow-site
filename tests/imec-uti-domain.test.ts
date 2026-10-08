@@ -11,6 +11,8 @@ import {
   roleLabel,
   sameDay,
   healthStatusMeta,
+  alertStatusMeta,
+  healthWindowSummary,
 } from '../src/imec-uti/domain.ts';
 
 test('hotelaria respeita a tabela por leito', () => {
@@ -66,4 +68,20 @@ test('saúde operacional diferencia ok, alerta e crítico', () => {
 test('health check com mais de 45 minutos é tratado como atrasado', () => {
   const now = new Date('2026-10-07T18:00:00.000Z');
   assert.deepEqual(healthStatusMeta('ok', '2026-10-07T17:14:59.000Z', now), { label: 'Monitor atrasado', tone: 'warn', stale: true });
+});
+
+
+test('alertas distinguem ação pendente, reconhecimento e resolução', () => {
+  assert.deepEqual(alertStatusMeta('critical','open'), { label:'Crítico', tone:'bad', needsAction:true });
+  assert.deepEqual(alertStatusMeta('warn','open'), { label:'Atenção', tone:'warn', needsAction:true });
+  assert.deepEqual(alertStatusMeta('critical','acknowledged'), { label:'Reconhecido', tone:'bad', needsAction:false });
+  assert.deepEqual(alertStatusMeta('warn','resolved'), { label:'Resolvido', tone:'neutral', needsAction:false });
+});
+
+test('janela de saúde calcula disponibilidade observada sem esconder alertas', () => {
+  assert.deepEqual(
+    healthWindowSummary([{status:'ok'},{status:'ok'},{status:'warn'},{status:'critical'}]),
+    { total:4, ok:2, warn:1, critical:1, healthyPct:50 },
+  );
+  assert.deepEqual(healthWindowSummary([]), { total:0, ok:0, warn:0, critical:0, healthyPct:0 });
 });
