@@ -52,7 +52,14 @@ function unresolvedSystemAlerts(){return (data.alerts||[]).filter(a=>a.status!==
 function systemAlertBanner(){
   if(data.currentRole!=='admin')return '';
   const unresolved=unresolvedSystemAlerts();
-  if(!unresolved.length)return '';
+  const healthMeta=healthStatusMeta(data.health?.status,data.health?.checkedAt);
+  const healthIssue=Array.isArray(data.health?.issues)?data.health.issues[0]:null;
+  if(!unresolved.length){
+    if(data.health && data.health.status==='ok' && !healthMeta.stale)return '';
+    const critical=data.health?.status==='critical';
+    const message=healthMeta.stale?'O monitor de saúde está atrasado.':healthIssue?.message||'A saúde operacional requer verificação.';
+    return `<button class="system-alert-banner ${critical?'critical':'warn'}" data-nav="settings"><span class="system-alert-icon">${critical?'!':'△'}</span><span><strong>${healthMeta.stale?'Monitor atrasado':critical?'Saúde operacional crítica':'Saúde operacional em atenção'}</strong><small>${esc(message)}</small></span><b>Revisar →</b></button>`;
+  }
   const actionable=unresolved.filter(a=>alertStatusMeta(a.severity,a.status).needsAction);
   const critical=unresolved.filter(a=>a.severity==='critical');
   const lead=actionable[0]||critical[0]||unresolved[0];
