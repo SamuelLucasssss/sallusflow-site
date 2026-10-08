@@ -98,6 +98,12 @@ for (const required of ['log_uti_document_event','private.is_active_member()','p
 for (const required of ['MODAL_FOCUSABLE','aria-modal="true"',"e.key==='Escape'","e.key!=='Tab'","setAttribute('inert','')","rpc('log_uti_document_event'","register('/imec-uti/sw.js'","updateNetworkStatus"]) {
   if (!app.includes(required)) fail(`Refinamento do Pacote 6 ausente no app: ${required}`);
 }
+const exportAudit = read('supabase/migrations/20261008125711_package6_secure_admin_json_export.sql');
+for (const required of ['log_uti_data_export','private.is_admin()','Exportação administrativa de dados']) {
+  if (!exportAudit.includes(required)) fail(`Proteção de exportação administrativa ausente: ${required}`);
+}
+if (!app.includes("rpc('log_uti_data_export'")) fail('Exportação JSON de dados pessoais não está auditada.');
+if (!app.includes("window.confirm('Esta exportação")) fail('Exportação JSON sem confirmação contextual.');
 if (app.includes('href="${pdfUrl}"')) fail('Existe atalho de download de PDF sem auditoria no fluxo de impressão.');
 
 const package6Page = read('src/pages/imec-uti/index.astro');
@@ -119,7 +125,7 @@ const pwaWorker = read('public/imec-uti/sw.js');
 for (const forbidden of ['caches.open','cache.put','.addAll(','indexedDB']) {
   if (pwaWorker.includes(forbidden)) fail(`PWA online-only não pode persistir dados: ${forbidden}`);
 }
-for (const required of ['fetch(event.request)','Sem conexão','Cache-Control']) {
+for (const required of ["fetch(event.request,{cache:'no-store'})",'Sem conexão','Cache-Control']) {
   if (!pwaWorker.includes(required)) fail(`Service worker online-only incompleto: ${required}`);
 }
 
@@ -140,7 +146,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 32) fail(`Esperadas 32 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 33) fail(`Esperadas 33 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 
 for (const file of migrations) {
