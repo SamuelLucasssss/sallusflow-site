@@ -26,6 +26,8 @@ let teamProfiles=[];
 let teamClosers=[];
 let remoteBusy=false;
 let idleGuardStarted=false;
+let modalReturnFocus=null;
+const MODAL_FOCUSABLE='a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],health:null,healthHistory:[],alerts:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
@@ -35,19 +37,19 @@ function patient(id){return data.patients.find(p=>p.id===id)}
 function admission(id){return data.admissions.find(a=>a.id===id)}
 function hospitalDays(a){const st=new Date(a.entryAt), en=a.dischargeAt?new Date(a.dischargeAt):new Date();return Math.max(1,Math.ceil(Math.max(0,en-st)/86400000))}
 function statusBadge(s){return s==='active'?'<span class="badge badge-brand">Internado</span>':s==='discharge_pending'?'<span class="badge badge-warn">Alta pendente</span>':s==='finalized'?'<span class="badge badge-good">Finalizado</span>':'<span class="badge badge-neutral">Cancelado</span>'}
-function toast(text){const el=document.getElementById('toast');el.innerHTML=`✓ ${esc(text)}`;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400)}
+function toast(text){const el=document.getElementById('toast');if(!el)return;el.textContent=`✓ ${text}`;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400)}
 function shell(){
  document.getElementById('app').innerHTML=`
  <aside class="sidebar">
   <div class="brand"><div class="brand-mark">I</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div>
   <button class="btn btn-primary side-new" data-action="new">＋ Nova internação</button>
-  <nav>${navItem('home','⌂','Início')}${navItem('patients','◉','Pacientes')}${navItem('finance','R$','Financeiro')}${navItem('settings','⚙','Configurações')}</nav>
+  <nav aria-label="Navegação principal">${navItem('home','⌂','Início')}${navItem('patients','◉','Pacientes')}${navItem('finance','R$','Financeiro')}${navItem('settings','⚙','Configurações')}</nav>
   <div class="side-bottom"><div class="duty"><span>Plantão comercial</span><strong><span class="online-dot"></span>${esc(data.onDuty)}</strong></div><div class="user-chip"><div class="avatar">${esc(data.currentUser[0])}</div><div><strong>${esc(data.currentUser)}</strong><span>Usuário atual</span></div><span>•••</span></div></div>
  </aside>
- <div class="app-main"><header class="topbar"><div class="mobile-brand"><div class="brand-mark">I</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div><div class="top-actions"><button class="top-user" data-nav="settings"><div class="avatar small">${esc(data.currentUser[0])}</div><span>${esc(data.currentUser)}</span></button><button class="icon-btn mobile-only" data-action="new">＋</button></div></header><main class="content" id="content"></main></div>
- <nav class="bottom-nav"><button data-nav="home" class="${state.page==='home'?'active':''}"><b>⌂</b><span>Início</span></button><button data-nav="patients" class="${state.page==='patients'?'active':''}"><b>◉</b><span>Pacientes</span></button><button class="bottom-plus" data-action="new">＋</button><button data-nav="finance" class="${state.page==='finance'?'active':''}"><b>R$</b><span>Financeiro</span></button><button data-nav="settings" class="${state.page==='settings'?'active':''}"><b>⚙</b><span>Ajustes</span></button></nav>`;
+ <div class="app-main"><header class="topbar"><div class="mobile-brand"><div class="brand-mark">I</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div><div class="top-actions"><button class="top-user" data-nav="settings" aria-label="Abrir configurações do usuário"><div class="avatar small">${esc(data.currentUser[0])}</div><span>${esc(data.currentUser)}</span></button><button class="icon-btn mobile-only" data-action="new" aria-label="Nova internação">＋</button></div></header><main class="content" id="content" tabindex="-1"></main></div>
+ <nav class="bottom-nav" aria-label="Navegação principal móvel"><button data-nav="home" class="${state.page==='home'?'active':''}" aria-current="${state.page==='home'?'page':'false'}"><b aria-hidden="true">⌂</b><span>Início</span></button><button data-nav="patients" class="${state.page==='patients'?'active':''}" aria-current="${state.page==='patients'?'page':'false'}"><b aria-hidden="true">◉</b><span>Pacientes</span></button><button class="bottom-plus" data-action="new" aria-label="Nova internação">＋</button><button data-nav="finance" class="${state.page==='finance'?'active':''}" aria-current="${state.page==='finance'?'page':'false'}"><b aria-hidden="true">R$</b><span>Financeiro</span></button><button data-nav="settings" class="${state.page==='settings'?'active':''}" aria-current="${state.page==='settings'?'page':'false'}"><b aria-hidden="true">⚙</b><span>Ajustes</span></button></nav>`;
 }
-function navItem(p,i,l){return `<button class="side-item ${state.page===p?'active':''}" data-nav="${p}"><span>${i}</span><span>${l}</span></button>`}
+function navItem(p,i,l){return `<button class="side-item ${state.page===p?'active':''}" data-nav="${p}" aria-current="${state.page===p?'page':'false'}"><span aria-hidden="true">${i}</span><span>${l}</span></button>`}
 function unresolvedSystemAlerts(){return (data.alerts||[]).filter(a=>a.status!=='resolved')}
 function systemAlertBanner(){
   if(data.currentRole!=='admin')return '';
@@ -94,7 +96,7 @@ function patientsPage(){
   const q=state.search.toLowerCase().trim();
   let rows=data.admissions.filter(a=>{const p=patient(a.patientId);const ms=!q||(p?.name||'').toLowerCase().includes(q)||cpfNorm(p?.cpf).includes(cpfNorm(q));const f=state.patientFilter;const mf=f==='all'||(f==='active'&&a.status==='active')||(f==='pending'&&a.status==='discharge_pending')||(f==='finalized'&&a.status==='finalized')||(f==='private'&&a.mode==='private')||(f==='hotel'&&a.mode==='hotel');return ms&&mf}).sort((a,b)=>new Date(b.entryAt)-new Date(a.entryAt));
   const fs=[['active','Internados'],['pending','Alta pendente'],['private','Particular'],['hotel','Hotelaria'],['finalized','Finalizados'],['all','Todos']];
-  return `<section class="page-head"><div><span class="eyebrow">INTERNAÇÕES</span><h1>Pacientes</h1><p>Consulte rapidamente qualquer conta em andamento ou finalizada.</p></div></section><div class="toolbar"><div class="searchbox"><span>⌕</span><input id="searchPatients" placeholder="Buscar por nome ou CPF" value="${esc(state.search)}"></div><div class="filter-chips">${fs.map(([v,l])=>`<button data-filter="${v}" class="${state.patientFilter===v?'active':''}">${l}</button>`).join('')}</div></div><section class="panel table-panel">${rows.length?`<div class="patients-table"><div class="table-row table-header"><span>Paciente</span><span>Leito</span><span>Entrada</span><span>Cobrado</span><span>Recebido líq.</span><span>Saldo</span><span>Status</span><span></span></div>${rows.map(a=>{const p=patient(a.patientId),t=totals(a.id),m=balanceMeta(t.balance);return `<button class="table-row" data-open="${a.id}"><span class="patient-cell"><strong>${esc(p?.name)}</strong><small>${a.mode==='private'?'Particular':'Hotelaria'}</small></span><span><strong>${String(a.bed).padStart(2,'0')}</strong></span><span>${fmtDT(a.entryAt)}</span><span>${money(t.billed)}</span><span>${money(t.netReceived)}</span><span class="${Math.abs(t.balance)<=0.009?'money-paid':'money-open'}" title="${m.label}">${m.kind==='credit'?'Crédito '+money(m.amount):money(m.amount)}</span><span>${statusBadge(a.status)}</span><span>›</span></button>`}).join('')}</div>`:empty('Nenhum paciente encontrado','Altere os filtros ou faça uma nova internação.')}</section>`;
+  return `<section class="page-head"><div><span class="eyebrow">INTERNAÇÕES</span><h1>Pacientes</h1><p>Consulte rapidamente qualquer conta em andamento ou finalizada.</p></div></section><div class="toolbar"><div class="searchbox"><span>⌕</span><input id="searchPatients" aria-label="Buscar paciente por nome ou CPF" placeholder="Buscar por nome ou CPF" value="${esc(state.search)}"></div><div class="filter-chips">${fs.map(([v,l])=>`<button data-filter="${v}" class="${state.patientFilter===v?'active':''}">${l}</button>`).join('')}</div></div><section class="panel table-panel">${rows.length?`<div class="patients-table"><div class="table-row table-header"><span>Paciente</span><span>Leito</span><span>Entrada</span><span>Cobrado</span><span>Recebido líq.</span><span>Saldo</span><span>Status</span><span></span></div>${rows.map(a=>{const p=patient(a.patientId),t=totals(a.id),m=balanceMeta(t.balance);return `<button class="table-row" data-open="${a.id}"><span class="patient-cell"><strong>${esc(p?.name)}</strong><small>${a.mode==='private'?'Particular':'Hotelaria'}</small></span><span><strong>${String(a.bed).padStart(2,'0')}</strong></span><span>${fmtDT(a.entryAt)}</span><span>${money(t.billed)}</span><span>${money(t.netReceived)}</span><span class="${Math.abs(t.balance)<=0.009?'money-paid':'money-open'}" title="${m.label}">${m.kind==='credit'?'Crédito '+money(m.amount):money(m.amount)}</span><span>${statusBadge(a.status)}</span><span>›</span></button>`}).join('')}</div>`:empty('Nenhum paciente encontrado','Altere os filtros ou faça uma nova internação.')}</section>`;
 }
 function financePage(){
   const pending=data.admissions.filter(a=>a.status==='active'||a.status==='discharge_pending').map(a=>({a,t:totals(a.id)})).filter(x=>Math.abs(x.t.balance)>0.009).sort((x,y)=>Math.abs(y.t.balance)-Math.abs(x.t.balance));
@@ -130,8 +132,55 @@ function patientDetail(a){
   <div class="print-footer print-only"><strong>IMEC UTI — Extrato de internação</strong><span>Gerado em ${fmtDT(new Date().toISOString())}</span></div>`;
 }
 
-function openModal(title,subtitle,body){document.getElementById('modal').innerHTML=`<div class="modal-backdrop" id="modalBackdrop"><div class="modal-card"><div class="modal-head"><div><h2>${title}</h2>${subtitle?`<p>${subtitle}</p>`:''}</div><button class="icon-btn" data-close>×</button></div>${body}</div></div>`;document.querySelector('[data-close]').onclick=closeModal;document.getElementById('modalBackdrop').addEventListener('mousedown',e=>{if(e.target.id==='modalBackdrop')closeModal()})}
-function closeModal(){document.getElementById('modal').innerHTML=''}
+function modalFocusables(){
+  const card=document.querySelector('#modal [role="dialog"]');
+  if(!card)return [];
+  return [...card.querySelectorAll(MODAL_FOCUSABLE)].filter(el=>!el.hasAttribute('disabled')&&el.getAttribute('aria-hidden')!=='true'&&el.getClientRects().length>0);
+}
+function modalKeydown(e){
+  const card=document.querySelector('#modal [role="dialog"]');
+  if(!card)return;
+  if(e.key==='Escape'){e.preventDefault();closeModal();return}
+  if(e.key!=='Tab')return;
+  const focusable=modalFocusables();
+  if(!focusable.length){e.preventDefault();card.focus();return}
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(!card.contains(document.activeElement)){
+    e.preventDefault();
+    (e.shiftKey?last:first).focus();
+    return;
+  }
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+}
+function openModal(title,subtitle,body){
+  const existingModal=!!document.querySelector('.modal-backdrop');
+  const originalFocus=existingModal?modalReturnFocus:(document.activeElement instanceof HTMLElement?document.activeElement:null);
+  if(existingModal)closeModal({restore:false});
+  modalReturnFocus=originalFocus;
+  const host=document.getElementById('modal');
+  const app=document.getElementById('app');
+  if(app)app.setAttribute('inert','');
+  document.body.classList.add('modal-open');
+  host.innerHTML=`<div class="modal-backdrop" id="modalBackdrop"><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle" ${subtitle?'aria-describedby="modalSubtitle"':''} tabindex="-1"><div class="modal-head"><div><h2 id="modalTitle">${esc(title)}</h2>${subtitle?`<p id="modalSubtitle">${esc(subtitle)}</p>`:''}</div><button class="icon-btn" data-close aria-label="Fechar janela">×</button></div>${body}</section></div>`;
+  host.querySelector('[data-close]').onclick=()=>closeModal();
+  host.querySelector('#modalBackdrop').addEventListener('mousedown',e=>{if(e.target.id==='modalBackdrop')closeModal()});
+  document.addEventListener('keydown',modalKeydown);
+  requestAnimationFrame(()=>{
+    const autofocus=host.querySelector('[autofocus]');
+    const focusable=modalFocusables();
+    (autofocus||focusable[0]||host.querySelector('[role="dialog"]'))?.focus();
+  });
+}
+function closeModal({restore=true}={}){
+  document.removeEventListener('keydown',modalKeydown);
+  const app=document.getElementById('app');
+  if(app)app.removeAttribute('inert');
+  document.body.classList.remove('modal-open');
+  const host=document.getElementById('modal');if(host)host.innerHTML='';
+  const target=modalReturnFocus;modalReturnFocus=null;
+  if(restore&&target&&target.isConnected)requestAnimationFrame(()=>target.focus());
+}
 function field(label,html,hint=''){return `<label class="field"><span class="field-label">${label}</span>${html}${hint?`<small>${hint}</small>`:''}</label>`}
 function newAdmissionModal(){
   if(!can('create_admission')){toast('Seu perfil não pode criar internações.');return}
@@ -800,6 +849,9 @@ function buildSettlementPdfBytes(a,s){
 function buildSettlementPdfBlob(a,s){
   return new Blob([buildSettlementPdfBytes(a,s)],{type:'application/pdf'});
 }
+async function logDocumentOutput(admissionId,event,documentKind){
+  return rpc('log_uti_document_event',{p_admission_id:admissionId,p_event:event,p_document_kind:documentKind});
+}
 async function downloadSettlementPdf(a,knownSettlement=null){
   let loading=false;
   const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -807,7 +859,10 @@ async function downloadSettlementPdf(a,knownSettlement=null){
   try{
     let s=knownSettlement;
     if(!s){loading=true;setLoading(true,'Gerando PDF…');s=await fetchSettlement(a,a.dischargeAt)}
-    const blob=buildSettlementPdfBlob(a,s),url=URL.createObjectURL(blob),fileName=settlementPdfFileName(a,s);
+    const blob=buildSettlementPdfBlob(a,s),fileName=settlementPdfFileName(a,s);
+    if(!loading){loading=true;setLoading(true,'Registrando saída documental…')}
+    await logDocumentOutput(a.id,'pdf_downloaded','settlement_pdf');
+    const url=URL.createObjectURL(blob);
     if(isiOS){
       if(iosWindow)iosWindow.location.href=url;else window.location.href=url;
     }else{
@@ -826,8 +881,8 @@ function printSettlementSheet(a,knownSettlement=null){
   const build=async()=>{
     try{
       const s=knownSettlement||await fetchSettlement(a,a.dischargeAt);
+      await logDocumentOutput(a.id,'print_view_opened','settlement_sheet');
       const model=settlementDocumentModel(a,s),p=model.patient,printItems=model.lines,payGroups=model.payGroups,status=model.status,statusClass=model.statusClass;
-      const pdfBlob=buildSettlementPdfBlob(a,s),pdfUrl=URL.createObjectURL(pdfBlob),fileName=settlementPdfFileName(a,s);
       win.document.open();
       win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Folha de Acerto — ${esc(p?.name||'Paciente')}</title><style>
         @page{size:A4 portrait;margin:13mm}
@@ -847,7 +902,7 @@ function printSettlementSheet(a,knownSettlement=null){
         .no-print{width:184mm;margin:0 auto 10px;display:flex;justify-content:flex-end;gap:7px}.no-print button,.no-print a{border:0;background:#0b6f72;color:#fff;padding:9px 13px;border-radius:7px;font-weight:700;cursor:pointer;text-decoration:none;font:inherit}.no-print .ghost{background:#fff;color:#435456;border:1px solid #cfd8d8}.doc-side{text-align:right}.doc-side small{display:block;color:#6d7b7e;font-size:7.5pt;margin-top:5px}
         @media print{html,body{background:#fff!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}.sheet{width:auto;min-height:271mm;margin:0}.proof{break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}}
       </style></head><body>
-      <div class="no-print"><button onclick="window.print()">Imprimir / Salvar PDF</button><a href="${pdfUrl}" download="${esc(fileName)}">Baixar PDF</a><button class="ghost" onclick="window.close()">Fechar</button></div>
+      <div class="no-print"><button id="settlementPrintBtn" type="button">Imprimir / Salvar PDF</button><button id="settlementCloseBtn" type="button" class="ghost">Fechar</button></div>
       <main class="sheet">
       <div class="top"><div><div class="brand">IMEC UTI<small>Folha de Acerto — Particular & Hotelaria</small></div></div><div class="doc-side"><div class="status ${statusClass}">${status}</div><small>Documento ${model.docId}</small></div></div>
       <div class="patient">${esc(p?.name||'Paciente')}</div>
@@ -877,8 +932,23 @@ function printSettlementSheet(a,knownSettlement=null){
       <div class="footer"><div><strong>Responsável pelo fechamento:</strong> ${esc(a.closer||'—')}<br><strong>Documento emitido por:</strong> ${esc(data.currentUser)} • ${fmtDT(new Date().toISOString())}</div><div class="sign">Conferência / Visto</div></div>
       </main></body></html>`);
       win.document.close();
+      const printButton=win.document.getElementById('settlementPrintBtn');
+      const closeButton=win.document.getElementById('settlementCloseBtn');
+      closeButton?.addEventListener('click',()=>win.close());
+      printButton?.addEventListener('click',async()=>{
+        printButton.disabled=true;
+        const text=printButton.textContent;
+        printButton.textContent='Registrando impressão…';
+        try {
+          await logDocumentOutput(a.id,'print_requested','settlement_sheet');
+          if(!win.closed){win.focus();win.print()}
+        } catch (err) {
+          alert('Não foi possível registrar a impressão: '+(err?.message||'erro desconhecido'));
+        } finally {
+          if(!win.closed){printButton.disabled=false;printButton.textContent=text}
+        }
+      });
       try{win.focus()}catch{}
-      setTimeout(()=>URL.revokeObjectURL(pdfUrl),900000);
     }catch(e){
       win.document.body.innerHTML='<p style="font-family:Arial;padding:30px;color:#b42318">Não foi possível gerar a folha: '+esc(e.message)+'</p>';
     }
@@ -1004,7 +1074,7 @@ function bindDetail(a){
   document.querySelectorAll('[data-action="extra"]').forEach(b=>b.onclick=()=>extraModal(a));
   document.querySelectorAll('[data-action="rate"]').forEach(b=>b.onclick=()=>rateModal(a));
   document.querySelectorAll('[data-action="discharge"]').forEach(b=>{const sp=b.querySelector('span');if(sp)sp.textContent=a.dischargeAt?'Acerto / saída':'Alta e acerto';b.onclick=()=>dischargeModal(a)});
-  document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=()=>window.print());
+  document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=async()=>{try{setLoading(true,'Registrando impressão…');await logDocumentOutput(a.id,'print_requested','admission_statement');setLoading(false);window.print()}catch(ex){alert('Não foi possível registrar a impressão: '+ex.message)}finally{setLoading(false)}});
   const actions=document.querySelector('.detail-actions');
   const hasCorrectable=data.payments.some(x=>x.admissionId===a.id)||data.charges.some(x=>x.admissionId===a.id&&x.kind!=='daily')||(data.refunds||[]).some(x=>x.admissionId===a.id);
   if(actions&&data.currentRole==='admin'&&hasCorrectable&&!actions.querySelector('[data-action="corrections"]')){
@@ -1031,8 +1101,60 @@ function bindPage(){
 
 async function backgroundRefresh(){if(!authState||remoteBusy||document.querySelector('.modal-backdrop'))return;try{await loadRemote({quiet:true});render()}catch{}}
 
+function updateNetworkStatus(){
+  const el=document.getElementById('networkStatus');if(!el)return;
+  const offline=navigator.onLine===false;
+  el.textContent=offline?'Sem conexão. O IMEC UTI funciona somente online; os dados exibidos podem estar desatualizados.':'';
+  el.classList.toggle('show',offline);
+  document.documentElement.dataset.network=offline?'offline':'online';
+}
+function initPwa(){
+  updateNetworkStatus();
+  window.addEventListener('offline',updateNetworkStatus);
+  window.addEventListener('online',()=>{updateNetworkStatus();toast('Conexão restabelecida.');backgroundRefresh()});
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{
+      navigator.serviceWorker.register('/imec-uti/sw.js',{scope:'/imec-uti/'}).catch(err=>console.warn('PWA registration',err));
+    },{once:true});
+  }
+}
 
-document.addEventListener('click',e=>{const nav=e.target.closest('[data-nav]');if(nav){state.page=nav.dataset.nav;state.selectedId=null;render();return}const act=e.target.closest('[data-action]');if(!act)return;const a=act.dataset.action;if(a==='new')newAdmissionModal();if(a==='export'){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),x=document.createElement('a');x.href=url;x.download=`imec-uti-dados-visiveis-${new Date().toISOString().slice(0,10)}.json`;x.click();URL.revokeObjectURL(url)}});
+
+document.addEventListener('click',async e=>{
+  const nav=e.target.closest('[data-nav]');
+  if(nav){
+    state.page=nav.dataset.nav;
+    state.selectedId=null;
+    render();
+    requestAnimationFrame(()=>document.getElementById('content')?.focus());
+    return;
+  }
+  const action=e.target.closest('[data-action]');
+  if(!action)return;
+  const type=action.dataset.action;
+  if(type==='new'){newAdmissionModal();return}
+  if(type!=='export')return;
+  if(data.currentRole!=='admin'){alert('A exportação é restrita aos administradores.');return}
+  const approved=window.confirm('Esta exportação pode conter dados pessoais e financeiros de pacientes. Salve o arquivo apenas em local institucional seguro. Deseja continuar?');
+  if(!approved)return;
+  try{
+    setLoading(true,'Auditando exportação…');
+    await rpc('log_uti_data_export',{});
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;
+    link.download=`imec-uti-dados-visiveis-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    toast('Exportação registrada e arquivo gerado.');
+  }catch(err){
+    alert('Não foi possível auditar a exportação; o download foi bloqueado. '+(err?.message||''));
+  }finally{setLoading(false)}
+});
 setInterval(backgroundRefresh,45000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')backgroundRefresh()});
+initPwa();
 boot();

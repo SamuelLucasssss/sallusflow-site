@@ -1,0 +1,49 @@
+{
+  "id": "/imec-uti/",
+  "name": "IMEC UTI — Particular & Hotelaria",
+  "short_name": "IMEC UTI",
+  "description": "Controle operacional de internações particulares, hotelaria e recebimentos da IMEC UTI.",
+  "lang": "pt-BR",
+  "start_url": "/imec-uti/",
+  "scope": "/imec-uti/",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#f4f7f7",
+  "theme_color": "#0b6f72",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/imec-uti/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/imec-uti/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/imec-uti/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/imec-uti/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/imec-uti/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
