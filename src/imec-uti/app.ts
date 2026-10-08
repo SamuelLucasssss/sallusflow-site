@@ -1113,7 +1113,40 @@ function initPwa(){
 }
 
 
-document.addEventListener('click',e=>{const nav=e.target.closest('[data-nav]');if(nav){state.page=nav.dataset.nav;state.selectedId=null;render();requestAnimationFrame(()=>document.getElementById('content')?.focus());return}const act=e.target.closest('[data-action]');if(!act)return;const a=act.dataset.action;if(a==='new')newAdmissionModal();if(a==='export'){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),x=document.createElement('a');x.href=url;x.download=`imec-uti-dados-visiveis-${new Date().toISOString().slice(0,10)}.json`;x.click();URL.revokeObjectURL(url)}});
+document.addEventListener('click',async e=>{
+  const nav=e.target.closest('[data-nav]');
+  if(nav){
+    state.page=nav.dataset.nav;
+    state.selectedId=null;
+    render();
+    requestAnimationFrame(()=>document.getElementById('content')?.focus());
+    return;
+  }
+  const action=e.target.closest('[data-action]');
+  if(!action)return;
+  const type=action.dataset.action;
+  if(type==='new'){newAdmissionModal();return}
+  if(type!=='export')return;
+  if(data.currentRole!=='admin'){alert('A exportação é restrita aos administradores.');return}
+  const approved=window.confirm('Esta exportação pode conter dados pessoais e financeiros de pacientes. Salve o arquivo apenas em local institucional seguro. Deseja continuar?');
+  if(!approved)return;
+  try{
+    setLoading(true,'Auditando exportação…');
+    await rpc('log_uti_data_export',{});
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;
+    link.download=`imec-uti-dados-visiveis-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    toast('Exportação registrada e arquivo gerado.');
+  }catch(err){
+    alert('Não foi possível auditar a exportação; o download foi bloqueado. '+(err?.message||''));
+  }finally{setLoading(false)}
+});
 setInterval(backgroundRefresh,45000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')backgroundRefresh()});
 initPwa();
