@@ -11,7 +11,9 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "quality": "node scripts/quality-gate.mjs",
     "check": "npm run typecheck && npm run test && npm run quality && npm run security && npm run build",
-    "security": "node scripts/security-audit.mjs"
+    "security": "node scripts/security-audit.mjs",
+    "prebuild": "node scripts/generate-imec-pwa-icons.mjs",
+    "postbuild": "node scripts/verify-imec-pwa-icons.mjs"
   },
   "dependencies": {
     "astro": "7.3.6",
