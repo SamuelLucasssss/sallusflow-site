@@ -1,0 +1,35 @@
+name: IMEC UTI external uptime
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: imec-uti-external-uptime
+  cancel-in-progress: false
+
+jobs:
+  uptime:
+    name: Public availability and incident response
+    if: github.repository == 'SamuelLucasssss/sallusflow-site'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout reviewed main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Setup Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Public-only checks and incident lifecycle
+        run: node scripts/imec-uti-monitor-runner.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
