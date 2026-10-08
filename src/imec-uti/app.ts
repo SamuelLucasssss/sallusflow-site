@@ -895,7 +895,7 @@ function printSettlementSheet(a,knownSettlement=null){
         .no-print{width:184mm;margin:0 auto 10px;display:flex;justify-content:flex-end;gap:7px}.no-print button,.no-print a{border:0;background:#0b6f72;color:#fff;padding:9px 13px;border-radius:7px;font-weight:700;cursor:pointer;text-decoration:none;font:inherit}.no-print .ghost{background:#fff;color:#435456;border:1px solid #cfd8d8}.doc-side{text-align:right}.doc-side small{display:block;color:#6d7b7e;font-size:7.5pt;margin-top:5px}
         @media print{html,body{background:#fff!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}.sheet{width:auto;min-height:271mm;margin:0}.proof{break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}}
       </style></head><body>
-      <div class="no-print"><button onclick="window.print()">Imprimir / Salvar PDF</button><button class="ghost" onclick="window.close()">Fechar</button></div>
+      <div class="no-print"><button id="settlementPrintBtn" type="button">Imprimir / Salvar PDF</button><button id="settlementCloseBtn" type="button" class="ghost">Fechar</button></div>
       <main class="sheet">
       <div class="top"><div><div class="brand">IMEC UTI<small>Folha de Acerto — Particular & Hotelaria</small></div></div><div class="doc-side"><div class="status ${statusClass}">${status}</div><small>Documento ${model.docId}</small></div></div>
       <div class="patient">${esc(p?.name||'Paciente')}</div>
@@ -925,6 +925,22 @@ function printSettlementSheet(a,knownSettlement=null){
       <div class="footer"><div><strong>Responsável pelo fechamento:</strong> ${esc(a.closer||'—')}<br><strong>Documento emitido por:</strong> ${esc(data.currentUser)} • ${fmtDT(new Date().toISOString())}</div><div class="sign">Conferência / Visto</div></div>
       </main></body></html>`);
       win.document.close();
+      const printButton=win.document.getElementById('settlementPrintBtn');
+      const closeButton=win.document.getElementById('settlementCloseBtn');
+      closeButton?.addEventListener('click',()=>win.close());
+      printButton?.addEventListener('click',async()=>{
+        printButton.disabled=true;
+        const text=printButton.textContent;
+        printButton.textContent='Registrando impressão…';
+        try {
+          await logDocumentOutput(a.id,'print_requested','settlement_sheet');
+          if(!win.closed){win.focus();win.print()}
+        } catch (err) {
+          alert('Não foi possível registrar a impressão: '+(err?.message||'erro desconhecido'));
+        } finally {
+          if(!win.closed){printButton.disabled=false;printButton.textContent=text}
+        }
+      });
       try{win.focus()}catch{}
     }catch(e){
       win.document.body.innerHTML='<p style="font-family:Arial;padding:30px;color:#b42318">Não foi possível gerar a folha: '+esc(e.message)+'</p>';
