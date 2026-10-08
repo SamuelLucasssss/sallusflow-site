@@ -12,7 +12,7 @@ test('PWA do IMEC UTI é instalável sem cache de dados operacionais', () => {
   assert.ok(Array.isArray(manifest.icons) && manifest.icons.length >= 2);
 
   const sw = read('public/imec-uti/sw.js');
-  assert.match(sw, /fetch\(event\.request\)/);
+  assert.ok(sw.includes("fetch(event.request,{cache:'no-store'})"));
   assert.match(sw, /Sem conexão/);
   for (const forbidden of ['caches.open', 'cache.put', '.addAll(', 'indexedDB']) {
     assert.equal(sw.includes(forbidden), false, `service worker não deve persistir dados: ${forbidden}`);
@@ -39,6 +39,16 @@ test('modais mantêm foco e saídas documentais passam por auditoria', () => {
   assert.match(app, /print_view_opened','settlement_sheet/);
   assert.match(app, /pdf_downloaded','settlement_pdf/);
   assert.equal(app.includes('href="${pdfUrl}"'), false, 'atalho de PDF sem auditoria não pode reaparecer');
+});
+
+test('exportação administrativa de dados é auditada e limitada', () => {
+  const app = read('src/imec-uti/app.ts');
+  const sql = read('supabase/migrations/20261008125711_package6_secure_admin_json_export.sql');
+  assert.ok(app.includes("rpc('log_uti_data_export'"));
+  assert.ok(app.includes("window.confirm('Esta exportação"));
+  assert.ok(app.includes('o download foi bloqueado'));
+  assert.ok(sql.includes('private.is_admin()'));
+  assert.ok(sql.includes('revoke all on function public.log_uti_data_export() from public, anon'));
 });
 
 test('interface respeita safe-area, foco visível e preferência de movimento', () => {
