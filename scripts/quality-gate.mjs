@@ -85,6 +85,12 @@ for (const required of ['system_alerts_health_check_id_idx','system_alerts_ackno
   if (!observabilityIndexes.includes(required)) fail(`Índice de observabilidade ausente: ${required}`);
 }
 
+const observabilityHardening = read('supabase/migrations/20261008111820_package5_observability_race_and_failure_isolation.sql');
+for (const required of ['pg_advisory_xact_lock','system_health_observability_enrichment','OBSERVABILITY_WATCHDOG_FAILURES','exception when others','Health check #']) {
+  if (!observabilityHardening.includes(required)) fail(`Hardening final de observabilidade ausente: ${required}`);
+}
+if (!app.includes("healthMeta=healthStatusMeta(data.health?.status,data.health?.checkedAt)")) fail('Banner não possui fallback independente do pipeline de alertas.');
+
 const vercelConfig = read('vercel.json');
 for (const header of ['Content-Security-Policy','Strict-Transport-Security','X-Content-Type-Options','Permissions-Policy','frame-ancestors']) {
   if (!vercelConfig.includes(header)) fail(`Header de segurança ausente: ${header}`);
@@ -102,7 +108,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 30) fail(`Esperadas 30 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 31) fail(`Esperadas 31 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 
 for (const file of migrations) {

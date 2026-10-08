@@ -108,3 +108,16 @@ O pacote somente é considerado concluído quando:
 - Vercel verde;
 - advisors executados após DDL;
 - health check e watchdog validados depois do deploy.
+
+
+## Hardening final de concorrência e falhas
+
+A abertura/atualização de cada `alert_key` usa advisory lock transacional. Isso serializa concorrência para a mesma chave e impede que dois health checks simultâneos tentem criar o mesmo alerta ativo.
+
+A reconciliação de alertas é deliberadamente **fail-open para o health check**: se a camada de alertas falhar inesperadamente, o snapshot de saúde continua sendo persistido. A falha gera auditoria sistêmica e warning no PostgreSQL, mas não derruba o monitor principal.
+
+Antes de cada inserção de health check, um trigger independente acrescenta ao próprio snapshot:
+- atividade do watchdog de observabilidade;
+- falhas recentes do watchdog.
+
+Assim, a saúde primária também observa a camada de observabilidade. Se o pipeline persistente de alertas estiver indisponível, o aplicativo usa o status/issue do health check como fallback para o banner administrativo, evitando silêncio operacional.
