@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/imec-uti-uptime.yml'
+      - 'scripts/imec-uti-public-monitor.mjs'
+      - 'scripts/imec-uti-monitor-runner.mjs'
 
 permissions:
   contents: read
@@ -28,6 +34,10 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
+      - name: Allow the new main deployment to propagate
+        if: github.event_name == 'push'
+        run: sleep 45
+
       - name: Public-only checks and incident lifecycle
         run: node scripts/imec-uti-monitor-runner.mjs
         env:
