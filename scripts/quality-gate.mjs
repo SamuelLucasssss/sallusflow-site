@@ -143,6 +143,12 @@ for (const required of ["cron: '*/15 * * * *'", 'workflow_dispatch:', 'issues: w
 }
 if (externalMonitor.includes('supabase.co') || externalMonitor.includes('auth/v1') || externalMonitor.includes('rest/v1')) fail('Monitor externo não deve acessar dados restritos.');
 
+const incidentTest = read('tests/imec-uti-package7-incidents.test.ts');
+for (const required of ["scenario('down')","scenario('existing')","scenario('recovered')","Incident opened: #42","Incident resolved: #42"]) {
+  if (!incidentTest.includes(required)) fail('Teste de incidente do Pacote 7 ausente: ' + required);
+}
+if (!read('tests/fixtures/imec-uti-fake-fetch.mjs').includes('globalThis.fetch = async function testFetch')) fail('Teste de incidente não intercepta requisições externas.');
+
 const vercelConfig = read('vercel.json');
 for (const header of ['Content-Security-Policy','Strict-Transport-Security','X-Content-Type-Options','Permissions-Policy','frame-ancestors']) {
   if (!vercelConfig.includes(header)) fail(`Header de segurança ausente: ${header}`);
