@@ -129,6 +129,20 @@ for (const required of ["fetch(event.request,{cache:'no-store'})",'Sem conexão'
   if (!pwaWorker.includes(required)) fail(`Service worker online-only incompleto: ${required}`);
 }
 
+const externalMonitor = read('scripts/imec-uti-public-monitor.mjs');
+const externalMonitorRunner = read('scripts/imec-uti-monitor-runner.mjs');
+const externalMonitorWorkflow = read('.github/workflows/imec-uti-uptime.yml');
+for (const required of ['https://www.sallusflow.com.br', "cache: 'no-store'", "redirect: 'manual'", 'MANIFEST_SCOPE_INVALID', 'CSP_FRAME_PROTECTION_MISSING', 'SW_PERSISTENT_CACHE_DETECTED', 'MONITORED_RESOURCES']) {
+  if (!externalMonitor.includes(required)) fail('Monitoramento público do Pacote 7 incompleto: ' + required);
+}
+for (const required of ['INCIDENT_MARKER', 'existingIncident', 'issues', 'state_reason', 'No open incident.']) {
+  if (!externalMonitorRunner.includes(required)) fail('Ciclo de incidentes do Pacote 7 incompleto: ' + required);
+}
+for (const required of ["cron: '*/15 * * * *'", 'workflow_dispatch:', 'issues: write', 'contents: read', 'persist-credentials: false', 'node scripts/imec-uti-monitor-runner.mjs']) {
+  if (!externalMonitorWorkflow.includes(required)) fail('Workflow externo do Pacote 7 incompleto: ' + required);
+}
+if (externalMonitor.includes('supabase.co') || externalMonitor.includes('auth/v1') || externalMonitor.includes('rest/v1')) fail('Monitor externo não deve acessar dados restritos.');
+
 const vercelConfig = read('vercel.json');
 for (const header of ['Content-Security-Policy','Strict-Transport-Security','X-Content-Type-Options','Permissions-Policy','frame-ancestors']) {
   if (!vercelConfig.includes(header)) fail(`Header de segurança ausente: ${header}`);
