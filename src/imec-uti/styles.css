@@ -653,6 +653,7 @@ body.modal-open { overflow: hidden; }
 
 @media print {
   @page { size: A4 portrait; margin: 12mm; }
+  .global-sync { display: none !important; }
   .print-area { break-inside: auto; }
   .detail-columns { display: block; }
   .detail-columns > .panel,
