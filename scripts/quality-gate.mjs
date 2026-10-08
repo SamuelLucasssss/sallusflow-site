@@ -61,6 +61,9 @@ for (const required of [
   if (!app.includes(required)) fail(`Proteção crítica ausente do app: ${required}`);
 }
 
+for (const required of ['canBackgroundRefresh(','if(loaded && authState && jwtAal(authState.access_token)','backgroundRefreshInFlight']) {
+  if (!app.includes(required)) fail('Proteção contra loop de MFA ausente: ' + required);
+}
 const security = read('src/imec-uti/security.ts');
 for (const required of ['IDLE_TIMEOUT_MS = 20 * 60 * 1000','passwordPolicy','sha1Hex','pwnedCountFromRange','parseAuthRedirect','jwtAal']) {
   if (!security.includes(required)) fail(`Primitiva de segurança ausente: ${required}`);
