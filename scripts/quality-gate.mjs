@@ -53,6 +53,10 @@ for (const required of [
   'parseAuthRedirect',
   'operationalHealthPanel',
   'system_health_checks?select=id,checked_at,status,issues,metrics,source',
+  'system_alerts?select=id,alert_key,code,severity,message,details,status',
+  "rpc('acknowledge_uti_alert'",
+  'observabilityPanel',
+  'systemAlertBanner',
 ]) {
   if (!app.includes(required)) fail(`Proteção crítica ausente do app: ${required}`);
 }
@@ -67,6 +71,19 @@ for (const required of ['system_health_checks','private.run_uti_health_check','i
 }
 const domain = read('src/imec-uti/domain.ts');
 if (!domain.includes('healthStatusMeta')) fail('Sem semântica de status para o monitor operacional.');
+
+const observability = read('supabase/migrations/20261008110831_package5_observability_alert_lifecycle.sql');
+for (const required of ['system_alerts','system_alerts_unresolved_key_uidx','system_health_alert_reconcile','imec-uti-observability-watchdog','acknowledge_uti_alert','180 days']) {
+  if (!observability.includes(required)) fail(`Proteção de observabilidade ausente: ${required}`);
+}
+for (const required of ['alertStatusMeta','healthWindowSummary']) {
+  if (!domain.includes(required)) fail(`Sem semântica gerencial de observabilidade: ${required}`);
+}
+
+const observabilityIndexes = read('supabase/migrations/20261008111321_package5_observability_index_foreign_keys.sql');
+for (const required of ['system_alerts_health_check_id_idx','system_alerts_acknowledged_by_idx']) {
+  if (!observabilityIndexes.includes(required)) fail(`Índice de observabilidade ausente: ${required}`);
+}
 
 const vercelConfig = read('vercel.json');
 for (const header of ['Content-Security-Policy','Strict-Transport-Security','X-Content-Type-Options','Permissions-Policy','frame-ancestors']) {
@@ -85,7 +102,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 28) fail(`Esperadas 28 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 30) fail(`Esperadas 30 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 
 for (const file of migrations) {

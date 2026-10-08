@@ -131,3 +131,45 @@ export function healthStatusMeta(
   if (status === 'warn') return { label: 'Atenção', tone: 'warn', stale: false };
   return { label: 'Saudável', tone: 'good', stale: false };
 }
+
+
+export type AlertStatusMeta = {
+  label: string;
+  tone: 'bad' | 'warn' | 'neutral';
+  needsAction: boolean;
+};
+
+export function alertStatusMeta(
+  severity: string | null | undefined,
+  status: string | null | undefined,
+): AlertStatusMeta {
+  if (status === 'resolved') return { label: 'Resolvido', tone: 'neutral', needsAction: false };
+  if (status === 'acknowledged') {
+    return { label: 'Reconhecido', tone: severity === 'critical' ? 'bad' : 'warn', needsAction: false };
+  }
+  if (severity === 'critical') return { label: 'Crítico', tone: 'bad', needsAction: true };
+  return { label: 'Atenção', tone: 'warn', needsAction: true };
+}
+
+export type HealthWindowSummary = {
+  total: number;
+  ok: number;
+  warn: number;
+  critical: number;
+  healthyPct: number;
+};
+
+export function healthWindowSummary(rows: Array<{ status?: string | null }> | null | undefined): HealthWindowSummary {
+  const values = Array.isArray(rows) ? rows : [];
+  const ok = values.filter((row) => row?.status === 'ok').length;
+  const warn = values.filter((row) => row?.status === 'warn').length;
+  const critical = values.filter((row) => row?.status === 'critical').length;
+  const total = values.length;
+  return {
+    total,
+    ok,
+    warn,
+    critical,
+    healthyPct: total ? Math.round((ok / total) * 1000) / 10 : 0,
+  };
+}
