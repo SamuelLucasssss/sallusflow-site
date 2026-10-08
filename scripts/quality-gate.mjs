@@ -61,7 +61,7 @@ for (const required of [
   if (!app.includes(required)) fail(`Proteção crítica ausente do app: ${required}`);
 }
 
-for (const required of ['canBackgroundRefresh(','if(loaded && authState && jwtAal(authState.access_token)','backgroundRefreshInFlight']) {
+for (const required of ['canBackgroundRefresh(','if(loaded && authState && jwtAal(authState.access_token)','backgroundRefreshInFlight',"renderAuth('Sua sessão expirou. Entre novamente.')","renderAuth('Sua sessão não é mais válida. Entre novamente.')"]) {
   if (!app.includes(required)) fail('Proteção contra loop de MFA ausente: ' + required);
 }
 const security = read('src/imec-uti/security.ts');
