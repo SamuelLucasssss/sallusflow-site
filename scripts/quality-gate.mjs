@@ -91,6 +91,38 @@ for (const required of ['pg_advisory_xact_lock','system_health_observability_enr
 }
 if (!app.includes("healthMeta=healthStatusMeta(data.health?.status,data.health?.checkedAt)")) fail('Banner não possui fallback independente do pipeline de alertas.');
 
+const package6 = read('supabase/migrations/20261008124228_package6_document_output_audit.sql');
+for (const required of ['log_uti_document_event','private.is_active_member()','print_requested','print_view_opened','pdf_downloaded','admission_statement','settlement_sheet','settlement_pdf']) {
+  if (!package6.includes(required)) fail(`Auditoria documental do Pacote 6 ausente: ${required}`);
+}
+for (const required of ['MODAL_FOCUSABLE','aria-modal="true"',"e.key==='Escape'","e.key!=='Tab'","setAttribute('inert','')","rpc('log_uti_document_event'","register('/imec-uti/sw.js'","updateNetworkStatus"]) {
+  if (!app.includes(required)) fail(`Refinamento do Pacote 6 ausente no app: ${required}`);
+}
+if (app.includes('href="${pdfUrl}"')) fail('Existe atalho de download de PDF sem auditoria no fluxo de impressão.');
+
+const package6Page = read('src/pages/imec-uti/index.astro');
+for (const required of ['manifest.webmanifest','class="skip-link"','id="networkStatus"','aria-live="polite"']) {
+  if (!package6Page.includes(required)) fail(`Shell acessível/PWA incompleto: ${required}`);
+}
+
+const package6Css = read('src/imec-uti/styles.css');
+for (const required of ['safe-area-inset-top','safe-area-inset-bottom','safe-area-inset-left','safe-area-inset-right',':focus-visible','prefers-reduced-motion: reduce','.network-status','.skip-link']) {
+  if (!package6Css.includes(required)) fail(`CSS de acessibilidade/safe-area ausente: ${required}`);
+}
+if (package6Css.includes('font-family: Inter,')) fail('Fonte Inter é declarada sem estar carregada; use stack de sistema.');
+
+const pwaManifest = JSON.parse(read('public/imec-uti/manifest.webmanifest'));
+if (pwaManifest.start_url !== '/imec-uti/' || pwaManifest.scope !== '/imec-uti/' || pwaManifest.display !== 'standalone') fail('Manifest do IMEC UTI não está restrito ao app.');
+if (!Array.isArray(pwaManifest.icons) || pwaManifest.icons.length < 2) fail('Manifest do IMEC UTI sem ícones normal/maskable.');
+
+const pwaWorker = read('public/imec-uti/sw.js');
+for (const forbidden of ['caches.open','cache.put','.addAll(','indexedDB']) {
+  if (pwaWorker.includes(forbidden)) fail(`PWA online-only não pode persistir dados: ${forbidden}`);
+}
+for (const required of ['fetch(event.request)','Sem conexão','Cache-Control']) {
+  if (!pwaWorker.includes(required)) fail(`Service worker online-only incompleto: ${required}`);
+}
+
 const vercelConfig = read('vercel.json');
 for (const header of ['Content-Security-Policy','Strict-Transport-Security','X-Content-Type-Options','Permissions-Policy','frame-ancestors']) {
   if (!vercelConfig.includes(header)) fail(`Header de segurança ausente: ${header}`);
@@ -108,7 +140,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 31) fail(`Esperadas 31 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 32) fail(`Esperadas 32 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 
 for (const file of migrations) {
