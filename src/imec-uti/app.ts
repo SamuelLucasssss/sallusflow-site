@@ -145,17 +145,24 @@ function modalKeydown(e){
   const focusable=modalFocusables();
   if(!focusable.length){e.preventDefault();card.focus();return}
   const first=focusable[0],last=focusable[focusable.length-1];
+  if(!card.contains(document.activeElement)){
+    e.preventDefault();
+    (e.shiftKey?last:first).focus();
+    return;
+  }
   if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
 }
 function openModal(title,subtitle,body){
-  if(document.querySelector('.modal-backdrop'))closeModal({restore:false});
-  modalReturnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
+  const existingModal=!!document.querySelector('.modal-backdrop');
+  const originalFocus=existingModal?modalReturnFocus:(document.activeElement instanceof HTMLElement?document.activeElement:null);
+  if(existingModal)closeModal({restore:false});
+  modalReturnFocus=originalFocus;
   const host=document.getElementById('modal');
   const app=document.getElementById('app');
   if(app)app.setAttribute('inert','');
   document.body.classList.add('modal-open');
-  host.innerHTML=`<div class="modal-backdrop" id="modalBackdrop"><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle" ${subtitle?'aria-describedby="modalSubtitle"':''} tabindex="-1"><div class="modal-head"><div><h2 id="modalTitle">${title}</h2>${subtitle?`<p id="modalSubtitle">${subtitle}</p>`:''}</div><button class="icon-btn" data-close aria-label="Fechar janela">×</button></div>${body}</section></div>`;
+  host.innerHTML=`<div class="modal-backdrop" id="modalBackdrop"><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle" ${subtitle?'aria-describedby="modalSubtitle"':''} tabindex="-1"><div class="modal-head"><div><h2 id="modalTitle">${esc(title)}</h2>${subtitle?`<p id="modalSubtitle">${esc(subtitle)}</p>`:''}</div><button class="icon-btn" data-close aria-label="Fechar janela">×</button></div>${body}</section></div>`;
   host.querySelector('[data-close]').onclick=()=>closeModal();
   host.querySelector('#modalBackdrop').addEventListener('mousedown',e=>{if(e.target.id==='modalBackdrop')closeModal()});
   document.addEventListener('keydown',modalKeydown);
