@@ -24,6 +24,18 @@ export function jwtAal(token: string | null | undefined): 'aal1' | 'aal2' {
   return decodeJwtPayload(token).aal === 'aal2' ? 'aal2' : 'aal1';
 }
 
+/** Never poll protected business data while MFA enrollment or challenge is pending. */
+export function canBackgroundRefresh(
+  accessToken: string | null | undefined,
+  remoteBusy: boolean,
+  modalOpen: boolean,
+  operationalReady: boolean,
+): boolean {
+  return !!accessToken && jwtAal(accessToken) === 'aal2'
+    && !remoteBusy && !modalOpen && operationalReady;
+}
+
+
 export function normalizeSession(session: any): any {
   if (!session?.access_token) return session;
   const payload = decodeJwtPayload(session.access_token);

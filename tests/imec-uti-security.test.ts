@@ -5,6 +5,7 @@ import {
   cleanAuthRedirectUrl,
   isIdle,
   jwtAal,
+  canBackgroundRefresh,
   parseAuthRedirect,
   passwordPolicy,
   pwnedCountFromRange,
@@ -47,4 +48,21 @@ test('sessão expira após 20 minutos de inatividade', () => {
   assert.equal(IDLE_TIMEOUT_MS, 1_200_000);
   assert.equal(isIdle(now - IDLE_TIMEOUT_MS + 1, now), false);
   assert.equal(isIdle(now - IDLE_TIMEOUT_MS, now), true);
+});
+
+test('cadastro ou desafio MFA (AAL1) nunca reinicia por polling em segundo plano', () => {
+  const aal1=jwt({ aal:'aal1' }), aal2=jwt({ aal:'aal2' });
+  for(const busy of [true,false]){
+    for(const modal of [true,false]){
+      for(const ready of [true,false]){
+        assert.equal(canBackgroundRefresh(aal1,busy,modal,ready),false,
+          'AAL1 deve preservar QR Code, código e autenticação em andamento');
+      }
+    }
+  }
+  assert.equal(canBackgroundRefresh(aal2,false,false,true),true);
+  assert.equal(canBackgroundRefresh(aal2,true,false,true),false);
+  assert.equal(canBackgroundRefresh(aal2,false,true,true),false);
+  assert.equal(canBackgroundRefresh(aal2,false,false,false),false);
+  assert.equal(canBackgroundRefresh(null,false,false,true),false);
 });

@@ -11,7 +11,7 @@ import { SUPABASE_URL, SUPABASE_KEY } from './config';
 import {
   AUTH_STORAGE_KEY, ACTIVITY_STORAGE_KEY, IDLE_TIMEOUT_MS, APP_URL,
   jwtAal, normalizeSession, parseAuthRedirect, cleanAuthRedirectUrl,
-  passwordPolicy, sha1Hex, pwnedCountFromRange, isIdle
+  passwordPolicy, sha1Hex, pwnedCountFromRange, isIdle, canBackgroundRefresh
 } from './security';
 
 const USERS=['Samuel','Roberto','Aline'];
@@ -382,6 +382,7 @@ async function renderMfaEnrollment(){
     await cleanupUnverifiedFactors();
     const enrolled=await authApi('factors',{method:'POST',body:{factor_type:'totp',friendly_name:'IMEC UTI'}});
     const qr=enrolled?.totp?.qr_code||'',secret=enrolled?.totp?.secret||'';
+    if(!enrolled?.id||!qr||!secret)throw new Error('A configuração do autenticador está incompleta. Tente novamente.');
     authCard(`<div class="security-shield">◈</div><div class="auth-copy center"><span class="eyebrow">PROTEÇÃO OBRIGATÓRIA</span><h1>Ative a autenticação em dois fatores</h1><p>Escaneie o QR Code no Google Authenticator, Microsoft Authenticator, 1Password ou outro aplicativo TOTP.</p></div><div class="mfa-qr"><img src="${esc(qr)}" alt="QR Code para autenticação em dois fatores"></div><div class="mfa-secret"><span>Chave manual</span><code>${esc(secret)}</code></div><form id="mfaEnrollForm" class="auth-form"><label class="field"><span class="field-label">Código de 6 dígitos</span><input id="mfaEnrollCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000"></label><div id="mfaEnrollError"></div><button class="btn btn-primary auth-submit">Ativar e continuar</button><button id="mfaEnrollLogout" type="button" class="btn btn-secondary auth-submit">Sair</button></form>`);
     document.getElementById('mfaEnrollLogout').onclick=logoutRemote;
     document.getElementById('mfaEnrollForm').onsubmit=async e=>{
@@ -397,9 +398,22 @@ async function renderMfaEnrollment(){
   finally{setLoading(false)}
 }
 async function securityGate(){
-  if(!await ensureSession())return false;
-  const user=await currentAuthUser();
-  if(!user){storeAuth(null);renderAuth();return false}
+  if(!await ensureSession()){
+    // A stale localStorage token must never leave an empty app shell.
+    data=blankData();
+    if(!document.getElementById('loginForm'))renderAuth('Sua sessão expirou. Entre novamente.');
+    return false;
+  }
+  let user;
+  try{user=await currentAuthUser()}
+  catch(ex){
+    const message=String(ex?.message||'');
+    if(/session not found|sessão.*(inválida|expirada)|invalid (jwt|token)|token.*expir|401|403|unauthorized/i.test(message)){
+      storeAuth(null);data=blankData();renderAuth('Sua sessão não é mais válida. Entre novamente.');
+    }else renderAccountState('Não foi possível validar o acesso.',message||'Verifique sua conexão e tente novamente.');
+    return false;
+  }
+  if(!user){storeAuth(null);data=blankData();renderAuth('Entre novamente para continuar.');return false}
   if(jwtAal(authState.access_token)==='aal2')return true;
   const factors=verifiedTotpFactors(user);
   if(factors.length){await renderMfaChallenge(user);return false}
@@ -1099,7 +1113,23 @@ function bindPage(){
   document.querySelectorAll('[data-save-member]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.saveMember,role=document.querySelector(`[data-member-role="${id}"]`).value,active=document.querySelector(`[data-member-active="${id}"]`).checked;try{setLoading(true,'Atualizando acesso…');await rpc('admin_update_uti_member',{p_user_id:id,p_active:active,p_role:role});await loadRemote({quiet:true});toast('Acesso atualizado.');render()}catch(ex){alert(ex.message)}finally{setLoading(false)}});
 }
 
-async function backgroundRefresh(){if(!authState||remoteBusy||document.querySelector('.modal-backdrop'))return;try{await loadRemote({quiet:true});render()}catch{}}
+let backgroundRefreshInFlight=false;
+async function backgroundRefresh(){
+  if(backgroundRefreshInFlight)return;
+  if(!canBackgroundRefresh(
+    authState?.access_token,remoteBusy,
+    !!document.querySelector('.modal-backdrop'),
+    !!data?.currentRole
+  ))return;
+  backgroundRefreshInFlight=true;
+  try{
+    const loaded=await loadRemote({quiet:true});
+    // AAL1/MFA enrollment, expired auth and failed reload must never re-render the dashboard.
+    if(loaded && authState && jwtAal(authState.access_token)==='aal2' &&
+      !document.querySelector('.modal-backdrop') && data?.currentRole)render();
+  }catch(error){console.warn('IMEC UTI: atualização de fundo indisponível.')}
+  finally{backgroundRefreshInFlight=false}
+}
 
 function updateNetworkStatus(){
   const el=document.getElementById('networkStatus');if(!el)return;
