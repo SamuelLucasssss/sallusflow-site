@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   IDLE_TIMEOUT_MS,
   cleanAuthRedirectUrl,
@@ -76,7 +77,7 @@ test('QR MFA do Supabase é convertido de SVG bruto para data URL privada', () =
   assert.equal(decodeURIComponent(uri.slice(uri.indexOf(',')+1)),svg);
   assert.match(uri,/%3Csvg/);
   assert.equal(totpQrImageSrc('data:image/svg+xml;utf-8,'+encodeURIComponent(svg)),uri);
-  const xml='<?xml version="1.0" encoding="UTF-8"?>\\n'+svg;
+  const xml='<?xml version="1.0" encoding="UTF-8"?>\n'+svg;
   assert.equal(decodeURIComponent(totpQrImageSrc(xml).split(',')[1]),xml);
 });
 
@@ -95,9 +96,8 @@ test('QR MFA rejeita URLs externas, SVG ativo e dados inválidos', () => {
 });
 
 test('interface MFA usa URL de imagem, oculta chave manual e disponibiliza fallback', () => {
-  const fs=require('node:fs');
-  const app=fs.readFileSync('src/imec-uti/app.ts','utf8');
-  const vercel=fs.readFileSync('vercel.json','utf8');
+  const app=readFileSync('src/imec-uti/app.ts','utf8');
+  const vercel=readFileSync('vercel.json','utf8');
   assert.match(app,/totpQrImageSrc\(enrolled\?\.totp\?\.qr_code\)/);
   assert.match(app,/id="mfaQrImage"/);
   assert.match(app,/id="mfaQrFallback"/);
