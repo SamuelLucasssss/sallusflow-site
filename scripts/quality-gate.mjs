@@ -67,8 +67,11 @@ for (const required of ['canBackgroundRefresh(','if(loaded && authState && (jwtA
 for (const required of ["totpQrImageSrc(enrolled?.totp?.qr_code)",'id="mfaQrImage"','id="mfaQrFallback"','<details><summary>Usar chave manual']) {
   if (!app.includes(required)) fail('Hotfix QR/MFA ausente: ' + required);
 }
-for (const required of ["rest('app_settings?id=eq.1&select=mfa_required')",'passwordOnlyTestMode=true;return true','testMode:passwordOnlyTestMode','AMBIENTE DE TESTES']) {
-  if (!app.includes(required)) fail('Controle de acesso temporário ausente: ' + required);
+for (const required of ["rest('app_settings?id=eq.1&select=mfa_required')",'passwordOnlyMode=true;return true']) {
+  if (!app.includes(required)) fail('Controle de acesso por senha ausente: ' + required);
+}
+for (const forbidden of ['AMBIENTE DE TESTES','testMode:passwordOnlyMode','test-login-banner']) {
+  if (app.includes(forbidden)) fail('Rótulo de modo de testes não deve aparecer no modo normal: ' + forbidden);
 }
 const security = read('src/imec-uti/security.ts');
 for (const required of ['IDLE_TIMEOUT_MS = 20 * 60 * 1000','passwordPolicy','sha1Hex','pwnedCountFromRange','parseAuthRedirect','jwtAal']) {
@@ -175,8 +178,12 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 34) fail(`Esperadas 34 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 35) fail(`Esperadas 35 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
+const normalAuthHealth = read('supabase/migrations/20261011220500_normal_password_auth_health.sql');
+if (normalAuthHealth.includes('MFA_ENFORCEMENT_OFF')) fail('Modo normal por senha não deve gerar incidente operacional de MFA.');
+if (!normalAuthHealth.includes("select private.run_uti_health_check('migration')")) fail('Migração do modo normal não reconcilia o health check.');
+
 const rlsPredicateGrant = read('supabase/migrations/20261011214050_grant_rls_predicates_authenticated.sql');
 for (const required of [
   'grant execute on function private.is_active_member() to authenticated',

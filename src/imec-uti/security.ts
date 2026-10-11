@@ -30,9 +30,9 @@ export function canBackgroundRefresh(
   remoteBusy: boolean,
   modalOpen: boolean,
   operationalReady: boolean,
-  passwordOnlyTestMode = false,
+  passwordOnlyMode = false,
 ): boolean {
-  return !!accessToken && (jwtAal(accessToken) === 'aal2' || passwordOnlyTestMode)
+  return !!accessToken && (jwtAal(accessToken) === 'aal2' || passwordOnlyMode)
     && !remoteBusy && !modalOpen && operationalReady;
 }
 
