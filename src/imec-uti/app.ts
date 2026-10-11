@@ -22,6 +22,7 @@ const ROLE_PERMISSIONS={
 let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:''};
 let data=blankData();
 let authState=null;
+let passwordOnlyTestMode=false;
 let teamProfiles=[];
 let teamClosers=[];
 let remoteBusy=false;
@@ -30,7 +31,7 @@ let modalReturnFocus=null;
 const MODAL_FOCUSABLE='a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],health:null,healthHistory:[],alerts:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
+function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],health:null,healthHistory:[],alerts:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',testMode:false,seededDemo:false}}
 function currentRate(a,at=new Date()){return [...a.rateHistory].filter(r=>new Date(r.effectiveAt)<=at).sort((x,y)=>new Date(y.effectiveAt)-new Date(x.effectiveAt))[0]||a.rateHistory[0]}
 function totals(id){const billed=data.charges.filter(c=>c.admissionId===id).reduce((s,c)=>s+c.amount,0),received=data.payments.filter(p=>p.admissionId===id).reduce((s,p)=>s+p.amount,0),refunded=(data.refunds||[]).filter(r=>r.admissionId===id).reduce((s,r)=>s+r.amount,0),netReceived=received-refunded;return {billed,received,refunded,netReceived,balance:billed-received+refunded}}
 function patient(id){return data.patients.find(p=>p.id===id)}
@@ -67,9 +68,9 @@ function systemAlertBanner(){
   const lead=actionable[0]||critical[0]||unresolved[0];
   return `<button class="system-alert-banner ${critical.length?'critical':'warn'}" data-nav="settings"><span class="system-alert-icon">${critical.length?'!':'△'}</span><span><strong>${critical.length?critical.length+' alerta(s) crítico(s)':unresolved.length+' alerta(s) operacional(is)'}</strong><small>${esc(lead?.message||'Abra a central de observabilidade para revisar.')}</small></span><b>Revisar →</b></button>`;
 }
-function render(){shell();const c=document.getElementById('content'); if(state.selectedId){const a=admission(state.selectedId); if(a){c.innerHTML=systemAlertBanner()+patientDetail(a);bindDetail(a);return}state.selectedId=null}
+function render(){shell();const c=document.getElementById('content');const testBanner=data.testMode?'<div class="test-login-banner" role="status">AMBIENTE DE TESTES — entrada temporária com e-mail e senha. Reativar MFA antes da operação definitiva.</div>':''; if(state.selectedId){const a=admission(state.selectedId); if(a){c.innerHTML=testBanner+systemAlertBanner()+patientDetail(a);bindDetail(a);return}state.selectedId=null}
  const page=state.page==='home'?dashboard():state.page==='patients'?patientsPage():state.page==='finance'?financePage():settingsPage();
- c.innerHTML=systemAlertBanner()+page;bindPage();}
+ c.innerHTML=testBanner+systemAlertBanner()+page;bindPage();}
 
 function metric(label,value,note='',tone=''){return `<div class="metric-card ${tone?'metric-'+tone:''}"><div class="metric-icon">${label.includes('Receb')?'↙':label.includes('Saldo')?'$':'▣'}</div><div class="metric-copy"><span>${label}</span><strong>${value}</strong>${note?`<small>${note}</small>`:''}</div></div>`}
 function empty(title,text){return `<div class="empty-state"><div class="empty-icon">▤</div><strong>${title}</strong><p>${text}</p></div>`}
@@ -304,6 +305,7 @@ async function expireIdleSession(){
   storeAuth(null);data=blankData();renderAuth('Sua sessão foi encerrada após 20 minutos sem atividade.');
 }
 function storeAuth(session){
+  if(!session)passwordOnlyTestMode=false;
   authState=session?normalizeSession(session):null;
   try{
     if(authState){localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(authState));touchActivity()}
@@ -419,7 +421,15 @@ async function securityGate(){
     return false;
   }
   if(!user){storeAuth(null);data=blankData();renderAuth('Entre novamente para continuar.');return false}
-  if(jwtAal(authState.access_token)==='aal2')return true;
+  if(jwtAal(authState.access_token)==='aal2'){passwordOnlyTestMode=false;return true}
+  // AAL1 is accepted only when the authenticated backend policy has MFA disabled.
+  // The settings SELECT remains RLS-protected by active membership and session checks.
+  passwordOnlyTestMode=false;
+  try{
+    const policy=await rest('app_settings?id=eq.1&select=mfa_required');
+    if(policy?.[0]?.mfa_required===false){passwordOnlyTestMode=true;return true}
+  }catch(error){console.warn('IMEC UTI: consulta de modo de testes indisponível.')}
+
   const factors=verifiedTotpFactors(user);
   if(factors.length){await renderMfaChallenge(user);return false}
   await renderMfaEnrollment();return false;
@@ -448,7 +458,7 @@ function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,se
     health:healthHistory?.[0]?{id:healthHistory[0].id,checkedAt:healthHistory[0].checked_at,status:healthHistory[0].status,issues:healthHistory[0].issues||[],metrics:healthHistory[0].metrics||{},source:healthHistory[0].source}:null,
     healthHistory:(healthHistory||[]).map(h=>({id:h.id,checkedAt:h.checked_at,status:h.status,issues:h.issues||[],metrics:h.metrics||{},source:h.source})),
     alerts:(alerts||[]).map(a=>({id:a.id,alertKey:a.alert_key,code:a.code,severity:a.severity,message:a.message,details:a.details||{},status:a.status,firstDetectedAt:a.first_detected_at,lastDetectedAt:a.last_detected_at,occurrenceCount:Number(a.occurrence_count||1),healthCheckId:a.health_check_id||null,acknowledgedAt:a.acknowledged_at||null,acknowledgedByName:a.acknowledged_by_name||null,resolvedAt:a.resolved_at||null})),
-    currentUser:profile.display_name,currentRole:profile.role,onDuty:settings?.on_duty_name||'Samuel',securityAal:jwtAal(authState?.access_token),seededDemo:false
+    currentUser:profile.display_name,currentRole:profile.role,onDuty:settings?.on_duty_name||'Samuel',securityAal:jwtAal(authState?.access_token),testMode:passwordOnlyTestMode,seededDemo:false
   }
 }
 async function loadRemote({quiet=false}={}){
@@ -490,7 +500,7 @@ function authCard(inner){
 }
 function renderAuth(message=''){
   const msg=message?`<div class="auth-message">${esc(message)}</div>`:'';
-  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu acesso individual para visualizar internações, recebimentos e saldos.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button><button class="auth-link" id="forgotPasswordBtn" type="button">Esqueci minha senha</button></form><p class="auth-foot">Acesso restrito à equipe autorizada. MFA obrigatório e sessão protegida por inatividade.</p>`);
+  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu acesso individual para visualizar internações, recebimentos e saldos.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button><button class="auth-link" id="forgotPasswordBtn" type="button">Esqueci minha senha</button></form><p class="auth-foot">Acesso individual restrito à equipe autorizada. Sessão protegida por inatividade.</p>`);
   document.getElementById('forgotPasswordBtn').onclick=renderForgotPassword;
   document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();const error=document.getElementById('authError');error.innerHTML='';try{setLoading(true,'Entrando…');const s=await authFetch('token?grant_type=password',{email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});storeAuth(s);await loadRemote()}catch(x){error.innerHTML=`<div class="form-error">⚠ ${esc(x.message)}</div>`}finally{setLoading(false)}};
 }
@@ -546,7 +556,7 @@ async function renderCallbackPassword(type){
   const title=type==='recovery'?'Crie sua nova senha':'Proteja seu novo acesso';
   authCard(`<div class="security-shield">◈</div><div class="auth-copy center"><span class="eyebrow">${type==='recovery'?'RECUPERAÇÃO':'PRIMEIRO ACESSO'}</span><h1>${title}</h1><p>Antes de continuar, defina uma senha forte e exclusiva.</p></div><button id="callbackPasswordBtn" class="btn btn-primary auth-submit">Definir senha</button><button id="callbackLogoutBtn" class="btn btn-secondary auth-submit">Cancelar</button>`);
   document.getElementById('callbackLogoutBtn').onclick=logoutRemote;
-  document.getElementById('callbackPasswordBtn').onclick=()=>passwordEditor({title,afterSave:async()=>{await renderMfaEnrollment()}});
+  document.getElementById('callbackPasswordBtn').onclick=()=>passwordEditor({title,afterSave:async()=>{await loadRemote()}});
 }
 async function boot(){
   startIdleGuard();
@@ -1124,13 +1134,14 @@ async function backgroundRefresh(){
   if(!canBackgroundRefresh(
     authState?.access_token,remoteBusy,
     !!document.querySelector('.modal-backdrop'),
-    !!data?.currentRole
+    !!data?.currentRole,
+    passwordOnlyTestMode
   ))return;
   backgroundRefreshInFlight=true;
   try{
     const loaded=await loadRemote({quiet:true});
     // AAL1/MFA enrollment, expired auth and failed reload must never re-render the dashboard.
-    if(loaded && authState && jwtAal(authState.access_token)==='aal2' &&
+    if(loaded && authState && (jwtAal(authState.access_token)==='aal2' || passwordOnlyTestMode) &&
       !document.querySelector('.modal-backdrop') && data?.currentRole)render();
   }catch(error){console.warn('IMEC UTI: atualização de fundo indisponível.')}
   finally{backgroundRefreshInFlight=false}

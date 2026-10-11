@@ -67,6 +67,12 @@ test('cadastro ou desafio MFA (AAL1) nunca reinicia por polling em segundo plano
   assert.equal(canBackgroundRefresh(aal2,false,true,true),false);
   assert.equal(canBackgroundRefresh(aal2,false,false,false),false);
   assert.equal(canBackgroundRefresh(null,false,false,true),false);
+  // Password-only login is restricted to a backend-validated temporary test mode.
+  assert.equal(canBackgroundRefresh(aal1,false,false,true,true),true);
+  assert.equal(canBackgroundRefresh(aal1,true,false,true,true),false);
+  assert.equal(canBackgroundRefresh(aal1,false,true,true,true),false);
+  assert.equal(canBackgroundRefresh(null,false,false,true,true),false);
+
 });
 
 
@@ -103,4 +109,17 @@ test('interface MFA usa URL de imagem, oculta chave manual e disponibiliza fallb
   assert.match(app,/id="mfaQrFallback"/);
   assert.match(app,/<details><summary>Usar chave manual/);
   assert.match(vercel,/img-src 'self' data:/);
+});
+
+test('modo temporário sem autenticador consulta política via RLS e preserva login individual',()=>{
+  const app=readFileSync('src/imec-uti/app.ts','utf8');
+  assert.match(app,/rest\('app_settings\?id=eq\.1&select=mfa_required'\)/);
+  assert.match(app,/policy\?\.\[0\]\?\.mfa_required===false/);
+  assert.match(app,/passwordOnlyTestMode=true;return true/);
+  assert.match(app,/if\(!await ensureSession\(\)\)/);
+  assert.match(app,/try\{user=await currentAuthUser\(\)\}/);
+  assert.match(app,/testMode:passwordOnlyTestMode/);
+  assert.match(app,/afterSave:async\(\)=>\{await loadRemote\(\)\}/);
+  assert.match(app,/renderMfaEnrollment\(\)/);
+  assert.match(app,/authFetch\('token\?grant_type=password'/);
 });
