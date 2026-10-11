@@ -175,8 +175,18 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 33) fail(`Esperadas 33 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 34) fail(`Esperadas 34 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
+const rlsPredicateGrant = read('supabase/migrations/20261011214050_grant_rls_predicates_authenticated.sql');
+for (const required of [
+  'grant execute on function private.is_active_member() to authenticated',
+  'grant execute on function private.is_admin() to authenticated',
+  'revoke execute on function private.is_active_member() from anon',
+  'revoke execute on function private.is_admin() from anon'
+]) {
+  if (!rlsPredicateGrant.toLowerCase().includes(required)) fail('Hotfix RLS de login ausente: ' + required);
+}
+
 
 for (const file of migrations) {
   const sql = fs.readFileSync(path.join(migrationDir, file), 'utf8');
