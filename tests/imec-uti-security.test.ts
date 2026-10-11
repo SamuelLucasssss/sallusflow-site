@@ -6,6 +6,7 @@ import {
   isIdle,
   jwtAal,
   canBackgroundRefresh,
+  totpQrImageSrc,
   parseAuthRedirect,
   passwordPolicy,
   pwnedCountFromRange,
@@ -65,4 +66,41 @@ test('cadastro ou desafio MFA (AAL1) nunca reinicia por polling em segundo plano
   assert.equal(canBackgroundRefresh(aal2,false,true,true),false);
   assert.equal(canBackgroundRefresh(aal2,false,false,false),false);
   assert.equal(canBackgroundRefresh(null,false,false,true),false);
+});
+
+
+test('QR MFA do Supabase é convertido de SVG bruto para data URL privada', () => {
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path d="M0 0h48v48H0z"/></svg>';
+  const uri=totpQrImageSrc(svg);
+  assert.ok(uri.startsWith('data:image/svg+xml;charset=utf-8,'));
+  assert.equal(decodeURIComponent(uri.slice(uri.indexOf(',')+1)),svg);
+  assert.match(uri,/%3Csvg/);
+  assert.equal(totpQrImageSrc('data:image/svg+xml;utf-8,'+encodeURIComponent(svg)),uri);
+  const xml='<?xml version="1.0" encoding="UTF-8"?>\\n'+svg;
+  assert.equal(decodeURIComponent(totpQrImageSrc(xml).split(',')[1]),xml);
+});
+
+test('QR MFA rejeita URLs externas, SVG ativo e dados inválidos', () => {
+  for(const value of [
+    '',
+    'https://qr.example.com/?secret=example',
+    'javascript:alert(1)',
+    '<svg><script>alert(1)</script></svg>',
+    '<svg onload="alert(1)"></svg>',
+    '<svg><foreignObject>teste</foreignObject></svg>',
+    '<svg><image href="https://example.org/track"/></svg>',
+    '<!DOCTYPE svg><svg></svg>',
+    'data:image/png;base64,AAAA'
+  ]) assert.throws(()=>totpQrImageSrc(value));
+});
+
+test('interface MFA usa URL de imagem, oculta chave manual e disponibiliza fallback', () => {
+  const fs=require('node:fs');
+  const app=fs.readFileSync('src/imec-uti/app.ts','utf8');
+  const vercel=fs.readFileSync('vercel.json','utf8');
+  assert.match(app,/totpQrImageSrc\(enrolled\?\.totp\?\.qr_code\)/);
+  assert.match(app,/id="mfaQrImage"/);
+  assert.match(app,/id="mfaQrFallback"/);
+  assert.match(app,/<details><summary>Usar chave manual/);
+  assert.match(vercel,/img-src 'self' data:/);
 });
