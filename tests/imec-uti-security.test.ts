@@ -111,14 +111,15 @@ test('interface MFA usa URL de imagem, oculta chave manual e disponibiliza fallb
   assert.match(vercel,/img-src 'self' data:/);
 });
 
-test('modo temporário sem autenticador consulta política via RLS e preserva login individual',()=>{
+test('login normal por e-mail e senha consulta política via RLS e preserva sessão individual',()=>{
   const app=readFileSync('src/imec-uti/app.ts','utf8');
   assert.match(app,/rest\('app_settings\?id=eq\.1&select=mfa_required'\)/);
   assert.match(app,/policy\?\.\[0\]\?\.mfa_required===false/);
-  assert.match(app,/passwordOnlyTestMode=true;return true/);
+  assert.match(app,/passwordOnlyMode=true;return true/);
+  assert.doesNotMatch(app,/AMBIENTE DE TESTES/);
+  assert.doesNotMatch(app,/testMode:/);
   assert.match(app,/if\(!await ensureSession\(\)\)/);
   assert.match(app,/try\{user=await currentAuthUser\(\)\}/);
-  assert.match(app,/testMode:passwordOnlyTestMode/);
   assert.match(app,/afterSave:async\(\)=>\{await loadRemote\(\)\}/);
   assert.match(app,/renderMfaEnrollment\(\)/);
   assert.match(app,/authFetch\('token\?grant_type=password'/);
