@@ -11,7 +11,7 @@ import { SUPABASE_URL, SUPABASE_KEY } from './config';
 import {
   AUTH_STORAGE_KEY, ACTIVITY_STORAGE_KEY, IDLE_TIMEOUT_MS, APP_URL,
   jwtAal, normalizeSession, parseAuthRedirect, cleanAuthRedirectUrl,
-  passwordPolicy, sha1Hex, pwnedCountFromRange, isIdle, canBackgroundRefresh
+  passwordPolicy, sha1Hex, pwnedCountFromRange, isIdle, canBackgroundRefresh, totpQrImageSrc
 } from './security';
 
 const USERS=['Samuel','Roberto','Aline'];
@@ -381,9 +381,14 @@ async function renderMfaEnrollment(){
     setLoading(true,'Preparando autenticação em dois fatores…');
     await cleanupUnverifiedFactors();
     const enrolled=await authApi('factors',{method:'POST',body:{factor_type:'totp',friendly_name:'IMEC UTI'}});
-    const qr=enrolled?.totp?.qr_code||'',secret=enrolled?.totp?.secret||'';
+    const qr=totpQrImageSrc(enrolled?.totp?.qr_code),secret=enrolled?.totp?.secret||'';
     if(!enrolled?.id||!qr||!secret)throw new Error('A configuração do autenticador está incompleta. Tente novamente.');
-    authCard(`<div class="security-shield">◈</div><div class="auth-copy center"><span class="eyebrow">PROTEÇÃO OBRIGATÓRIA</span><h1>Ative a autenticação em dois fatores</h1><p>Escaneie o QR Code no Google Authenticator, Microsoft Authenticator, 1Password ou outro aplicativo TOTP.</p></div><div class="mfa-qr"><img src="${esc(qr)}" alt="QR Code para autenticação em dois fatores"></div><div class="mfa-secret"><span>Chave manual</span><code>${esc(secret)}</code></div><form id="mfaEnrollForm" class="auth-form"><label class="field"><span class="field-label">Código de 6 dígitos</span><input id="mfaEnrollCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000"></label><div id="mfaEnrollError"></div><button class="btn btn-primary auth-submit">Ativar e continuar</button><button id="mfaEnrollLogout" type="button" class="btn btn-secondary auth-submit">Sair</button></form>`);
+    authCard(`<div class="security-shield">◈</div><div class="auth-copy center"><span class="eyebrow">PROTEÇÃO OBRIGATÓRIA</span><h1>Ative a autenticação em dois fatores</h1><p>Escaneie o QR Code com seu aplicativo autenticador. Se estiver no mesmo celular, abra a chave manual abaixo e cadastre-a no aplicativo.</p></div><div class="mfa-qr"><img id="mfaQrImage" src="${esc(qr)}" alt="QR Code para autenticação em dois fatores"><p id="mfaQrFallback" class="form-error" hidden>Não foi possível exibir o QR Code. Use a chave manual abaixo.</p></div><div class="mfa-secret"><details><summary>Usar chave manual (alternativa ao QR Code)</summary><code>${esc(secret)}</code></details><small>Não compartilhe esta chave nem envie capturas dela.</small></div><form id="mfaEnrollForm" class="auth-form"><label class="field"><span class="field-label">Código de 6 dígitos</span><input id="mfaEnrollCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="000000"></label><div id="mfaEnrollError"></div><button class="btn btn-primary auth-submit">Ativar e continuar</button><button id="mfaEnrollLogout" type="button" class="btn btn-secondary auth-submit">Sair</button></form>`);
+    const qrImage=document.getElementById('mfaQrImage');
+    qrImage.addEventListener('error',()=>{
+      qrImage.hidden=true;
+      document.getElementById('mfaQrFallback').hidden=false;
+    });
     document.getElementById('mfaEnrollLogout').onclick=logoutRemote;
     document.getElementById('mfaEnrollForm').onsubmit=async e=>{
       e.preventDefault();const er=document.getElementById('mfaEnrollError');er.innerHTML='';
