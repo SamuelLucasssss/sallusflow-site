@@ -64,6 +64,9 @@ for (const required of [
 for (const required of ['canBackgroundRefresh(','if(loaded && authState && jwtAal(authState.access_token)','backgroundRefreshInFlight',"renderAuth('Sua sessão expirou. Entre novamente.')","renderAuth('Sua sessão não é mais válida. Entre novamente.')"]) {
   if (!app.includes(required)) fail('Proteção contra loop de MFA ausente: ' + required);
 }
+for (const required of ["totpQrImageSrc(enrolled?.totp?.qr_code)",'id="mfaQrImage"','id="mfaQrFallback"','<details><summary>Usar chave manual']) {
+  if (!app.includes(required)) fail('Hotfix QR/MFA ausente: ' + required);
+}
 const security = read('src/imec-uti/security.ts');
 for (const required of ['IDLE_TIMEOUT_MS = 20 * 60 * 1000','passwordPolicy','sha1Hex','pwnedCountFromRange','parseAuthRedirect','jwtAal']) {
   if (!security.includes(required)) fail(`Primitiva de segurança ausente: ${required}`);
