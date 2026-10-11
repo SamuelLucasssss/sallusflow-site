@@ -36,6 +36,29 @@ export function canBackgroundRefresh(
 }
 
 
+/**
+ * Supabase GoTrue REST returns the TOTP QR as raw SVG, whereas an <img>
+ * element requires an image URL. Keep the graphic inline and private.
+ * No third-party QR service, persistence or external request is used.
+ */
+export function totpQrImageSrc(raw: unknown): string {
+  if (typeof raw !== 'string' || !raw.trim()) throw new Error('QR Code não fornecido pelo autenticador.');
+  const value = raw.trim();
+  const data = /^data:image\/svg\+xml(?:;[a-z0-9=_-]+)*,([\s\S]*)$/i.exec(value);
+  let svg = value;
+  if (data) {
+    try { svg = decodeURIComponent(data[1]); }
+    catch { throw new Error('QR Code retornado em formato inválido.'); }
+  }
+  if (
+    svg.length > 500_000 ||
+    !/^(?:<\?xml[^>]*\?>\s*)?<svg(?:\s|>)/i.test(svg) ||
+    !/<\/svg>\s*$/i.test(svg) ||
+    /<\s*(?:script|foreignObject|iframe|image|use)\b|<!DOCTYPE\b|<!ENTITY\b|\bon[a-z]+\s*=|\b(?:xlink:)?href\s*=/i.test(svg)
+  ) throw new Error('O QR Code retornado não é uma imagem SVG válida.');
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
 export function normalizeSession(session: any): any {
   if (!session?.access_token) return session;
   const payload = decodeJwtPayload(session.access_token);
