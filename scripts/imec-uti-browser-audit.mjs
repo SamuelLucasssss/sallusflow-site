@@ -24,7 +24,7 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch({headless:true,...(process.env.IMEC_CHROME_PATH?{executablePath:process.env.IMEC_CHROME_PATH}:{})});
 const context=await browser.newContext({viewport:{width:1365,height:950},serviceWorkers:'block',acceptDownloads:true});
-const api=[],errors=[],steps=[],visualChecks=[];let queue=Promise.resolve();let failNetwork=false;
+const api=[],errors=[],steps=[],visualChecks=[];let queue=Promise.resolve();let failNetwork=false;let previewDelay=0;
 const session=()=>({access_token:'synthetic.'+Buffer.from(JSON.stringify({sub:auditUsers.admin,aal:'aal1',session_id:auditUsers.admin,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')+'.signature',refresh_token:'synthetic-refresh',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:auditUsers.admin,email:'admin@audit.invalid',factors:[]}});
 const tables=new Set(['profiles','patients','admissions','rate_periods','charges','payments','scheduled_receipts','refunds','audits','app_settings','commercial_closers']);
 const identifier=value=>{if(!/^[a-z_][a-z_0-9]*$/i.test(value))throw new Error('Invalid test identifier');return '"'+value+'"';};
@@ -44,6 +44,7 @@ await context.route('https://nxaxkczyeythvzdxqwyu.supabase.co/**',async route=>{
         await fixture.asUser('admin');
         if(url.pathname.startsWith('/rest/v1/rpc/')){
           const name=url.pathname.split('/').at(-1);const keys=Object.keys(args);
+          if(name==='preview_uti_settlement'&&previewDelay){const delay=previewDelay;previewDelay=0;await new Promise(resolve=>setTimeout(resolve,delay));}
           const named=keys.map((key,i)=>`${identifier(key)} := $${i+1}`).join(',');
           body=(await fixture.db.query(`select public.${identifier(name)}(${named}) as result`,Object.values(args))).rows[0].result;
         }else{
@@ -168,6 +169,8 @@ try{
   await page.locator('[data-installment="p"]').nth(0).fill('2026-11-03');await page.locator('[data-installment="p"]').nth(1).fill('2026-12-03');fields+=2;
   await surface('credito-parcelado');
   await click('#payForm button:not([type=button])');await wait('.detail-hero');
+  // Force the initial preview to return after the user changes the proposed exit.
+  previewDelay=250;
   await click('[data-action="discharge"]');await fill('#dWhen','2026-10-10T12:00');await click('#dCalc');await wait('#settlePayValue');assert.equal(await page.locator('#settlePayValue').inputValue(),'700.00');
   await click('#modal [data-edit-payment]');await wait('#editReceiptForm');assert.equal(await page.locator('#editMethod').inputValue(),'credit');assert.equal(await page.locator('#editCount').inputValue(),'2');
   await fill('#editNotes','Observação corrigida sinteticamente');await fill('#editReason','Observação registrada incorretamente');await click('#editReceiptForm button[type=submit]');

@@ -1307,7 +1307,7 @@ function dischargeModal(a,proposedAt=null){
   if(!can('discharge')){toast('Seu perfil não pode registrar alta.');return}
   const alreadyDischarged=!!a.dischargeAt;
   const def=a.dischargeAt||proposedAt?toLocalInput(new Date(a.dischargeAt||proposedAt)):nowLocalInput();
-  let lastPreview=null,lastDis=null,confirmedSnapshot=null;
+  let lastPreview=null,lastDis=null,confirmedSnapshot=null,calculationRevision=0;
   openModal('Alta e acerto','Informe a saída, confira a sugestão automática e somente depois confirme o fechamento.',`
     <div class="form">
       <div class="settle-intro">
@@ -1324,6 +1324,7 @@ function dischargeModal(a,proposedAt=null){
     </div>`);
   document.getElementById('modalBackdrop')?.classList.add('settlement-modal');
   document.querySelector('[data-close2]').onclick=closeModal;
+  const previewHost=document.getElementById('dPreview');
   const getDis=()=>a.dischargeAt||parseLocal(document.getElementById('dWhen').value);
   const snapshot=s=>JSON.stringify([Number(s.accountVersion||0),Number(s.total||0),Number(s.received||0),Number(s.refunded||0),Number(s.balance||0),Number(s.dailyUnits||0)]);
 
@@ -1379,17 +1380,19 @@ function dischargeModal(a,proposedAt=null){
   };
 
   const calculate=async()=>{
+    const revision=++calculationRevision;
     const dis=getDis(),er=document.getElementById('dError');
     er.innerHTML='';
     if(!dis||new Date(dis)<new Date(a.entryAt)){document.getElementById('dPreview').innerHTML='<div class="form-error">⚠ A saída não pode ser anterior à entrada do paciente.</div>';lastPreview=null;renderActions();return}
     try{
       setLoading(true,'Calculando acerto…');
       const s=await fetchSettlement(a,dis);
+      if(revision!==calculationRevision||!previewHost.isConnected||dis!==getDis())return;
       lastPreview=s;lastDis=dis;confirmedSnapshot=snapshot(s);
       document.getElementById('dPreview').innerHTML=settlementPreviewMarkup(a,s);
       bindPreviewActions();renderActions();
-    }catch(ex){lastPreview=null;document.getElementById('dPreview').innerHTML='';er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`;renderActions()}
-    finally{setLoading(false)}
+    }catch(ex){if(revision===calculationRevision&&previewHost.isConnected&&dis===getDis()){lastPreview=null;previewHost.innerHTML='';er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`;renderActions()}}
+    finally{if(revision===calculationRevision)setLoading(false)}
   };
 
   const confirmDischarge=async()=>{

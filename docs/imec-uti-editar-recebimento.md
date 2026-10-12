@@ -11,3 +11,5 @@ A migração é aditiva e não altera recebimentos existentes. Os testes usam da
 Referência: [funções de banco e permissões no Supabase](https://supabase.com/docs/guides/database/functions).
 
 Validação da entrega em 12/10/2026: 92 testes passaram, typecheck, qualidade, auditoria de dependências e build concluídos. O navegador conferiu 112 telas/estados em quatro larguras, sem erros JavaScript ou transbordamento horizontal. PostgreSQL 17.11 com conexões independentes confirmou bloqueio de edição concorrente desatualizada e repetição idempotente, com uma única revisão/auditoria. A migração foi aplicada em produção e a conferência de permissões confirmou RLS, acesso administrativo e ausência de gravação direta para clientes. Nenhum recebimento existente foi alterado pela migração.
+
+A conferência do acerto também descarta respostas de cálculo anteriores quando o usuário troca a saída ou fecha o formulário. Uma resposta atrasada não pode substituir a prévia da data atual.
