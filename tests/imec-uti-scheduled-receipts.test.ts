@@ -37,6 +37,12 @@ describe('recebimentos posteriores e previstos — PostgreSQL isolado',()=>{
    await schedule();assert.deepEqual(await financial(),{status:'discharge_pending',billed:800,received:0});
    assert.equal((await f.db.query('select count(*)::int as n from public.payments where admission_id=$1',[id])).rows[0].n,0);
  });
+ it('datas infinitas não podem contaminar previsões ou parcelas confirmadas',async()=>{
+   await rejects(()=>schedule(800,'infinite-future-schedule','PIX',[],'infinity'),/expected_finite/);
+   await rejects(()=>schedule(800,'infinite-card-schedule','credit',['infinity']),/installments_finite/);
+   const s=await schedule();await rejects(()=>confirm(s,actual(),'credit',['infinity']),/installments_finite/);
+   assert.equal((await financial()).received,0);
+ });
  it('confirmar agora usa a data real e retry não duplica após a finalização',async()=>{
    const when=actual(),s=await schedule();assert.equal(await confirm(s,when),'finalized');assert.equal(await confirm(s,when),'finalized');
    assert.deepEqual(await financial(),{status:'finalized',billed:800,received:800});

@@ -22,10 +22,11 @@ Somente administradores e comerciais podem criar, confirmar ou cancelar previsõ
 
 ## Validação e banco
 
-- 80 testes aprovados, incluindo nove cenários específicos de previsão, atraso, confirmação, retry, cancelamento, parcelas e autorização.
+- 81 testes aprovados, incluindo dez cenários específicos de previsão, atraso, confirmação, retry, cancelamento, parcelas, datas inválidas e autorização.
 - Navegador com Auth simulado e PostgreSQL isolado: 107 verificações de superfície, quatro larguras, previsão no recebimento e no acerto, cancelamento, bloqueio de confirmação futura e confirmação real pelo celular.
 - PostgreSQL nativo 17.11, duas conexões independentes: reservas concorrentes não comprometem o mesmo saldo duas vezes; confirmações concorrentes produzem um único pagamento e uma única auditoria. Servidor local encerrado após a prova.
 - Migration `20261012105802_scheduled_receipts.sql` aplicada em produção. Tabela inicialmente vazia, RLS ativo, SELECT anônimo e INSERT/UPDATE diretos de authenticated negados; RPCs sem execução anônima; monitor de saúde ok.
+- Migration `20261012110547_scheduled_receipts_finite_dates.sql` aplicada: datas infinitas são recusadas em previsões e parcelas. As três constraints estão validadas; todos os pagamentos anteriores já usavam datas válidas e foram preservados.
 - Advisories: nenhum problema de segurança relacionado à tabela; índices novos aparecem como não utilizados porque a tabela ainda não recebeu registros. O aviso anterior de proteção nativa contra senhas vazadas permanece registrado na auditoria geral.
 
 Nenhum pagamento ou internação real foi alterado ou criado para testar esta funcionalidade. As evidências locais ficam em `tmp/imec-scheduled-final/` e `tmp/imec-audit/scheduled-native-concurrency.json`. A publicação do frontend segue PR e CI da main, com verificação dos arquivos públicos após o deploy.
