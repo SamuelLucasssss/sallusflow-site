@@ -1,0 +1,805 @@
+{
+  "status": "passed",
+  "scope": "synthetic Auth + real isolated PostgreSQL",
+  "steps": [
+    {
+      "name": "login com provedor simulado",
+      "ms": 1682
+    },
+    {
+      "name": "cadastro â†’ extra â†’ crÃ©dito â†’ acerto â†’ PDF â†’ encerramento â†’ exportaÃ§Ã£o â†’ logout",
+      "clicks": 147,
+      "fields": 36,
+      "total_ms": 30932
+    }
+  ],
+  "visual_surfaces": 98,
+  "visual_checks": [
+    {
+      "name": "acesso-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 4,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "recuperacao-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 4,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acesso-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 4,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "recuperacao-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 4,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acesso-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 4,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "recuperacao-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 4,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acesso-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 4,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "recuperacao-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 4,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-ativa-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 23,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "pagamento-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "extra-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "diaria-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "alta-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 27,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-ativa-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 23,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "pagamento-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "extra-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "diaria-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "alta-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-ativa-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 23,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "pagamento-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "extra-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "diaria-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "alta-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-ativa-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 23,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "pagamento-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "extra-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "diaria-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "alta-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 25,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "credito-parcelado",
+      "overflow": false,
+      "width": 1365,
+      "icons": 27,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acerto-com-recebimento",
+      "overflow": false,
+      "width": 1365,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-pendente-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "desconto-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acerto-pendente-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-credito-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "reembolso-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acerto-credito-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 34,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-pendente-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "desconto-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acerto-pendente-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-credito-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "reembolso-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acerto-credito-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-pendente-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "desconto-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acerto-pendente-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-credito-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "reembolso-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acerto-credito-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-pendente-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "desconto-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acerto-pendente-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-credito-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "reembolso-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "acerto-credito-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 30,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "inicio-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 26,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-pending-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 22,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-receipts-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 23,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-finalized-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 20,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "configuracoes-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 21,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "diagnosticos-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 21,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "convite-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 24,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "senha-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 23,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-finalizada-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "estorno-1365",
+      "overflow": false,
+      "width": 1365,
+      "icons": 29,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "inicio-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 26,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-pending-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 22,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-receipts-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 23,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-finalized-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 20,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "configuracoes-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 21,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "diagnosticos-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 21,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "convite-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 24,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "senha-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 23,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-finalizada-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "estorno-820",
+      "overflow": false,
+      "width": 820,
+      "icons": 29,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "inicio-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 26,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-pending-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 22,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-receipts-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 23,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-finalized-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 20,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "configuracoes-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 21,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "diagnosticos-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 21,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "convite-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 24,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "senha-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 23,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-finalizada-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "estorno-390",
+      "overflow": false,
+      "width": 390,
+      "icons": 29,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "inicio-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 26,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-pending-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 22,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-receipts-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 23,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "financeiro-finalized-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 20,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "configuracoes-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 21,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "diagnosticos-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 21,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "convite-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 24,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "senha-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 23,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "conta-finalizada-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 28,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "estorno-360",
+      "overflow": false,
+      "width": 360,
+      "icons": 29,
+      "dialog": true,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "refluxo-200-home",
+      "overflow": false,
+      "width": 683,
+      "icons": 26,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "refluxo-200-patients",
+      "overflow": false,
+      "width": 683,
+      "icons": 17,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "refluxo-200-finance",
+      "overflow": false,
+      "width": 683,
+      "icons": 20,
+      "dialog": false,
+      "fieldsOutside": 0
+    },
+    {
+      "name": "refluxo-200-settings",
+      "overflow": false,
+      "width": 683,
+      "icons": 21,
+      "dialog": false,
+      "fieldsOutside": 0
+    }
+  ],
+  "javascript_errors": [],
+  "real_patient_mutations": false
+}
