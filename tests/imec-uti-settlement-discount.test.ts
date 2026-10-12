@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const sql=readFileSync('supabase/migrations/20261012103000_uti_audited_settlement_discount.sql','utf8');
+const sql=readFileSync('supabase/migrations/20261012001555_uti_audited_settlement_discount.sql','utf8');
 const app=readFileSync('src/imec-uti/app.ts','utf8');
 
 test('desconto de R$300 sobre conta R$3300 com R$3000 recebidos zera saldo sem criar pagamento',()=>{

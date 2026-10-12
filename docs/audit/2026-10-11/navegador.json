@@ -1,0 +1,889 @@
+{
+  "status": "passed",
+  "scope": "synthetic Auth + real isolated PostgreSQL",
+  "steps": [
+    {
+      "name": "login com provedor simulado",
+      "ms": 1117
+    },
+    {
+      "name": "cadastro → extra → crédito → acerto → PDF → encerramento → exportação → logout",
+      "clicks": 32,
+      "fields": 23,
+      "total_ms": 7118
+    }
+  ],
+  "api_calls": 124,
+  "api_bytes": 49132,
+  "errors": [],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/auth/v1/token",
+      "status": 400,
+      "ms": 1,
+      "bytes": 39
+    },
+    {
+      "method": "POST",
+      "path": "/auth/v1/token",
+      "status": 200,
+      "ms": 1,
+      "bytes": 366
+    },
+    {
+      "method": "GET",
+      "path": "/auth/v1/user",
+      "status": 200,
+      "ms": 0,
+      "bytes": 88
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 11,
+      "bytes": 24
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 5,
+      "bytes": 162
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/sync_uti_charges",
+      "status": 200,
+      "ms": 9,
+      "bytes": 1
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/patients",
+      "status": 200,
+      "ms": 4,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/admissions",
+      "status": 200,
+      "ms": 4,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/rate_periods",
+      "status": 200,
+      "ms": 4,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/charges",
+      "status": 200,
+      "ms": 6,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/payments",
+      "status": 200,
+      "ms": 4,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/refunds",
+      "status": 200,
+      "ms": 4,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/audits",
+      "status": 200,
+      "ms": 5,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 9,
+      "bytes": 144
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 7,
+      "bytes": 828
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/commercial_closers",
+      "status": 200,
+      "ms": 6,
+      "bytes": 375
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_health_checks",
+      "status": 200,
+      "ms": 2,
+      "bytes": 110
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_alerts",
+      "status": 200,
+      "ms": 3,
+      "bytes": 2
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/create_uti_admission",
+      "status": 200,
+      "ms": 56,
+      "bytes": 38
+    },
+    {
+      "method": "GET",
+      "path": "/auth/v1/user",
+      "status": 200,
+      "ms": 0,
+      "bytes": 88
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 7,
+      "bytes": 24
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 5,
+      "bytes": 162
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/sync_uti_charges",
+      "status": 200,
+      "ms": 10,
+      "bytes": 1
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/patients",
+      "status": 200,
+      "ms": 13,
+      "bytes": 189
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/admissions",
+      "status": 200,
+      "ms": 17,
+      "bytes": 482
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/rate_periods",
+      "status": 200,
+      "ms": 6,
+      "bytes": 373
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/charges",
+      "status": 200,
+      "ms": 9,
+      "bytes": 1595
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/payments",
+      "status": 200,
+      "ms": 5,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/refunds",
+      "status": 200,
+      "ms": 3,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/audits",
+      "status": 200,
+      "ms": 6,
+      "bytes": 334
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 6,
+      "bytes": 144
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 9,
+      "bytes": 828
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/commercial_closers",
+      "status": 200,
+      "ms": 8,
+      "bytes": 375
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_health_checks",
+      "status": 200,
+      "ms": 2,
+      "bytes": 110
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_alerts",
+      "status": 200,
+      "ms": 3,
+      "bytes": 2
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/add_uti_extra",
+      "status": 200,
+      "ms": 9,
+      "bytes": 38
+    },
+    {
+      "method": "GET",
+      "path": "/auth/v1/user",
+      "status": 200,
+      "ms": 0,
+      "bytes": 88
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 8,
+      "bytes": 24
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 4,
+      "bytes": 162
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/sync_uti_charges",
+      "status": 200,
+      "ms": 6,
+      "bytes": 1
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/patients",
+      "status": 200,
+      "ms": 7,
+      "bytes": 189
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/admissions",
+      "status": 200,
+      "ms": 7,
+      "bytes": 482
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/rate_periods",
+      "status": 200,
+      "ms": 5,
+      "bytes": 373
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/charges",
+      "status": 200,
+      "ms": 8,
+      "bytes": 2091
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/payments",
+      "status": 200,
+      "ms": 4,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/refunds",
+      "status": 200,
+      "ms": 4,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/audits",
+      "status": 200,
+      "ms": 6,
+      "bytes": 619
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 6,
+      "bytes": 144
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 7,
+      "bytes": 828
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/commercial_closers",
+      "status": 200,
+      "ms": 6,
+      "bytes": 375
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_health_checks",
+      "status": 200,
+      "ms": 2,
+      "bytes": 110
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_alerts",
+      "status": 200,
+      "ms": 3,
+      "bytes": 2
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/add_uti_card_payment",
+      "status": 200,
+      "ms": 56,
+      "bytes": 8
+    },
+    {
+      "method": "GET",
+      "path": "/auth/v1/user",
+      "status": 200,
+      "ms": 0,
+      "bytes": 88
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 8,
+      "bytes": 24
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 7,
+      "bytes": 162
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/sync_uti_charges",
+      "status": 200,
+      "ms": 10,
+      "bytes": 1
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/patients",
+      "status": 200,
+      "ms": 10,
+      "bytes": 189
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/admissions",
+      "status": 200,
+      "ms": 8,
+      "bytes": 482
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/rate_periods",
+      "status": 200,
+      "ms": 5,
+      "bytes": 373
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/charges",
+      "status": 200,
+      "ms": 11,
+      "bytes": 2091
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/payments",
+      "status": 200,
+      "ms": 8,
+      "bytes": 530
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/refunds",
+      "status": 200,
+      "ms": 3,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/audits",
+      "status": 200,
+      "ms": 7,
+      "bytes": 1234
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 4,
+      "bytes": 144
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 8,
+      "bytes": 828
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/commercial_closers",
+      "status": 200,
+      "ms": 6,
+      "bytes": 375
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_health_checks",
+      "status": 200,
+      "ms": 2,
+      "bytes": 110
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_alerts",
+      "status": 200,
+      "ms": 2,
+      "bytes": 2
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/preview_uti_settlement",
+      "status": 200,
+      "ms": 21,
+      "bytes": 1089
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/preview_uti_settlement",
+      "status": 200,
+      "ms": 12,
+      "bytes": 956
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/add_uti_payment",
+      "status": 200,
+      "ms": 18,
+      "bytes": 8
+    },
+    {
+      "method": "GET",
+      "path": "/auth/v1/user",
+      "status": 200,
+      "ms": 0,
+      "bytes": 88
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 10,
+      "bytes": 24
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 5,
+      "bytes": 162
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/sync_uti_charges",
+      "status": 200,
+      "ms": 9,
+      "bytes": 1
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/patients",
+      "status": 200,
+      "ms": 6,
+      "bytes": 189
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/admissions",
+      "status": 200,
+      "ms": 6,
+      "bytes": 482
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/rate_periods",
+      "status": 200,
+      "ms": 6,
+      "bytes": 373
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/charges",
+      "status": 200,
+      "ms": 7,
+      "bytes": 2091
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/payments",
+      "status": 200,
+      "ms": 7,
+      "bytes": 1025
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/refunds",
+      "status": 200,
+      "ms": 5,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/audits",
+      "status": 200,
+      "ms": 11,
+      "bytes": 1515
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 5,
+      "bytes": 144
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 6,
+      "bytes": 828
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/commercial_closers",
+      "status": 200,
+      "ms": 6,
+      "bytes": 375
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_health_checks",
+      "status": 200,
+      "ms": 2,
+      "bytes": 110
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_alerts",
+      "status": 200,
+      "ms": 4,
+      "bytes": 2
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/preview_uti_settlement",
+      "status": 200,
+      "ms": 6,
+      "bytes": 1133
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/preview_uti_settlement",
+      "status": 200,
+      "ms": 6,
+      "bytes": 1133
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/discharge_uti",
+      "status": 200,
+      "ms": 19,
+      "bytes": 11
+    },
+    {
+      "method": "GET",
+      "path": "/auth/v1/user",
+      "status": 200,
+      "ms": 0,
+      "bytes": 88
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 5,
+      "bytes": 24
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 4,
+      "bytes": 162
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/sync_uti_charges",
+      "status": 200,
+      "ms": 4,
+      "bytes": 1
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/patients",
+      "status": 200,
+      "ms": 7,
+      "bytes": 189
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/admissions",
+      "status": 200,
+      "ms": 6,
+      "bytes": 508
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/rate_periods",
+      "status": 200,
+      "ms": 6,
+      "bytes": 373
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/charges",
+      "status": 200,
+      "ms": 7,
+      "bytes": 1563
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/payments",
+      "status": 200,
+      "ms": 7,
+      "bytes": 1025
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/refunds",
+      "status": 200,
+      "ms": 6,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/audits",
+      "status": 200,
+      "ms": 9,
+      "bytes": 2250
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 6,
+      "bytes": 144
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 7,
+      "bytes": 828
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/commercial_closers",
+      "status": 200,
+      "ms": 6,
+      "bytes": 375
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_health_checks",
+      "status": 200,
+      "ms": 2,
+      "bytes": 110
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/system_alerts",
+      "status": 200,
+      "ms": 2,
+      "bytes": 2
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/preview_uti_settlement",
+      "status": 200,
+      "ms": 6,
+      "bytes": 1134
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/preview_uti_settlement",
+      "status": 200,
+      "ms": 6,
+      "bytes": 1134
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/log_uti_document_event",
+      "status": 200,
+      "ms": 7,
+      "bytes": 38
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/preview_uti_settlement",
+      "status": 200,
+      "ms": 9,
+      "bytes": 1134
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/log_uti_document_event",
+      "status": 200,
+      "ms": 5,
+      "bytes": 38
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/log_uti_data_export",
+      "status": 200,
+      "ms": 8,
+      "bytes": 38
+    },
+    {
+      "method": "GET",
+      "path": "/auth/v1/user",
+      "status": 200,
+      "ms": 0,
+      "bytes": 88
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/app_settings",
+      "status": 200,
+      "ms": 7,
+      "bytes": 24
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/profiles",
+      "status": 200,
+      "ms": 4,
+      "bytes": 162
+    },
+    {
+      "method": "POST",
+      "path": "/rest/v1/rpc/sync_uti_charges",
+      "status": 200,
+      "ms": 6,
+      "bytes": 1
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/patients",
+      "status": 200,
+      "ms": 6,
+      "bytes": 189
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/admissions",
+      "status": 200,
+      "ms": 8,
+      "bytes": 508
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/rate_periods",
+      "status": 200,
+      "ms": 7,
+      "bytes": 373
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/charges",
+      "status": 200,
+      "ms": 6,
+      "bytes": 1563
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/payments",
+      "status": 200,
+      "ms": 8,
+      "bytes": 1025
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/refunds",
+      "status": 200,
+      "ms": 4,
+      "bytes": 2
+    },
+    {
+      "method": "GET",
+      "path": "/rest/v1/audits",
+      "status": 200,
+      "ms": 15,
+      "bytes": 3221
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import {
   PRIVATE_NO_VENT, PRIVATE_VENT, HOTEL_SIMPLE, HOTEL_SUITE,
   money, businessParts, zonedLocalToDate, fmtDT, fmtDM, nowLocalInput,
   toLocalInput, parseLocal, cpfNorm, cpfMask, dayKey, monthKey,
-  sameDay, sameMonth, bedRate, bedLabel, late, spParts,
+  sameDay, sameMonth, bedRate, bedLabel, late, spParts, matchesPatientSearch,
   newAdmissionEstimate, roleLabel, balanceMeta, healthStatusMeta,
   alertStatusMeta, healthWindowSummary
 } from './domain';
@@ -23,6 +23,8 @@ const ROLE_PERMISSIONS={
 let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:''};
 let data=blankData();
 let authState=null;
+let authEpoch=0;
+let refreshAuthInFlight=null;
 let passwordOnlyMode=false;
 let teamProfiles=[];
 let teamClosers=[];
@@ -85,18 +87,19 @@ function dashboard(){
   const billedMonth=data.charges.filter(c=>sameMonth(c.occurredAt)).reduce((s,c)=>s+c.amount,0);
   const commissions=data.admissions.filter(a=>a.mode==='private'&&a.status!=='cancelled'&&sameMonth(a.entryAt)).reduce((s,a)=>s+Number(a.commissionAmount||0),0);
   return `<section class="page-head"><div><span class="eyebrow">CONTROLE OPERACIONAL</span><h1>Visão geral</h1><p>Recebimentos, saldos e internações em um só lugar.</p></div>${can('create_admission')?'<button class="btn btn-primary" data-action="new">＋ Nova internação</button>':''}</section>
-  <div class="metric-grid">${metric('Internados agora',active.length)}${metric('A receber',money(toReceive),credits>0?'Créditos a devolver: '+money(credits):'',toReceive>0?'warn':'good')}${metric('Caixa líquido hoje',money(payToday-refToday),refToday>0?'Reembolsado: '+money(refToday):'','good')}${metric('Caixa líquido no mês',money(payMonth-refMonth),`Cobrado: ${money(billedMonth)} • Reembolsado: ${money(refMonth)}`)}</div>
+  <div class="metric-grid">${metric('Internados agora',active.length)}${metric('A receber',money(toReceive),credits>0?'Créditos a devolver: '+money(credits):'',toReceive>0?'warn':'good')}${metric('Recebido líquido hoje',money(payToday-refToday),refToday>0?'Reembolsado: '+money(refToday):'','good')}${metric('Recebido líquido no mês',money(payMonth-refMonth),`Cobrado: ${money(billedMonth)} • Reembolsado: ${money(refMonth)}`)}</div>
   <div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><h2>Requer atenção</h2><p>Prioridades financeiras abertas.</p></div>${attention.length?`<span class="badge badge-warn">${attention.length} pendência${attention.length>1?'s':''}</span>`:''}</div>${attention.length?`<div class="attention-list">${attention.map(({a,t})=>{const p=patient(a.patientId),m=balanceMeta(t.balance);return `<button class="attention-row" data-open="${a.id}"><div class="status-rail ${a.status==='discharge_pending'?'rail-warn':'rail-bad'}"></div><div class="attention-main"><strong>${esc(p?.name)}</strong><span>Leito ${String(a.bed).padStart(2,'0')} • ${a.mode==='private'?'Particular':'Hotelaria'}${a.status==='discharge_pending'?' • Alta pendente':''}</span></div><div class="attention-value"><span>${m.label}</span><strong>${money(m.amount)}</strong></div><span>›</span></button>`}).join('')}</div>`:empty('Tudo em dia','Nenhuma pendência financeira nas internações abertas.')}</section>
   <section class="panel compact-panel"><div class="panel-head"><div><h2>Resumo do mês</h2><p>Indicadores essenciais.</p></div></div><div class="mini-stats"><div><span>Particulares iniciados</span><strong>${data.admissions.filter(a=>a.mode==='private'&&sameMonth(a.entryAt)).length}</strong></div><div><span>Hotelarias iniciadas</span><strong>${data.admissions.filter(a=>a.mode==='hotel'&&sameMonth(a.entryAt)).length}</strong></div><div><span>Comissões particulares</span><strong>${money(commissions)}</strong></div></div></section></div>
   <section class="panel"><div class="panel-head"><div><h2>Pacientes ativos</h2><p>Internações em andamento.</p></div><span class="badge badge-brand">${active.length}</span></div>${active.length?`<div class="patient-card-grid">${active.sort((a,b)=>new Date(b.entryAt)-new Date(a.entryAt)).slice(0,6).map(patientCard).join('')}</div>`:empty('Nenhuma internação ativa','Use “Nova internação” para começar o controle.')}</section>`;
 }
 function patientCard(a){
   const p=patient(a.patientId),t=totals(a.id),r=currentRate(a),m=balanceMeta(t.balance);
+  const discountTotal=data.charges.filter(x=>x.admissionId===a.id&&x.kind==='adjustment'&&x.amount<0).reduce((sum,x)=>sum-x.amount,0);
   return `<button class="patient-card" data-open="${a.id}"><div class="patient-card-top"><div class="bed-chip">${String(a.bed).padStart(2,'0')}</div><span class="badge ${a.mode==='private'?'badge-brand':'badge-neutral'}">${a.mode==='private'?'Particular':'Hotelaria'}</span></div><h3>${esc(p?.name)}</h3><p>${a.mode==='private'?(r.ventilation?'Com ventilação':'Sem ventilação'):esc(r.label)}</p><div class="patient-meta"><span>▣ Entrada ${fmtDT(a.entryAt)}</span><span>◷ ${hospitalDays(a)}º dia</span></div><div class="patient-money"><div><span>${discountTotal>0?'Total após desconto':'Cobrado'}</span><strong>${money(t.billed)}</strong>${discountTotal>0?`<small>Desconto no acerto: − ${money(discountTotal)}</small>`:''} </div><div><span>Recebido líquido</span><strong>${money(t.netReceived)}</strong></div></div><div class="balance-strip ${Math.abs(t.balance)<=0.009?'paid':'open'}"><span>${m.label}</span><strong>${money(m.amount)}</strong><span>›</span></div></button>`;
 }
 function patientsPage(){
   const q=state.search.toLowerCase().trim();
-  let rows=data.admissions.filter(a=>{const p=patient(a.patientId);const ms=!q||(p?.name||'').toLowerCase().includes(q)||cpfNorm(p?.cpf).includes(cpfNorm(q));const f=state.patientFilter;const mf=f==='all'||(f==='active'&&a.status==='active')||(f==='pending'&&a.status==='discharge_pending')||(f==='finalized'&&a.status==='finalized')||(f==='private'&&a.mode==='private')||(f==='hotel'&&a.mode==='hotel');return ms&&mf}).sort((a,b)=>new Date(b.entryAt)-new Date(a.entryAt));
+  let rows=data.admissions.filter(a=>{const p=patient(a.patientId);const ms=matchesPatientSearch(p,q);const f=state.patientFilter;const mf=f==='all'||(f==='active'&&a.status==='active')||(f==='pending'&&a.status==='discharge_pending')||(f==='finalized'&&a.status==='finalized')||(f==='private'&&a.mode==='private')||(f==='hotel'&&a.mode==='hotel');return ms&&mf}).sort((a,b)=>new Date(b.entryAt)-new Date(a.entryAt));
   const fs=[['active','Internados'],['pending','Alta pendente'],['private','Particular'],['hotel','Hotelaria'],['finalized','Finalizados'],['all','Todos']];
   return `<section class="page-head"><div><span class="eyebrow">INTERNAÇÕES</span><h1>Pacientes</h1><p>Consulte rapidamente qualquer conta em andamento ou finalizada.</p></div></section><div class="toolbar"><div class="searchbox"><span>⌕</span><input id="searchPatients" aria-label="Buscar paciente por nome ou CPF" placeholder="Buscar por nome ou CPF" value="${esc(state.search)}"></div><div class="filter-chips">${fs.map(([v,l])=>`<button data-filter="${v}" class="${state.patientFilter===v?'active':''}">${l}</button>`).join('')}</div></div><section class="panel table-panel">${rows.length?`<div class="patients-table"><div class="table-row table-header"><span>Paciente</span><span>Leito</span><span>Entrada</span><span>Cobrado</span><span>Recebido líq.</span><span>Saldo</span><span>Status</span><span></span></div>${rows.map(a=>{const p=patient(a.patientId),t=totals(a.id),m=balanceMeta(t.balance);return `<button class="table-row" data-open="${a.id}"><span class="patient-cell"><strong>${esc(p?.name)}</strong><small>${a.mode==='private'?'Particular':'Hotelaria'}</small></span><span><strong>${String(a.bed).padStart(2,'0')}</strong></span><span>${fmtDT(a.entryAt)}</span><span>${money(t.billed)}</span><span>${money(t.netReceived)}</span><span class="${Math.abs(t.balance)<=0.009?'money-paid':'money-open'}" title="${m.label}">${m.kind==='credit'?'Crédito '+money(m.amount):money(m.amount)}</span><span>${statusBadge(a.status)}</span><span>›</span></button>`}).join('')}</div>`:empty('Nenhum paciente encontrado','Altere os filtros ou faça uma nova internação.')}</section>`;
 }
@@ -111,7 +114,7 @@ function financePage(){
   if(state.financeTab==='pending')body=pending.length?`<div class="finance-list">${pending.map(({a,t})=>{const p=patient(a.patientId),pays=data.payments.filter(x=>x.admissionId===a.id).sort((x,y)=>new Date(y.occurredAt)-new Date(x.occurredAt)),m=balanceMeta(t.balance);return `<button class="finance-row" data-open="${a.id}"><div><div class="finance-name"><strong>${esc(p?.name)}</strong>${a.status==='discharge_pending'?'<span class="badge badge-warn">Alta pendente</span>':''}</div><span>Leito ${String(a.bed).padStart(2,'0')} • Último pagamento: ${pays[0]?fmtDT(pays[0].occurredAt):'nenhum'}</span></div><div class="finance-amount"><span>${m.label}</span><strong>${money(m.amount)}</strong></div><span>›</span></button>`}).join('')}</div>`:empty('Nenhuma pendência financeira','Não há valores a receber nem créditos a devolver.');
   else if(state.financeTab==='receipts')body=movements.length?`<div class="receipt-list">${movements.map(x=>{const a=admission(x.admissionId),pt=a?patient(a.patientId):null;return `<div class="receipt-row"><div class="receipt-icon">${x.flow==='in'?'↙':'↗'}</div><div><strong>${esc(pt?.name||'Paciente')}</strong><span>${fmtDT(x.occurredAt)} • ${x.flow==='in'?'Recebimento':'Reembolso'} • ${esc(x.method)} • por ${esc(x.createdBy)}</span></div><strong>${x.flow==='in'?'+ ':'- '}${money(x.amount)}</strong></div>`}).join('')}</div>`:empty('Nenhuma movimentação','Recebimentos e reembolsos aparecerão aqui.');
   else body=fin.length?`<div class="finance-list">${fin.map(a=>{const p=patient(a.patientId),t=totals(a.id);return `<button class="finance-row" data-open="${a.id}"><div><div class="finance-name"><strong>${esc(p?.name)}</strong><span class="badge badge-good">Finalizado</span></div><span>Alta ${a.dischargeAt?fmtDT(a.dischargeAt):'—'} • ${a.mode==='private'?'Particular':'Hotelaria'}</span></div><div class="finance-amount"><span>Total</span><strong>${money(t.billed)}</strong></div><span>›</span></button>`}).join('')}</div>`:empty('Nenhuma conta finalizada','Internações quitadas e encerradas aparecerão aqui.');
-  return `<section class="page-head"><div><span class="eyebrow">CAIXA & RECEBIMENTOS</span><h1>Financeiro</h1><p>Entradas, reembolsos e contas que precisam de fechamento.</p></div></section><div class="metric-grid finance-metrics">${metric('A receber',money(totalOpen),'',totalOpen>0?'warn':'good')}${metric('Crédito a devolver',money(totalCredit),'',totalCredit>0?'warn':'good')}${metric('Caixa líquido hoje',money(payToday-refToday),'','good')}${metric('Caixa líquido no mês',money(payMonth-refMonth))}</div><div class="tabs"><button data-ftab="pending" class="${state.financeTab==='pending'?'active':''}">Pendências <span>${pending.length}</span></button><button data-ftab="receipts" class="${state.financeTab==='receipts'?'active':''}">Movimentações</button><button data-ftab="finalized" class="${state.financeTab==='finalized'?'active':''}">Finalizados</button></div><section class="panel">${body}</section>`;
+  return `<section class="page-head"><div><span class="eyebrow">RECEBIMENTOS</span><h1>Financeiro</h1><p>Entradas, reembolsos e contas que precisam de fechamento.</p></div></section><div class="metric-grid finance-metrics">${metric('A receber',money(totalOpen),'',totalOpen>0?'warn':'good')}${metric('Crédito a devolver',money(totalCredit),'',totalCredit>0?'warn':'good')}${metric('Recebido líquido hoje',money(payToday-refToday),'','good')}${metric('Recebido líquido no mês',money(payMonth-refMonth))}</div><div class="tabs"><button data-ftab="pending" class="${state.financeTab==='pending'?'active':''}">Pendências <span>${pending.length}</span></button><button data-ftab="receipts" class="${state.financeTab==='receipts'?'active':''}">Movimentações</button><button data-ftab="finalized" class="${state.financeTab==='finalized'?'active':''}">Finalizados</button></div><section class="panel">${body}</section>`;
 }
 function patientDetail(a){
   const p=patient(a.patientId),t=totals(a.id),r=currentRate(a),charges=data.charges.filter(c=>c.admissionId===a.id),payments=data.payments.filter(x=>x.admissionId===a.id),refunds=(data.refunds||[]).filter(x=>x.admissionId===a.id),m=balanceMeta(t.balance);
@@ -235,10 +238,10 @@ function correctionsModal(a){
     ...extras.map(x=>({id:x.id,type:'extra',at:x.occurredAt,label:x.description||x.category||'Extra',amount:x.amount})),
     ...refunds.map(x=>({id:x.id,type:'refund',at:x.occurredAt,label:`Reembolso • ${x.method}`,amount:x.amount}))
   ].sort((x,y)=>new Date(y.at)-new Date(x.at));
-  openModal('Corrigir lançamento','O registro original permanece no banco e a correção fica na auditoria.',`
+  openModal('Estornar lançamento','O valor será retirado da conta. O registro original ficará na auditoria.',`
     <div class="form">
       <div class="settle-table-wrap"><table class="settle-table"><thead><tr><th>Data/hora</th><th>Lançamento</th><th>Valor</th><th></th></tr></thead><tbody>
-      ${rows.map(x=>`<tr><td>${fmtDT(x.at)}</td><td>${esc(x.label)}</td><td>${money(x.amount)}</td><td><button class="btn btn-secondary" data-correct-type="${x.type}" data-correct-id="${x.id}">Corrigir</button></td></tr>`).join('')}
+      ${rows.map(x=>`<tr><td>${fmtDT(x.at)}</td><td>${esc(x.label)}</td><td>${money(x.amount)}</td><td><button class="btn btn-secondary" data-correct-type="${x.type}" data-correct-id="${x.id}">Estornar</button></td></tr>`).join('')}
       </tbody></table></div>
       <div class="form-warning">⚠ Use apenas para corrigir lançamento feito incorretamente. O motivo é obrigatório e ficará registrado.</div>
       <div class="modal-actions"><button class="btn btn-secondary" data-close2>Fechar</button></div>
@@ -246,7 +249,7 @@ function correctionsModal(a){
   document.querySelector('[data-close2]').onclick=closeModal;
   document.querySelectorAll('[data-correct-id]').forEach(btn=>btn.onclick=async()=>{
     if(remoteBusy)return;
-    const reason=prompt('Informe o motivo da correção:')?.trim();
+    const reason=prompt('Informe o motivo do estorno:')?.trim();
     if(!reason)return;
     try{
       setLoading(true,'Registrando correção…');
@@ -302,38 +305,69 @@ function startIdleGuard(){
 }
 async function expireIdleSession(){
   if(!authState)return;
-  try{await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:authHeaders(authState.access_token)})}catch{}
+  const token=authState.access_token;
   storeAuth(null);data=blankData();renderAuth('Sua sessão foi encerrada após 20 minutos sem atividade.');
+  try{await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:authHeaders(token)})}catch{}
 }
-function storeAuth(session){
+function storeAuth(session,{activity=true,preserveEpoch=false}={}){
+  if(!preserveEpoch)authEpoch++;
   if(!session)passwordOnlyMode=false;
   authState=session?normalizeSession(session):null;
   try{
-    if(authState){localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(authState));touchActivity()}
+    if(authState){localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(authState));if(activity)touchActivity()}
     else{localStorage.removeItem(AUTH_STORAGE_KEY);localStorage.removeItem(ACTIVITY_STORAGE_KEY)}
   }catch{}
 }
 function restoreAuth(){try{return normalizeSession(JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||'null'))}catch{return null}}
 async function refreshAuth(){
   if(!authState?.refresh_token)throw new Error('Sessão expirada. Entre novamente.');
-  const next=await authFetch('token?grant_type=refresh_token',{refresh_token:authState.refresh_token});
-  storeAuth(next);return authState;
+  const epoch=authEpoch;
+  if(refreshAuthInFlight?.epoch===epoch)return refreshAuthInFlight.promise;
+  const token=authState.refresh_token;
+  const promise=(async()=>{
+    const next=await authFetch('token?grant_type=refresh_token',{refresh_token:token});
+    if(!authState||epoch!==authEpoch)throw new Error('A sessão mudou durante a renovação.');
+    storeAuth(next,{activity:false,preserveEpoch:true});return authState;
+  })();
+  refreshAuthInFlight={epoch,promise};
+  try{return await promise}finally{if(refreshAuthInFlight?.promise===promise)refreshAuthInFlight=null}
 }
 async function ensureSession(){
   if(!authState)return false;
   if(sessionIdle()){await expireIdleSession();return false}
   const exp=Number(authState.expires_at||0)*1000;
   if(exp && Date.now()<exp-60000)return true;
-  try{await refreshAuth();return true}catch{storeAuth(null);return false}
+  const epoch=authEpoch;
+  try{await refreshAuth();return epoch===authEpoch&&!!authState}catch{if(epoch===authEpoch)storeAuth(null);return false}
 }
-async function rest(path,{method='GET',body,prefer}={}){
+async function rest(path,{method='GET',body,prefer,withCount=false}={}){
   if(!await ensureSession())throw new Error('Sessão expirada. Entre novamente.');
-  const headers=authHeaders(authState.access_token,prefer?{'Prefer':prefer}:{});
+  const epoch=authEpoch;
+  const preference=prefer||(withCount?'count=exact':null);
+  const headers=authHeaders(authState.access_token,preference?{'Prefer':preference}:{});
   const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+  if(epoch!==authEpoch)throw new Error('A sessão mudou durante a consulta.');
   if(res.status===401){storeAuth(null);throw new Error('Sessão expirada. Entre novamente.')}
-  return parseResponse(res);
+  const parsed=await parseResponse(res);
+  if(!withCount)return parsed;
+  const range=res.headers.get('Content-Range')||'',total=/\/(\d+)$/.exec(range);
+  return {rows:parsed,total:total?Number(total[1]):null};
 }
 async function rpc(name,args={}){return rest(`rpc/${name}`,{method:'POST',body:args,prefer:'return=representation'})}
+async function restAll(path){
+  const separator=path.includes('?')?'&':'?';
+  const rows=[],pageSize=500;
+  for(let offset=0;;){
+    const result=await rest(`${path}${separator}limit=${pageSize}&offset=${offset}`,{withCount:true});
+    const page=result.rows,total=result.total;
+    if(!Array.isArray(page))throw new Error('Resposta de dados inválida.');
+    rows.push(...page);
+    if(total!==null&&rows.length>=total)return rows;
+    if(total===null&&page.length<pageSize)return rows;
+    if(!page.length)throw new Error('O histórico mudou durante a consulta. Atualize os dados.');
+    offset+=page.length;
+  }
+}
 async function edge(name,body={}){
   if(!await ensureSession())throw new Error('Sessão expirada. Entre novamente.');
   const res=await fetch(`${SUPABASE_URL}/functions/v1/${name}`,{method:'POST',headers:authHeaders(authState.access_token),body:JSON.stringify(body)});
@@ -349,8 +383,10 @@ async function withRemote(work,success){if(remoteBusy)return;try{setLoading(true
 
 async function currentAuthUser(){
   if(!await ensureSession())return null;
+  const epoch=authEpoch;
   const user=await authApi('user');
-  if(user&&!authState.user){authState={...authState,user};storeAuth(authState)}
+  if(epoch!==authEpoch||!authState)throw new Error('A sessão mudou durante a validação.');
+  if(user&&authState&&!authState.user){authState={...authState,user};storeAuth(authState,{activity:false,preserveEpoch:true})}
   return user;
 }
 function verifiedTotpFactors(user){return (user?.factors||[]).filter(f=>f.factor_type==='totp'&&f.status==='verified')}
@@ -406,7 +442,9 @@ async function renderMfaEnrollment(){
   finally{setLoading(false)}
 }
 async function securityGate(){
+  const epoch=authEpoch;
   if(!await ensureSession()){
+    if(epoch!==authEpoch&&authState)return false;
     // A stale localStorage token must never leave an empty app shell.
     data=blankData();
     if(!document.getElementById('loginForm'))renderAuth('Sua sessão expirou. Entre novamente.');
@@ -415,12 +453,14 @@ async function securityGate(){
   let user;
   try{user=await currentAuthUser()}
   catch(ex){
+    if(epoch!==authEpoch)return false;
     const message=String(ex?.message||'');
     if(/session not found|sessão.*(inválida|expirada)|invalid (jwt|token)|token.*expir|401|403|unauthorized/i.test(message)){
       storeAuth(null);data=blankData();renderAuth('Sua sessão não é mais válida. Entre novamente.');
     }else renderAccountState('Não foi possível validar o acesso.',message||'Verifique sua conexão e tente novamente.');
     return false;
   }
+  if(epoch!==authEpoch)return false;
   if(!user){storeAuth(null);data=blankData();renderAuth('Entre novamente para continuar.');return false}
   if(jwtAal(authState.access_token)==='aal2'){passwordOnlyMode=false;return true}
   // AAL1 is accepted only when the authenticated backend policy has MFA disabled.
@@ -429,7 +469,16 @@ async function securityGate(){
   try{
     const policy=await rest('app_settings?id=eq.1&select=mfa_required');
     if(policy?.[0]?.mfa_required===false){passwordOnlyMode=true;return true}
-  }catch(error){console.warn('IMEC UTI: consulta de modo de testes indisponível.')}
+    if(!policy?.length){
+      const own=await rest(`profiles?id=eq.${encodeURIComponent(user.id)}&select=id,display_name,email,role,active`);
+      if(epoch!==authEpoch||!authState)return false;
+      if(own?.[0]?.active===false){data=blankData();renderPending(own[0]);return false}
+    }
+  }catch(error){
+    if(epoch!==authEpoch)return false;
+    renderAccountState('Não foi possível confirmar o acesso.','Verifique a conexão e tente novamente.');
+    return false;
+  }
 
   const factors=verifiedTotpFactors(user);
   if(factors.length){await renderMfaChallenge(user);return false}
@@ -440,7 +489,8 @@ async function checkPasswordSafety(password){
   if(!policy.ok)throw new Error(policy.message);
   const hash=await sha1Hex(password);
   const result=await edge('password-pwned-range',{prefix:hash.slice(0,5)});
-  const count=pwnedCountFromRange(result?.range||'',hash);
+  if(result?.ok!==true||typeof result.range!=='string'||!result.range.trim())throw new Error('Não foi possível verificar a segurança da senha. Tente novamente.');
+  const count=pwnedCountFromRange(result.range,hash);
   if(count>0)throw new Error('Esta senha aparece em vazamentos conhecidos. Escolha uma senha diferente.');
   return true;
 }
@@ -463,7 +513,9 @@ function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,se
   }
 }
 async function loadRemote({quiet=false}={}){
+  const epoch=authEpoch;
   if(!await securityGate())return false;
+  if(epoch!==authEpoch||!authState)return false;
   const uid=authState.user?.id;
   if(!uid){storeAuth(null);renderAuth();return false}
   try{
@@ -473,23 +525,25 @@ async function loadRemote({quiet=false}={}){
     if(!profile.active){data=blankData();data.currentUser=profile.display_name;data.currentRole=profile.role;renderPending(profile);return false}
     try{await rpc('sync_uti_charges',{})}catch(e){console.warn('sync daily charges',e)}
     const [patients,admissions,rates,charges,payments,refunds,audits,settingsRows,profiles,closers,healthHistory,alerts]=await Promise.all([
-      rest('patients?select=*&order=created_at.asc'),
-      rest('admissions?select=*&order=entry_at.desc'),
-      rest('rate_periods?select=*&order=effective_at.asc'),
-      rest('charges?cancelled_at=is.null&select=*&order=occurred_at.asc'),
-      rest('payments?cancelled_at=is.null&select=*&order=occurred_at.asc'),
-      rest('refunds?cancelled_at=is.null&select=*&order=occurred_at.asc'),
-      rest('audits?select=*&order=occurred_at.asc'),
+      restAll('patients?select=*&order=created_at.asc,id.asc'),
+      restAll('admissions?select=*&order=entry_at.desc,id.asc'),
+      restAll('rate_periods?select=*&order=effective_at.asc,id.asc'),
+      restAll('charges?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
+      restAll('payments?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
+      restAll('refunds?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
+      restAll('audits?select=*&order=occurred_at.asc,id.asc'),
       rest('app_settings?id=eq.1&select=*'),
       rest('profiles?select=id,display_name,email,role,active,created_at,security_onboarding_completed_at&order=created_at.asc'),
       rest('commercial_closers?active=eq.true&select=id,code,display_name,commission_amount,active&order=display_name.asc'),
       profile.role==='admin'?rest('system_health_checks?select=id,checked_at,status,issues,metrics,source&order=checked_at.desc&limit=96'):Promise.resolve([]),
       profile.role==='admin'?rest('system_alerts?select=id,alert_key,code,severity,message,details,status,first_detected_at,last_detected_at,occurrence_count,health_check_id,acknowledged_at,acknowledged_by_name,resolved_at&order=last_detected_at.desc&limit=50'):Promise.resolve([])
     ]);
+    if(epoch!==authEpoch||!authState)return false;
     data=mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings:settingsRows?.[0],profiles,closers,profile,healthHistory,alerts});
     if(!quiet)render();
     return true;
   }catch(e){
+    if(epoch!==authEpoch)return false;
     const msg=String(e.message||'');
     if(msg.toLowerCase().includes('sessão')){storeAuth(null);renderAuth();return false}
     if(msg.toLowerCase().includes('mfa')||msg.toLowerCase().includes('segundo fator')){await securityGate();return false}
@@ -520,11 +574,15 @@ function renderPending(profile){
   document.getElementById('logoutPending').onclick=logoutRemote;
 }
 function renderAccountState(title,detail){authCard(`<div class="pending-icon">!</div><div class="auth-copy center"><h1>${esc(title)}</h1><p>${esc(detail)}</p></div><button id="retryState" class="btn btn-primary auth-submit">Tentar novamente</button><button id="logoutState" class="btn btn-secondary auth-submit">Sair</button>`);document.getElementById('retryState').onclick=()=>loadRemote();document.getElementById('logoutState').onclick=logoutRemote}
-async function logoutRemote(){try{if(authState?.access_token)await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:authHeaders(authState.access_token)})}catch{}storeAuth(null);data=blankData();renderAuth()}
+async function logoutRemote(){
+  const token=authState?.access_token;
+  storeAuth(null);data=blankData();renderAuth();
+  try{if(token)await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:authHeaders(token)})}catch{}
+}
 
 async function inviteUserModal(){
   if(data.currentRole!=='admin'){toast('Somente administradores podem convidar usuários.');return}
-  openModal('Convidar usuário','O convite será enviado com retorno direto para o IMEC UTI.',`<form class="form" id="inviteForm">${field('Nome','<input id="inviteName" autocomplete="off" required placeholder="Nome do usuário">')}<div class="form-grid two">${field('E-mail','<input id="inviteEmail" type="email" autocomplete="off" required placeholder="usuario@empresa.com">')}${field('Perfil','<select id="inviteRole"><option value="operator">Operacional</option><option value="commercial">Comercial</option><option value="admin">Administrador</option></select>')}</div><div class="security-note"><span>✓</span><div><strong>Convite seguro</strong><span>O usuário define senha própria, ativa MFA e permanece pendente até ser liberado.</span></div></div><div id="inviteError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Enviar convite</button></div></form>`);
+  openModal('Convidar usuário','O convite será enviado com retorno direto para o IMEC UTI.',`<form class="form" id="inviteForm">${field('Nome','<input id="inviteName" autocomplete="off" required placeholder="Nome do usuário">')}<div class="form-grid two">${field('E-mail','<input id="inviteEmail" type="email" autocomplete="off" required placeholder="usuario@empresa.com">')}${field('Perfil','<select id="inviteRole"><option value="operator">Operacional</option><option value="commercial">Comercial</option><option value="admin">Administrador</option></select>')}</div><div class="security-note"><span>✓</span><div><strong>Convite seguro</strong><span>O usuário define senha própria e permanece pendente até ser liberado. Convites exigem confirmação do segundo fator pelo administrador.</span></div></div><div id="inviteError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Enviar convite</button></div></form>`);
   document.querySelector('[data-close2]').onclick=closeModal;
   document.getElementById('inviteForm').onsubmit=async e=>{
     e.preventDefault();if(remoteBusy)return;
@@ -622,7 +680,7 @@ function operationalHealthPanel(){
 }
 function settingsPage(){
   const members=teamProfiles.map(p=>`<div class="member-row"><div class="member-ident"><div class="avatar small">${esc((p.display_name||'?')[0])}</div><div><strong>${esc(p.display_name)}</strong><span>${esc(p.email||'Sem e-mail')}</span></div></div><div class="member-controls">${data.currentRole==='admin'?`<select data-member-role="${p.id}"><option value="operator" ${p.role==='operator'?'selected':''}>Operacional</option><option value="commercial" ${p.role==='commercial'?'selected':''}>Comercial</option><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option></select><label class="switch-label"><input type="checkbox" data-member-active="${p.id}" ${p.active?'checked':''}> <span>${p.active?'Ativo':'Pendente'}</span></label><button class="btn btn-secondary" data-save-member="${p.id}">Salvar</button>`:`<span class="badge ${p.active?'badge-good':'badge-warn'}">${p.active?'Ativo':'Pendente'}</span><span class="badge badge-neutral">${roleLabel(p.role)}</span>`}</div></div>`).join('');
-  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section>${observabilityPanel()}${operationalHealthPanel()}<section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-status"><div><strong>MFA obrigatório • sessão AAL2</strong><span>Expiração automática após 20 minutos sem atividade.</span></div><span class="badge badge-good">${data.securityAal==='aal2'?'Protegido':'Verificar'}</span></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, senha verificada contra vazamentos, trava de leito duplicado e diárias reconciliadas no servidor.</span></div></div></section></div>`
+  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section>${data.currentRole==='admin'?`<details class="settings-diagnostics"><summary>Saúde e histórico do sistema${unresolvedSystemAlerts().length?` · ${unresolvedSystemAlerts().length} alerta(s)`:''}</summary><div class="settings-diagnostics-content">${observabilityPanel()}${operationalHealthPanel()}</div></details>`:''}<section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-status"><div><strong>${passwordOnlyMode?'Acesso por e-mail e senha':'Acesso com segundo fator'}</strong><span>Expiração automática após 20 minutos sem atividade.</span></div><span class="badge badge-good">${passwordOnlyMode?'Sessão ativa':data.securityAal==='aal2'?'Protegido':'Verificar'}</span></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, senha verificada contra vazamentos, trava de leito duplicado e diárias reconciliadas no servidor.</span></div></div></section></div>`
 }
 
 async function submitNew(e){
@@ -758,7 +816,7 @@ function discountModal(a){
   };
 }
 
-function rateModal(a){const r=currentRate(a),isPrivate=a.mode==='private';openModal('Ajustar diária','A alteração vale dali para frente; cobranças anteriores permanecem intactas.',`<form class="form" id="rateForm">${isPrivate?field('Ventilação mecânica',`<select id="rVent"><option value="0" ${!r.ventilation?'selected':''}>Não</option><option value="1" ${r.ventilation?'selected':''}>Sim</option></select>`):''}<div class="form-grid two">${field('Validade a partir de',`<input id="rWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Nova diária',`<div class="currency-input"><span>R$</span><input id="rValue" value="${r.negotiatedRate}" inputmode="decimal"></div>`)}</div><div class="summary-box"><div><span>Valor padrão</span><strong id="rStandard">—</strong></div><div><span>Valor aplicado</span><strong id="rApplied">${money(r.negotiatedRate)}</strong></div></div><div id="rateError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">↻ Salvar condição</button></div></form>`);document.querySelector('[data-close2]').onclick=closeModal;const upd=()=>{const vent=isPrivate&&document.getElementById('rVent').value==='1',std=isPrivate?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):bedRate(a.bed),val=Number(document.getElementById('rValue').value.replace(',','.'))||0;document.getElementById('rStandard').textContent=money(std);document.getElementById('rApplied').textContent=money(val)};if(isPrivate)document.getElementById('rVent').onchange=e=>{const std=e.target.value==='1'?PRIVATE_VENT:PRIVATE_NO_VENT;document.getElementById('rValue').value=std;upd()};document.getElementById('rValue').oninput=upd;upd();document.getElementById('rateForm').onsubmit=async e=>{e.preventDefault();if(remoteBusy)return;const vent=isPrivate&&document.getElementById('rVent').value==='1',v=Number(document.getElementById('rValue').value.replace(',','.'));if(!v||v<=0)return;try{setLoading(true,'Salvando condição…');await rpc('adjust_uti_rate',{p_admission_id:a.id,p_effective_at:parseLocal(document.getElementById('rWhen').value),p_negotiated_rate:v,p_ventilation:isPrivate?vent:null});await loadRemote({quiet:true});closeModal();toast('Nova condição salva para as próximas diárias.');render()}catch(ex){document.getElementById('rateError').innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}}}
+function rateModal(a){const r=currentRate(a),isPrivate=a.mode==='private';openModal('Ajustar diária','A nova diária vale a partir da data informada. Ajustes retroativos recalculam a conta e ficam na auditoria.',`<form class="form" id="rateForm">${isPrivate?field('Ventilação mecânica',`<select id="rVent"><option value="0" ${!r.ventilation?'selected':''}>Não</option><option value="1" ${r.ventilation?'selected':''}>Sim</option></select>`):''}<div class="form-grid two">${field('Validade a partir de',`<input id="rWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Nova diária',`<div class="currency-input"><span>R$</span><input id="rValue" value="${r.negotiatedRate}" inputmode="decimal"></div>`)}</div><div class="summary-box"><div><span>Valor padrão</span><strong id="rStandard">—</strong></div><div><span>Valor aplicado</span><strong id="rApplied">${money(r.negotiatedRate)}</strong></div></div><div id="rateError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">↻ Salvar condição</button></div></form>`);document.querySelector('[data-close2]').onclick=closeModal;const upd=()=>{const vent=isPrivate&&document.getElementById('rVent').value==='1',std=isPrivate?(vent?PRIVATE_VENT:PRIVATE_NO_VENT):bedRate(a.bed),val=Number(document.getElementById('rValue').value.replace(',','.'))||0;document.getElementById('rStandard').textContent=money(std);document.getElementById('rApplied').textContent=money(val)};if(isPrivate)document.getElementById('rVent').onchange=e=>{const std=e.target.value==='1'?PRIVATE_VENT:PRIVATE_NO_VENT;document.getElementById('rValue').value=std;upd()};document.getElementById('rValue').oninput=upd;upd();document.getElementById('rateForm').onsubmit=async e=>{e.preventDefault();if(remoteBusy)return;const vent=isPrivate&&document.getElementById('rVent').value==='1',v=Number(document.getElementById('rValue').value.replace(',','.'));if(!v||v<=0)return;try{setLoading(true,'Salvando condição…');await rpc('adjust_uti_rate',{p_admission_id:a.id,p_effective_at:parseLocal(document.getElementById('rWhen').value),p_negotiated_rate:v,p_ventilation:isPrivate?vent:null});await loadRemote({quiet:true});closeModal();toast('Nova condição salva para as próximas diárias.');render()}catch(ex){document.getElementById('rateError').innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}}}
 function accommodationLabel(a){
   return a.bed<=9?'Salão':a.bed<=16?'Humanizado':'Humanizado com suíte';
 }
@@ -1198,7 +1256,7 @@ function bindDetail(a){
   const actions=document.querySelector('.detail-actions');
   const hasCorrectable=data.payments.some(x=>x.admissionId===a.id)||data.charges.some(x=>x.admissionId===a.id&&x.kind!=='daily')||(data.refunds||[]).some(x=>x.admissionId===a.id);
   if(actions&&data.currentRole==='admin'&&hasCorrectable&&!actions.querySelector('[data-action="corrections"]')){
-    const cb=document.createElement('button');cb.className='btn btn-secondary';cb.dataset.action='corrections';cb.innerHTML='↺ Corrigir lançamento';cb.onclick=()=>correctionsModal(a);actions.insertBefore(cb,actions.firstChild);
+    const cb=document.createElement('button');cb.className='btn btn-secondary';cb.dataset.action='corrections';cb.innerHTML='↺ Estornar lançamento';cb.onclick=()=>correctionsModal(a);actions.insertBefore(cb,actions.firstChild);
   }
   if(actions&&a.dischargeAt&&!actions.querySelector('[data-action="settlement-sheet"]')){
     const pdf=document.createElement('button');pdf.className='btn btn-secondary';pdf.dataset.action='settlement-pdf';pdf.innerHTML='⇩ Baixar PDF';pdf.onclick=()=>downloadSettlementPdf(a);actions.insertBefore(pdf,actions.firstChild);
@@ -1209,7 +1267,11 @@ function bindDetail(a){
 
 function bindPage(){
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{state.selectedId=b.dataset.open;render()});
-  const s=document.getElementById('searchPatients');if(s)s.oninput=e=>{state.search=e.target.value;render()};
+  const s=document.getElementById('searchPatients');if(s)s.oninput=e=>{
+    const start=e.target.selectionStart,end=e.target.selectionEnd;
+    state.search=e.target.value;render();
+    const next=document.getElementById('searchPatients');next?.focus();next?.setSelectionRange(start,end);
+  };
   document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.patientFilter=b.dataset.filter;render()});
   document.querySelectorAll('[data-ftab]').forEach(b=>b.onclick=()=>{state.financeTab=b.dataset.ftab;render()});
   const od=document.getElementById('onDuty');if(od)od.onchange=async e=>{const next=e.target.value;try{setLoading(true);await rpc('update_uti_on_duty',{p_name:next});await loadRemote({quiet:true});toast('Plantão comercial atualizado.');render()}catch(ex){alert(ex.message);render()}finally{setLoading(false)}};
