@@ -93,7 +93,7 @@ try{
   await click('[data-nav="patients"]');await page.locator('#searchPatients').focus();
   // oninput replaces the rendered node. Type through the active keyboard target,
   // rather than retaining the locator's old element for the remaining characters.
-  await page.keyboard.type('Joao',{delay:20});fields++;
+  await page.keyboard.type('Joao');fields++;
   assert.equal(await page.locator('#searchPatients').inputValue(),'Joao');
   assert.equal(await page.locator('#searchPatients').evaluate(el=>el===document.activeElement),true);
   assert.equal(await page.locator('.table-row[data-open]').count(),1);

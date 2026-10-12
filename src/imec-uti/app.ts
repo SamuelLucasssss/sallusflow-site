@@ -1325,7 +1325,9 @@ document.addEventListener('click',async e=>{
     state.page=nav.dataset.nav;
     state.selectedId=null;
     render();
-    requestAnimationFrame(()=>document.getElementById('content')?.focus());
+    // The new main node already exists. A deferred focus can steal the cursor
+    // from a field the user starts editing immediately after navigation.
+    document.getElementById('content')?.focus();
     return;
   }
   const action=e.target.closest('[data-action]');

@@ -16,6 +16,8 @@ Autorização: pedido do usuário para aplicar todas as correções e melhorias.
 
 Os 71 testes, typecheck, quality gate, auditoria de dependências e build passaram novamente. A jornada de navegador usa build real e PostgreSQL isolado, com Auth simulado.
 
+O CI também revelou uma disputa de foco ao começar a digitar imediatamente depois de navegar: o callback adiado de navegação focava o conteúdo depois que o usuário já estava na busca. O foco de navegação foi aplicado no mesmo evento, preservando acessibilidade e evitando retirar o cursor do campo. A jornada agora digita sem intervalo artificial e verifica texto completo e foco.
+
 Também foi instalado um servidor PostgreSQL **17.11 nativo isolado**, ligado somente em `127.0.0.1`, a partir dos binários distribuídos pela EDB e referenciados pelo [site oficial PostgreSQL](https://www.postgresql.org/download/windows/). Nenhum serviço Windows permanente ou conexão com o banco de produção foi usado nessa prova. O driver pg ficou no diretório de ferramentas temporárias, sem nova dependência de produção.
 
 Foram usadas conexões independentes A/B e uma conexão observadora. A operação B foi iniciada enquanto A ainda mantinha a transação; a observadora confirmou `wait_event_type='Lock'` antes do commit de A. O banco foi consultado depois da conclusão de ambas as operações.
