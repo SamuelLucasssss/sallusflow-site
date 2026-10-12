@@ -169,6 +169,9 @@
   .timeline-row>div:nth-child(2) strong { font-size: 12px; font-weight: 600; }
   .timeline-row>div:nth-child(2) span, .timeline-row>div:nth-child(2) small { font-size: 11px; line-height: 1.5; }
   .timeline-row>strong { font-size: 12px; font-weight: 650; white-space: nowrap; }
+  .receipt-edit { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; margin-top: 5px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--brand); font: inherit; font-size: 11px; cursor: pointer; }
+  .receipt-edit:hover { background: #eef4ef; }
+  .receipt-edit .ui-icon { width: 14px; height: 14px; }
   .coverage-row { padding: 13px 0; }
   .coverage-row>div:first-child strong { font-size: 12px; font-weight: 600; }
   .coverage-row>div:first-child span, .coverage-right>span { font-size: 11px; }
