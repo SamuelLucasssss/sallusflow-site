@@ -90,7 +90,13 @@ try{
   await fill('#loginPassword','SyntheticAuditPassword!1');await click('#loginForm button[type=submit]');await wait('.metric-grid');
   steps.push({name:'login com provedor simulado',ms:Math.round(performance.now()-start)});await shot('desktop-dashboard');
   await click('[data-action="new"]');await fill('#nName','João da Silva — Sintético');await select('#nBed','10');await select('#nMode','hotel');await fill('#nValue','400');await fill('#nEntry','2026-10-08T18:52');await select('#nHalf','0');await click('#newForm button[type=submit]');await wait('.patient-card');
-  await click('[data-nav="patients"]');await page.locator('#searchPatients').pressSequentially('Joao');fields++;assert.equal(await page.locator('#searchPatients').inputValue(),'Joao');assert.equal(await page.locator('.table-row[data-open]').count(),1);
+  await click('[data-nav="patients"]');await page.locator('#searchPatients').focus();
+  // oninput replaces the rendered node. Type through the active keyboard target,
+  // rather than retaining the locator's old element for the remaining characters.
+  await page.keyboard.type('Joao',{delay:20});fields++;
+  assert.equal(await page.locator('#searchPatients').inputValue(),'Joao');
+  assert.equal(await page.locator('#searchPatients').evaluate(el=>el===document.activeElement),true);
+  assert.equal(await page.locator('.table-row[data-open]').count(),1);
   await fill('#searchPatients','inexistente');await wait('.empty-state');assert.equal(await page.locator('.table-row[data-open]').count(),0);
   await fill('#searchPatients','Joao');await click('.table-row[data-open]');await wait('.detail-hero');await shot('desktop-paciente');
   const id=(await fixture.db.query('select id from public.admissions')).rows[0].id;
