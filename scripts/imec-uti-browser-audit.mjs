@@ -64,6 +64,8 @@ await context.route('https://nxaxkczyeythvzdxqwyu.supabase.co/**',async route=>{
             const limit=Number(url.searchParams.get('limit')||1000),offset=Number(url.searchParams.get('offset')||0);
             if(!Number.isInteger(limit)||!Number.isInteger(offset))throw new Error('Invalid test range');
             body=(await fixture.db.query(`select ${cols} from public.${identifier(table)}${clauses.length?' where '+clauses.join(' and '):''}${order?' order by '+order:''} limit ${Math.min(limit,1000)} offset ${offset}`,params)).rows;
+            // PostgreSQL DATE[] is returned as Date[] by PGlite; PostgREST uses YYYY-MM-DD.
+            for(const row of body)if(Array.isArray(row.installment_dates))row.installment_dates=row.installment_dates.map(d=>d instanceof Date?d.toISOString().slice(0,10):d);
           }
         }
       }
@@ -167,6 +169,9 @@ try{
   await surface('credito-parcelado');
   await click('#payForm button:not([type=button])');await wait('.detail-hero');
   await click('[data-action="discharge"]');await fill('#dWhen','2026-10-10T12:00');await click('#dCalc');await wait('#settlePayValue');assert.equal(await page.locator('#settlePayValue').inputValue(),'700.00');
+  await click('#modal [data-edit-payment]');await wait('#editReceiptForm');assert.equal(await page.locator('#editMethod').inputValue(),'credit');assert.equal(await page.locator('#editCount').inputValue(),'2');
+  await fill('#editNotes','Observação corrigida sinteticamente');await fill('#editReason','Observação registrada incorretamente');await click('#editReceiptForm button[type=submit]');
+  await wait('#settlePayValue');assert.equal(await page.locator('#dWhen').inputValue(),'2026-10-10T12:00');assert.equal(await page.locator('#settlePayValue').inputValue(),'700.00');
   await surface('acerto-com-recebimento');
   await fill('#settlePayWhen','2026-10-10T10:00');await click('#settlePayBtn');await wait('#dConfirm');
   await click('#dConfirm');await page.locator('#modalBackdrop').waitFor({state:'detached'});await wait('.detail-hero');
@@ -179,6 +184,23 @@ try{
   const account=(await fixture.db.query('select status from public.admissions where id=$1',[id])).rows[0];assert.equal(account.status,'finalized');
   assert.equal((await fixture.db.query('select sum(amount)::float8 as total from public.payments where admission_id=$1 and cancelled_at is null',[id])).rows[0].total,900);
   assert.equal((await fixture.db.query('select sum(amount)::float8 as total from public.charges where admission_id=$1 and cancelled_at is null',[id])).rows[0].total,900);
+  // Corrections remain available after finalization; desktop and mobile share the same dialog.
+  for(const width of [1365,820,390,360]){
+    await page.setViewportSize({width,height:950});await reviewDialog('[data-edit-payment]','editar-recebimento-'+width);
+  }
+  const creditId=(await fixture.db.query("select id from public.payments where admission_id=$1 and card_type='credit'",[id])).rows[0].id;
+  await click(`[data-edit-payment="${creditId}"]`);await select('#editCount','5');
+  const editDates=['2026-11-03','2026-12-02','2027-01-04','2027-02-01','2027-03-04'];
+  for(let i=0;i<editDates.length;i++){await page.locator('[data-installment="edit"]').nth(i).fill(editDates[i]);fields++;}
+  await fill('#editReason','Vencimentos e parcelas corrigidos');
+  const originalWhen=await page.locator('#editWhen').inputValue();
+  await fill('#editWhen',toLocalInput(new Date(Date.now()+86400000)));await click('#editReceiptForm button[type=submit]');await wait('#editReceiptError .form-error');
+  assert.equal((await fixture.db.query('select cardinality(installment_dates) as n from public.payments where id=$1',[creditId])).rows[0].n,2);
+  await fill('#editWhen',originalWhen);await surface('editar-credito-5x-360');await click('#editReceiptForm button[type=submit]');await page.locator('[role=dialog]').waitFor({state:'detached'});
+  assert.equal((await fixture.db.query('select cardinality(installment_dates) as n from public.payments where id=$1',[creditId])).rows[0].n,5);
+  assert.equal((await fixture.db.query('select count(*)::int n from public.payment_edits where payment_id=$1',[creditId])).rows[0].n,2);
+  assert.equal((await fixture.db.query('select sum(amount)::float8 as total from public.payments where admission_id=$1 and cancelled_at is null',[id])).rows[0].total,900);
+  await page.setViewportSize({width:1365,height:950});
   // Additional visual states exist only in this isolated database.
   await fixture.asUser('admin');
   await createSyntheticAdmission(fixture.db,{name:'Ana Carolina de Albuquerque — Sintética',bed:12,entry:new Date().toISOString()});
