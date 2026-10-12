@@ -16,6 +16,57 @@ import {
 } from './security';
 
 const USERS=['Samuel','Roberto','Aline'];
+// Small, local SVG vocabulary: no icon font, network dependency or decorative labels.
+const ICON_PATHS={
+ home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',
+ patients:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m2-16a3 3 0 0 1 0 6m4 10v-3a6 6 0 0 0-3-5"/>',
+ wallet:'<path d="M20 8V5a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15v11H5a3 3 0 0 1-3-3V6"/><path d="M20 12h-5v5h5"/><path d="M17 14.5h.01"/>',
+ settings:'<path d="M3 6h3m4 0h11M3 12h11m4 0h3M3 18h3m4 0h11"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ check:'<path d="m5 12 4 4L19 6"/>',
+ close:'<path d="m6 6 12 12M6 18 18 6"/>',
+ search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+ arrowLeft:'<path d="m12 5-7 7 7 7M5 12h15"/>',
+ arrowRight:'<path d="m12 5 7 7-7 7M19 12H4"/>',
+ chevron:'<path d="m9 5 7 7-7 7"/>',
+ down:'<path d="M12 3v16m-6-6 6 6 6-6"/>',
+ up:'<path d="M12 21V5m-6 6 6-6 6 6"/>',
+ bed:'<path d="M3 5v16m18-8v8M3 17h18M7 9h3a3 3 0 0 1 3 3v1H3V9Z"/><path d="M13 8h5a3 3 0 0 1 3 3v2h-8Z"/>',
+ calendar:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-12 4h.01m4 0h.01"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ document:'<path d="M14 3H5v18h14V8Zm0 0v5h5M8 12h8m-8 4h6"/>',
+ printer:'<path d="M6 8V3h12v5M6 17H3V9h18v8h-3"/><path d="M6 14h12v7H6Zm11-3h.01"/>',
+ refresh:'<path d="M20 7a9 9 0 0 0-15-2L3 8m0-5v5h5m-4 9a9 9 0 0 0 15 2l2-3m0 5v-5h-5"/>',
+ shield:'<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/>',
+ lock:'<rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>',
+ logout:'<path d="M9 3H3v18h6m6-14 5 5-5 5M8 12h12"/>',
+ credit:'<rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 9h20M6 15h4"/>',
+ minus:'<path d="M5 12h14"/>',
+ info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/>',
+ history:'<path d="M3 11a9 9 0 1 1 2 7M3 4v7h7m2-4v5l3 2"/>',
+ spark:'<path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/>',
+ activity:'<path d="M2 12h5l3-8 4 16 3-8h5"/>'
+};
+function icon(name){return `<svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name]||ICON_PATHS.document}</svg>`}
+function polishIcons(root){
+ if(!root?.querySelectorAll)return;
+ const actions={new:'plus',payment:'credit',extra:'plus',discount:'minus',rate:'refresh',refund:'up',discharge:'arrowRight',print:'printer',back:'arrowLeft',export:'down',corrections:'history','settlement-sheet':'document','settlement-pdf':'down'};
+ const controls={manualRefresh:'refresh',inviteUserBtn:'plus',changePasswordBtn:'lock',logoutBtn:'logout',dCalc:'refresh',dConfirm:'check',dPrint:'printer',dPdf:'down',dDone:'check',settlePayBtn:'check',settleRefundBtn:'up'};
+ root.querySelectorAll('button').forEach(button=>{
+   const name=button.hasAttribute('data-close')?'close':actions[button.dataset.action]||controls[button.id]||(button.type==='submit'&&button.closest('form')?(button.closest('#loginForm')?'arrowRight':'check'):null);
+   if(!name||button.querySelector('.ui-icon'))return;
+   const tile=button.closest('.quick-actions')?button.querySelector('div'):null;
+   if(tile){tile.innerHTML=icon(name);return}
+   button.innerHTML=icon(name)+button.innerHTML.replace(/^[＋+✓↙↗↻↺→←▤⇩⌘⇥≡×]\s*/u,'');
+ });
+ root.querySelectorAll('.searchbox>span').forEach(el=>el.innerHTML=icon('search'));
+ root.querySelectorAll('.patient-meta').forEach(el=>{el.querySelectorAll('span').forEach((span,i)=>span.innerHTML=icon(i?'clock':'calendar')+span.innerHTML.replace(/^[▣◷]\s*/u,''))});
+ root.querySelectorAll('.timeline-dot,.receipt-icon').forEach(el=>{const text=el.textContent.trim();const incoming=['↙','✓'].includes(text),outgoing=text==='↗';el.innerHTML=icon(incoming?'down':outgoing?'up':'document');if(outgoing)el.classList.add('outgoing')});
+ root.querySelectorAll('.security-note>span,.security-shield').forEach(el=>el.innerHTML=icon('shield'));
+ root.querySelectorAll('.balance-strip>span:last-child,.attention-row>span:last-child,.finance-row>span:last-child,.table-row>span:last-child').forEach(el=>{if(el.textContent.trim()==='›')el.innerHTML=icon('chevron')});
+ root.querySelectorAll('[data-member-role]').forEach(el=>el.setAttribute('aria-label','Perfil de acesso de '+el.closest('.member-row').querySelector('.member-ident strong').textContent));
+ root.querySelectorAll('[data-save-member]').forEach(el=>el.setAttribute('aria-label','Salvar acesso de '+el.closest('.member-row').querySelector('.member-ident strong').textContent));
+}
 const ROLE_PERMISSIONS={
   commercial:new Set(['create_admission','add_extra','add_payment','adjust_rate','discharge','update_on_duty']),
   operator:new Set(['create_admission','add_extra','discharge'])
@@ -43,17 +94,19 @@ function hospitalDays(a){const st=new Date(a.entryAt), en=a.dischargeAt?new Date
 function statusBadge(s){return s==='active'?'<span class="badge badge-brand">Internado</span>':s==='discharge_pending'?'<span class="badge badge-warn">Alta pendente</span>':s==='finalized'?'<span class="badge badge-good">Finalizado</span>':'<span class="badge badge-neutral">Cancelado</span>'}
 function toast(text){const el=document.getElementById('toast');if(!el)return;el.textContent=`✓ ${text}`;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400)}
 function shell(){
+ const pageName=state.selectedId?'Conta do paciente':({home:'Visão geral',patients:'Pacientes',finance:'Financeiro',settings:'Operação e acessos'})[state.page];
  document.getElementById('app').innerHTML=`
  <aside class="sidebar">
-  <div class="brand"><div class="brand-mark">I</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div>
-  <button class="btn btn-primary side-new" data-action="new">＋ Nova internação</button>
-  <nav aria-label="Navegação principal">${navItem('home','⌂','Início')}${navItem('patients','◉','Pacientes')}${navItem('finance','R$','Financeiro')}${navItem('settings','⚙','Configurações')}</nav>
-  <div class="side-bottom"><div class="duty"><span>Plantão comercial</span><strong><span class="online-dot"></span>${esc(data.onDuty)}</strong></div><div class="user-chip"><div class="avatar">${esc(data.currentUser[0])}</div><div><strong>${esc(data.currentUser)}</strong><span>Usuário atual</span></div><span>•••</span></div></div>
+  <div class="brand"><div class="brand-mark">${icon('activity')}</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div>
+  <button class="btn btn-primary side-new" data-action="new">${icon('plus')} Nova internação</button>
+  <div class="nav-caption">ESPAÇO DE TRABALHO</div>
+  <nav aria-label="Navegação principal">${navItem('home','home','Início')}${navItem('patients','patients','Pacientes')}${navItem('finance','wallet','Financeiro')}${navItem('settings','settings','Configurações')}</nav>
+  <div class="side-bottom"><div class="duty"><span>Plantão comercial</span><strong>${icon('clock')}${esc(data.onDuty)}</strong></div><div class="user-chip"><div class="avatar">${esc(data.currentUser[0])}</div><div><strong>${esc(data.currentUser)}</strong><span>${esc(roleLabel(data.currentRole))}</span></div></div></div>
  </aside>
- <div class="app-main"><header class="topbar"><div class="mobile-brand"><div class="brand-mark">I</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div><div class="top-actions"><button class="top-user" data-nav="settings" aria-label="Abrir configurações do usuário"><div class="avatar small">${esc(data.currentUser[0])}</div><span>${esc(data.currentUser)}</span></button><button class="icon-btn mobile-only" data-action="new" aria-label="Nova internação">＋</button></div></header><main class="content" id="content" tabindex="-1"></main></div>
- <nav class="bottom-nav" aria-label="Navegação principal móvel"><button data-nav="home" class="${state.page==='home'?'active':''}" aria-current="${state.page==='home'?'page':'false'}"><b aria-hidden="true">⌂</b><span>Início</span></button><button data-nav="patients" class="${state.page==='patients'?'active':''}" aria-current="${state.page==='patients'?'page':'false'}"><b aria-hidden="true">◉</b><span>Pacientes</span></button><button class="bottom-plus" data-action="new" aria-label="Nova internação">＋</button><button data-nav="finance" class="${state.page==='finance'?'active':''}" aria-current="${state.page==='finance'?'page':'false'}"><b aria-hidden="true">R$</b><span>Financeiro</span></button><button data-nav="settings" class="${state.page==='settings'?'active':''}" aria-current="${state.page==='settings'?'page':'false'}"><b aria-hidden="true">⚙</b><span>Ajustes</span></button></nav>`;
+ <div class="app-main"><header class="topbar"><div class="mobile-brand"><div class="brand-mark">${icon('activity')}</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div><div class="top-context"><span>IMEC UTI</span>${icon('chevron')}<strong>${pageName}</strong></div><div class="top-actions"><span class="top-date">${new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'long',timeZone:'America/Sao_Paulo'}).format(new Date())}</span><button class="top-user" data-nav="settings" aria-label="Abrir configurações do usuário"><div class="avatar small">${esc(data.currentUser[0])}</div><span>${esc(data.currentUser)}</span></button><button class="icon-btn mobile-only" data-action="new" aria-label="Nova internação">${icon('plus')}</button></div></header><main class="content" id="content" tabindex="-1"></main></div>
+ <nav class="bottom-nav" aria-label="Navegação principal móvel"><button data-nav="home" class="${state.page==='home'?'active':''}" aria-current="${state.page==='home'?'page':'false'}">${icon('home')}<span>Início</span></button><button data-nav="patients" class="${state.page==='patients'?'active':''}" aria-current="${state.page==='patients'?'page':'false'}">${icon('patients')}<span>Pacientes</span></button><button class="bottom-plus" data-action="new" aria-label="Nova internação">${icon('plus')}</button><button data-nav="finance" class="${state.page==='finance'?'active':''}" aria-current="${state.page==='finance'?'page':'false'}">${icon('wallet')}<span>Financeiro</span></button><button data-nav="settings" class="${state.page==='settings'?'active':''}" aria-current="${state.page==='settings'?'page':'false'}">${icon('settings')}<span>Ajustes</span></button></nav>`;
 }
-function navItem(p,i,l){return `<button class="side-item ${state.page===p?'active':''}" data-nav="${p}" aria-current="${state.page===p?'page':'false'}"><span aria-hidden="true">${i}</span><span>${l}</span></button>`}
+function navItem(p,i,l){return `<button class="side-item ${state.page===p?'active':''}" data-nav="${p}" aria-current="${state.page===p?'page':'false'}">${icon(i)}<span>${l}</span>${state.page===p?'<span class="nav-active-dot" aria-hidden="true"></span>':''}</button>`}
 function unresolvedSystemAlerts(){return (data.alerts||[]).filter(a=>a.status!=='resolved')}
 function systemAlertBanner(){
   if(data.currentRole!=='admin')return '';
@@ -71,12 +124,12 @@ function systemAlertBanner(){
   const lead=actionable[0]||critical[0]||unresolved[0];
   return `<button class="system-alert-banner ${critical.length?'critical':'warn'}" data-nav="settings"><span class="system-alert-icon">${critical.length?'!':'△'}</span><span><strong>${critical.length?critical.length+' alerta(s) crítico(s)':unresolved.length+' alerta(s) operacional(is)'}</strong><small>${esc(lead?.message||'Abra a central de observabilidade para revisar.')}</small></span><b>Revisar →</b></button>`;
 }
-function render(){shell();const c=document.getElementById('content'); if(state.selectedId){const a=admission(state.selectedId); if(a){c.innerHTML=systemAlertBanner()+patientDetail(a);bindDetail(a);return}state.selectedId=null}
+function render(){shell();const c=document.getElementById('content'); if(state.selectedId){const a=admission(state.selectedId); if(a){c.innerHTML=systemAlertBanner()+patientDetail(a);bindDetail(a);polishIcons(document.getElementById('app'));return}state.selectedId=null}
  const page=state.page==='home'?dashboard():state.page==='patients'?patientsPage():state.page==='finance'?financePage():settingsPage();
- c.innerHTML=systemAlertBanner()+page;bindPage();}
+ c.innerHTML=systemAlertBanner()+page;polishIcons(document.getElementById('app'));bindPage();}
 
-function metric(label,value,note='',tone=''){return `<div class="metric-card ${tone?'metric-'+tone:''}"><div class="metric-icon">${label.includes('Receb')?'↙':label.includes('Saldo')?'$':'▣'}</div><div class="metric-copy"><span>${label}</span><strong>${value}</strong>${note?`<small>${note}</small>`:''}</div></div>`}
-function empty(title,text){return `<div class="empty-state"><div class="empty-icon">▤</div><strong>${title}</strong><p>${text}</p></div>`}
+function metric(label,value,note='',tone=''){const symbol=label.includes('Internados')?'bed':label.includes('Crédito')?'up':label.includes('Recebido')?'down':'wallet';return `<div class="metric-card ${tone?'metric-'+tone:''}"><div class="metric-icon">${icon(symbol)}</div><div class="metric-copy"><span>${label}</span><strong>${value}</strong>${note?`<small>${note}</small>`:''}</div></div>`}
+function empty(title,text){return `<div class="empty-state"><div class="empty-icon">${icon(title==='Tudo em dia'?'check':'document')}</div><strong>${title}</strong><p>${text}</p></div>`}
 function dashboard(){
   const active=data.admissions.filter(a=>a.status==='active'),pending=data.admissions.filter(a=>a.status==='discharge_pending');
   const attention=[...active,...pending].map(a=>({a,t:totals(a.id)})).filter(x=>Math.abs(x.t.balance)>0.009||x.a.status==='discharge_pending').sort((x,y)=>Math.abs(y.t.balance)-Math.abs(x.t.balance)).slice(0,5);
@@ -168,6 +221,7 @@ function openModal(title,subtitle,body){
   if(app)app.setAttribute('inert','');
   document.body.classList.add('modal-open');
   host.innerHTML=`<div class="modal-backdrop" id="modalBackdrop"><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle" ${subtitle?'aria-describedby="modalSubtitle"':''} tabindex="-1"><div class="modal-head"><div><h2 id="modalTitle">${esc(title)}</h2>${subtitle?`<p id="modalSubtitle">${esc(subtitle)}</p>`:''}</div><button class="icon-btn" data-close aria-label="Fechar janela">×</button></div>${body}</section></div>`;
+  polishIcons(host);
   host.querySelector('[data-close]').onclick=()=>closeModal();
   host.querySelector('#modalBackdrop').addEventListener('mousedown',e=>{if(e.target.id==='modalBackdrop')closeModal()});
   document.addEventListener('keydown',modalKeydown);
@@ -551,7 +605,8 @@ async function loadRemote({quiet=false}={}){
   }
 }
 function authCard(inner){
-  document.getElementById('app').innerHTML=`<main class="auth-shell"><section class="auth-card"><div class="auth-logo"><div class="brand-mark">I</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div>${inner}</section></main>`;
+  document.getElementById('app').innerHTML=`<main class="auth-shell"><div class="auth-layout"><aside class="auth-intro"><div class="auth-intro-mark">${icon('activity')}</div><span class="eyebrow">IMEC UTI</span><h2>Clareza para<br>cada decisão.</h2><p>Internações, recebimentos e acertos.<br>Uma visão organizada da operação.</p><div class="auth-intro-footer">Particular & Hotelaria ${icon('arrowRight')}</div></aside><section class="auth-card"><div class="auth-logo"><div class="brand-mark">${icon('activity')}</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div>${inner}</section></div><span class="auth-workspace-foot">IMEC UTI · Gestão de internações</span></main>`;
+  polishIcons(document.getElementById('app'));
 }
 function renderAuth(message=''){
   const msg=message?`<div class="auth-message">${esc(message)}</div>`:'';
@@ -1076,6 +1131,8 @@ function printSettlementSheet(a,knownSettlement=null){
         .proof{margin-top:12px;border:1px dashed #9caaaa;border-radius:6px;padding:9px;flex:1;min-height:145px}.proof h2{margin-top:0}.proof p{color:#6d7b7e;margin:3px 0 0;font-size:8pt}.proof-space{min-height:105px}
         .footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid #d7dfdf;padding-top:8px;margin-top:10px;font-size:8pt;color:#6d7b7e}.sign{margin-top:28px;width:210px;border-top:1px solid #7b888a;padding-top:4px;text-align:center;color:#46575a}
         .no-print{width:184mm;margin:0 auto 10px;display:flex;justify-content:flex-end;gap:7px}.no-print button,.no-print a{border:0;background:#0b6f72;color:#fff;padding:9px 13px;border-radius:7px;font-weight:700;cursor:pointer;text-decoration:none;font:inherit}.no-print .ghost{background:#fff;color:#435456;border:1px solid #cfd8d8}.doc-side{text-align:right}.doc-side small{display:block;color:#6d7b7e;font-size:7.5pt;margin-top:5px}
+        @media screen{body{background:#f4f6f3;padding:28px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.sheet{padding:28px;border:1px solid #e0e7de;border-radius:14px;box-shadow:0 8px 32px rgba(24,43,40,.06)}.no-print{align-items:center;margin-bottom:16px}.no-print button{border-radius:9px;background:#12635e;font-size:12px;min-height:42px}.no-print .ghost{background:#fff}.top{border-bottom-width:1px}.brand{font-weight:650}.patient{font-weight:650}.box strong{font-weight:600}}
+        @media screen and (max-width:740px){body{padding:16px 12px;font-size:12px}.sheet,.no-print{width:100%;min-height:0}.sheet{padding:18px}.top{gap:12px}.brand{font-size:19px}.brand small{font-size:10px}.status{font-size:10px;padding:5px 7px}.patient{font-size:21px}.grid,.period{grid-template-columns:1fr 1fr}.finance{grid-template-columns:repeat(2,minmax(0,1fr))}.finance div{border-bottom:1px solid #dfe7e7}.daily{gap:12px;align-items:flex-start}.daily strong{font-size:18px}.daily small{font-size:11px}.footer{flex-direction:column;gap:12px}.sign{margin-top:20px;width:100%}table{font-size:11px;table-layout:fixed}th{font-size:9px}th,td{padding:7px 4px;overflow-wrap:anywhere}td:first-child{white-space:normal}.schedule{font-size:10px}.proof{min-height:130px}.no-print{flex-wrap:wrap}}
         @media print{html,body{background:#fff!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}.sheet{width:auto;min-height:271mm;margin:0}.proof{break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}h2{break-after:avoid}.top,.grid,.period,.daily,.finance{break-inside:avoid}}
       </style></head><body>
       <div class="no-print"><button id="settlementPrintBtn" type="button">Imprimir / Salvar PDF</button><button id="settlementCloseBtn" type="button" class="ghost">Fechar</button></div>
@@ -1201,6 +1258,7 @@ function dischargeModal(a){
     const pd=document.getElementById('dPdf');if(pd)pd.onclick=()=>downloadSettlementPdf(a,lastPreview);
     const done=document.getElementById('dDone');if(done)done.onclick=closeModal;
     const cf=document.getElementById('dConfirm');if(cf)cf.onclick=confirmDischarge;
+    polishIcons(document.getElementById('modal'));
   };
 
   const calculate=async()=>{
