@@ -9,6 +9,7 @@ import {
 } from './domain';
 import { SUPABASE_URL, SUPABASE_KEY } from './config';
 import { paymentMethodLabel, installmentSummary, validateInstallmentDates } from './payment-details';
+import {previousReportMonth,reportCompetence,reportReference,reportDate,monthlyReportFilename,monthlyReportCsv,buildMonthlyReportPdf} from './monthly-report';
 import {
   AUTH_STORAGE_KEY, ACTIVITY_STORAGE_KEY, IDLE_TIMEOUT_MS, APP_URL,
   jwtAal, normalizeSession, parseAuthRedirect, cleanAuthRedirectUrl,
@@ -72,7 +73,8 @@ const ROLE_PERMISSIONS={
   commercial:new Set(['create_admission','add_extra','add_payment','adjust_rate','discharge','update_on_duty']),
   operator:new Set(['create_admission','add_extra','discharge'])
 };
-let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:''};
+let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:'',reportMonth:previousReportMonth(),reportCommission:false};
+let monthlyReportState={report:null,loading:false,error:'',revision:0};
 let data=blankData();
 let authState=null;
 let authEpoch=0;
@@ -95,17 +97,17 @@ function hospitalDays(a){const st=new Date(a.entryAt), en=a.dischargeAt?new Date
 function statusBadge(s){return s==='active'?'<span class="badge badge-brand">Internado</span>':s==='discharge_pending'?'<span class="badge badge-warn">Alta pendente</span>':s==='finalized'?'<span class="badge badge-good">Finalizado</span>':'<span class="badge badge-neutral">Cancelado</span>'}
 function toast(text){const el=document.getElementById('toast');if(!el)return;el.textContent=`✓ ${text}`;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400)}
 function shell(){
- const pageName=state.selectedId?'Conta do paciente':({home:'Visão geral',patients:'Pacientes',finance:'Financeiro',settings:'Operação e acessos'})[state.page];
+ const pageName=state.selectedId?'Conta do paciente':({home:'Visão geral',patients:'Pacientes',finance:'Financeiro',reports:'Relatórios',settings:'Operação e acessos'})[state.page];
  document.getElementById('app').innerHTML=`
  <aside class="sidebar">
   <div class="brand"><div class="brand-mark">${icon('activity')}</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div>
   <button class="btn btn-primary side-new" data-action="new">${icon('plus')} Nova internação</button>
   <div class="nav-caption">ESPAÇO DE TRABALHO</div>
-  <nav aria-label="Navegação principal">${navItem('home','home','Início')}${navItem('patients','patients','Pacientes')}${navItem('finance','wallet','Financeiro')}${navItem('settings','settings','Configurações')}</nav>
+  <nav aria-label="Navegação principal">${navItem('home','home','Início')}${navItem('patients','patients','Pacientes')}${navItem('finance','wallet','Financeiro')}${navItem('reports','document','Relatórios')}${navItem('settings','settings','Configurações')}</nav>
   <div class="side-bottom"><div class="duty"><span>Plantão comercial</span><strong>${icon('clock')}${esc(data.onDuty)}</strong></div><div class="user-chip"><div class="avatar">${esc(data.currentUser[0])}</div><div><strong>${esc(data.currentUser)}</strong><span>${esc(roleLabel(data.currentRole))}</span></div></div></div>
  </aside>
  <div class="app-main"><header class="topbar"><div class="mobile-brand"><div class="brand-mark">${icon('activity')}</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div><div class="top-context"><span>IMEC UTI</span>${icon('chevron')}<strong>${pageName}</strong></div><div class="top-actions"><span class="top-date">${new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'long',timeZone:'America/Sao_Paulo'}).format(new Date())}</span><button class="top-user" data-nav="settings" aria-label="Abrir configurações do usuário"><div class="avatar small">${esc(data.currentUser[0])}</div><span>${esc(data.currentUser)}</span></button><button class="icon-btn mobile-only" data-action="new" aria-label="Nova internação">${icon('plus')}</button></div></header><main class="content" id="content" tabindex="-1"></main></div>
- <nav class="bottom-nav" aria-label="Navegação principal móvel"><button data-nav="home" class="${state.page==='home'?'active':''}" aria-current="${state.page==='home'?'page':'false'}">${icon('home')}<span>Início</span></button><button data-nav="patients" class="${state.page==='patients'?'active':''}" aria-current="${state.page==='patients'?'page':'false'}">${icon('patients')}<span>Pacientes</span></button><button class="bottom-plus" data-action="new" aria-label="Nova internação">${icon('plus')}</button><button data-nav="finance" class="${state.page==='finance'?'active':''}" aria-current="${state.page==='finance'?'page':'false'}">${icon('wallet')}<span>Financeiro</span></button><button data-nav="settings" class="${state.page==='settings'?'active':''}" aria-current="${state.page==='settings'?'page':'false'}">${icon('settings')}<span>Ajustes</span></button></nav>`;
+ <nav class="bottom-nav" aria-label="Navegação principal móvel"><button data-nav="home" class="${state.page==='home'?'active':''}" aria-current="${state.page==='home'?'page':'false'}">${icon('home')}<span>Início</span></button><button data-nav="patients" class="${state.page==='patients'?'active':''}" aria-current="${state.page==='patients'?'page':'false'}">${icon('patients')}<span>Pacientes</span></button><button data-nav="finance" class="${state.page==='finance'?'active':''}" aria-current="${state.page==='finance'?'page':'false'}">${icon('wallet')}<span>Financeiro</span></button><button data-nav="reports" class="${state.page==='reports'?'active':''}" aria-current="${state.page==='reports'?'page':'false'}">${icon('document')}<span>Relatórios</span></button><button data-nav="settings" class="${state.page==='settings'?'active':''}" aria-current="${state.page==='settings'?'page':'false'}">${icon('settings')}<span>Ajustes</span></button></nav>`;
 }
 function navItem(p,i,l){return `<button class="side-item ${state.page===p?'active':''}" data-nav="${p}" aria-current="${state.page===p?'page':'false'}">${icon(i)}<span>${l}</span>${state.page===p?'<span class="nav-active-dot" aria-hidden="true"></span>':''}</button>`}
 function unresolvedSystemAlerts(){return (data.alerts||[]).filter(a=>a.status!=='resolved')}
@@ -126,7 +128,7 @@ function systemAlertBanner(){
   return `<button class="system-alert-banner ${critical.length?'critical':'warn'}" data-nav="settings"><span class="system-alert-icon">${critical.length?'!':'△'}</span><span><strong>${critical.length?critical.length+' alerta(s) crítico(s)':unresolved.length+' alerta(s) operacional(is)'}</strong><small>${esc(lead?.message||'Abra a central de observabilidade para revisar.')}</small></span><b>Revisar →</b></button>`;
 }
 function render(){shell();const c=document.getElementById('content'); if(state.selectedId){const a=admission(state.selectedId); if(a){c.innerHTML=systemAlertBanner()+patientDetail(a);bindDetail(a);polishIcons(document.getElementById('app'));return}state.selectedId=null}
- const page=state.page==='home'?dashboard():state.page==='patients'?patientsPage():state.page==='finance'?financePage():settingsPage();
+ const page=state.page==='home'?dashboard():state.page==='patients'?patientsPage():state.page==='finance'?financePage():state.page==='reports'?monthlyReportsPage():settingsPage();
  c.innerHTML=systemAlertBanner()+page;polishIcons(document.getElementById('app'));bindPage();}
 
 function metric(label,value,note='',tone=''){const symbol=label.includes('Internados')?'bed':label.includes('Crédito')?'up':label.includes('Recebido')?'down':'wallet';return `<div class="metric-card ${tone?'metric-'+tone:''}"><div class="metric-icon">${icon(symbol)}</div><div class="metric-copy"><span>${label}</span><strong>${value}</strong>${note?`<small>${note}</small>`:''}</div></div>`}
@@ -145,6 +147,54 @@ function dashboard(){
   <div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><h2>Requer atenção</h2><p>Prioridades financeiras abertas.</p></div>${attention.length?`<span class="badge badge-warn">${attention.length} pendência${attention.length>1?'s':''}</span>`:''}</div>${attention.length?`<div class="attention-list">${attention.map(({a,t})=>{const p=patient(a.patientId),m=balanceMeta(t.balance);return `<button class="attention-row" data-open="${a.id}"><div class="status-rail ${a.status==='discharge_pending'?'rail-warn':'rail-bad'}"></div><div class="attention-main"><strong>${esc(p?.name)}</strong><span>Leito ${String(a.bed).padStart(2,'0')} • ${a.mode==='private'?'Particular':'Hotelaria'}${a.status==='discharge_pending'?' • Alta pendente':''}</span></div><div class="attention-value"><span>${m.label}</span><strong>${money(m.amount)}</strong></div><span>›</span></button>`}).join('')}</div>`:empty('Tudo em dia','Nenhuma pendência financeira nas internações abertas.')}</section>
   <section class="panel compact-panel"><div class="panel-head"><div><h2>Resumo do mês</h2><p>Indicadores essenciais.</p></div></div><div class="mini-stats"><div><span>Particulares iniciados</span><strong>${data.admissions.filter(a=>a.mode==='private'&&sameMonth(a.entryAt)).length}</strong></div><div><span>Hotelarias iniciadas</span><strong>${data.admissions.filter(a=>a.mode==='hotel'&&sameMonth(a.entryAt)).length}</strong></div><div><span>Comissões particulares</span><strong>${money(commissions)}</strong></div></div></section></div>
   <section class="panel"><div class="panel-head"><div><h2>Pacientes ativos</h2><p>Internações em andamento.</p></div><span class="badge badge-brand">${active.length}</span></div>${active.length?`<div class="patient-card-grid">${active.sort((a,b)=>new Date(b.entryAt)-new Date(a.entryAt)).slice(0,6).map(patientCard).join('')}</div>`:empty('Nenhuma internação ativa','Use “Nova internação” para começar o controle.')}</section>`;
+}
+function monthlyReportsPage(){
+ const s=monthlyReportState,r=s.report?.month===state.reportMonth?s.report:null,ready=!!r&&!s.loading&&!s.error;
+ return `<section class="page-head"><div><span class="eyebrow">RELATÓRIOS</span><h1>Leito humanizado</h1><p>Recebimentos do mês e comissão da Aline Glória.</p></div></section>
+ <section class="report-toolbar panel"><div class="report-period">${field('Competência',`<input id="reportMonth" type="month" value="${state.reportMonth}" aria-label="Competência do relatório">`)}<button id="reportRefresh" class="icon-btn" aria-label="Atualizar relatório" ${s.loading?'disabled':''}>${icon('refresh')}</button></div><div class="report-export"><label class="report-option"><input type="checkbox" id="reportCommission" ${state.reportCommission?'checked':''}>Incluir comissão na exportação</label><div class="report-buttons"><button id="reportPdf" class="btn btn-primary" ${!ready?'disabled':''}>${icon('down')}Baixar PDF</button><button id="reportPrint" class="btn btn-secondary" ${!ready?'disabled':''}>${icon('printer')}Imprimir</button><button id="reportCsv" class="btn btn-secondary" ${!ready?'disabled':''}>${icon('document')}Planilha CSV</button></div></div></section>
+ <div class="report-body" aria-live="polite">${s.loading?'<div class="panel report-loading">Carregando os recebimentos da competência…</div>':s.error?`<div class="panel"><div class="form-error">${esc(s.error)}</div><p>Use atualizar para tentar novamente.</p></div>`:r?`
+ <div class="report-metrics"><div class="metric-card"><div class="metric-copy"><span>Total líquido recebido</span><strong id="reportNet">${money(r.netCents/100)}</strong><small>Recebido: ${money(r.receivedCents/100)} · Reembolsado: ${money(r.refundedCents/100)}</small></div></div><div class="metric-card"><div class="metric-copy"><span>Recebimentos confirmados</span><strong id="reportCount">${r.receiptCount}</strong><small>${r.admissionCount} internação(ões)${r.refundCount?' · '+r.refundCount+' reembolso(s)':''}</small></div></div><div class="metric-card"><div class="metric-copy"><span>Aline Glória · 3%</span><strong id="reportFee">${money(r.commissionCents/100)}</strong><small>Comissão sobre o recebido líquido</small></div></div></div>
+ <section class="panel report-sheet"><div class="panel-head"><div><h2>Recebimentos · ${reportCompetence(r.month)}</h2><p>Valores líquidos recebidos na competência, agrupados por internação.</p></div></div>${r.rows.length?`<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Nome do paciente</th><th>Entrada</th><th>Alta</th><th>Valor total</th><th>Tipo de leito</th></tr></thead><tbody>${r.rows.map(row=>`<tr><td><button class="report-patient" data-report-open="${row.admissionId}">${esc(row.patientName)}</button></td><td>${reportDate(row.entryAt)}</td><td>${reportDate(row.dischargeAt)}</td><td>${money(row.netCents/100)}</td><td><span class="badge badge-neutral">${esc(row.bedType)}</span></td></tr>`).join('')}</tbody><tfoot><tr><th colspan="3">Total líquido</th><td>${money(r.netCents/100)}</td><td></td></tr></tfoot></table></div>`:empty('Sem movimentações nesta competência','Nenhum recebimento confirmado ou reembolso de leito humanizado foi encontrado.')}<div class="report-reference">${esc(reportReference(r.month))}</div><p class="report-note">O mês considera a data do recebimento ou reembolso. Crédito parcelado entra integralmente no mês do recebimento confirmado; previsões não entram.</p></section>`:''}</div>`;
+}
+async function loadMonthlyReport(){
+ const month=state.reportMonth,revision=++monthlyReportState.revision,epoch=authEpoch;
+ monthlyReportState.loading=true;monthlyReportState.error='';render();
+ try{
+   reportCompetence(month);const report=await rpc('get_uti_humanized_monthly_report',{p_month:month+'-01'});
+   if(revision!==monthlyReportState.revision||epoch!==authEpoch)return;
+   monthlyReportState.report=report;
+ }catch(ex){if(revision===monthlyReportState.revision&&epoch===authEpoch)monthlyReportState.error=ex.message||'Não foi possível carregar o relatório.'}
+ finally{if(revision===monthlyReportState.revision&&epoch===authEpoch){monthlyReportState.loading=false;if(state.page==='reports'&&!state.selectedId)render()}}
+}
+function monthlyReportPrintHtml(r,commission){
+ return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(reportReference(r.month))}</title><style>@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#202629;font-size:10pt;margin:0}.tools{padding:14px 0;display:flex;gap:10px}button{padding:10px 16px;border:1px solid #dce4df;border-radius:8px;background:white;color:#12635e;cursor:pointer}.head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #dce4df;padding-bottom:14px}h1{font-size:18pt;margin:0 0 8px}h2{font-size:14pt;margin:18px 0 6px}p{color:#667275;font-size:9pt;line-height:1.5}table{border-collapse:collapse;width:100%;table-layout:fixed;margin:20px 0}thead{display:table-header-group}th,td{text-align:left;border-bottom:1px solid #e4e8e7;padding:10px 5px;vertical-align:top;overflow-wrap:anywhere}th{font-size:8pt;color:#667275}th:first-child,td:first-child{padding-left:0;width:40%}th:nth-child(2),th:nth-child(3){width:14%}th:nth-child(4){width:20%}th:nth-child(5){width:12%}td:nth-child(4),th:nth-child(4){text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}.totals{margin:20px 0;break-inside:avoid}.totals div{display:flex;justify-content:space-between;padding:8px 0}.total{font-size:13pt;font-weight:bold}.reference{border-top:1px solid #dce4df;padding-top:16px;font-weight:bold;break-inside:avoid}.empty{padding:24px 0}.issued{font-size:8pt;color:#667275}@media print{.tools{display:none}}@media screen{body{max-width:800px;margin:30px auto;padding:0 20px}}</style></head><body><div class="tools"><button id="printMonthly">Imprimir / salvar PDF</button><button id="closeMonthly">Fechar</button></div><div class="head"><h1>IMEC UTI</h1><strong>Competência ${reportCompetence(r.month)}</strong></div><h2>Leito humanizado</h2><p>${r.receiptCount} recebimento(s) · ${r.admissionCount} internação(ões)<br>Valores líquidos recebidos na competência, descontados os reembolsos.</p>${r.rows.length?`<table><thead><tr><th>Nome do paciente</th><th>Entrada</th><th>Alta</th><th>Valor total</th><th>Leito</th></tr></thead><tbody>${r.rows.map(x=>`<tr><td>${esc(x.patientName)}</td><td>${reportDate(x.entryAt)}</td><td>${reportDate(x.dischargeAt)}</td><td>${money(x.netCents/100)}</td><td>${esc(x.bedType)}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">Nenhuma movimentação nesta competência.</p>'}<div class="totals"><div class="total"><span>Total líquido recebido</span><span>${money(r.netCents/100)}</span></div>${r.refundCount?`<div><span>Recebido: ${money(r.receivedCents/100)}</span><span>Reembolsado: ${money(r.refundedCents/100)}</span></div>`:''}${commission?`<div><strong>Comissão Aline Glória · 3%</strong><strong>${money(r.commissionCents/100)}</strong></div>`:''}</div><div class="reference">${esc(reportReference(r.month))}</div><p class="issued">Emitido em ${reportDate(r.generatedAt)}</p></body></html>`;
+}
+async function exportMonthlyReport(kind){
+ if(remoteBusy||monthlyReportState.loading)return;
+ const month=state.reportMonth,commission=state.reportCommission,epoch=authEpoch;
+ const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ const popup=kind==='print'||(kind==='pdf'&&ios)?window.open('','_blank'):null;
+ if(kind==='print'&&!popup){toast('Permita a janela de impressão ou use Baixar PDF.');return}
+ if(popup){popup.document.write('<!doctype html><html lang="pt-BR"><title>Preparando relatório</title><body style="font-family:Arial;padding:32px">Preparando relatório…</body></html>');popup.document.close();}
+ try{
+   setLoading(true,'Preparando relatório…');
+   const r=await rpc('get_uti_humanized_monthly_report',{p_month:month+'-01'});
+   if(epoch!==authEpoch||!authState)throw new Error('Sua sessão mudou. Entre novamente para gerar o relatório.');
+   await rpc('log_uti_report_event',{p_month:month+'-01',p_event:kind==='print'?'print_requested':kind==='csv'?'csv_downloaded':'pdf_downloaded',p_include_commission:commission});
+   if(epoch!==authEpoch||!authState)throw new Error('Sua sessão mudou. Entre novamente para gerar o relatório.');
+   if(kind==='print'){
+     popup.document.open();popup.document.write(monthlyReportPrintHtml(r,commission));popup.document.close();
+     popup.document.getElementById('printMonthly').onclick=()=>popup.print();popup.document.getElementById('closeMonthly').onclick=()=>popup.close();
+     popup.focus();popup.print();
+   }else{
+     const blob=kind==='csv'?new Blob([monthlyReportCsv(r,commission)],{type:'text/csv;charset=utf-8'}):new Blob([buildMonthlyReportPdf(r,commission)],{type:'application/pdf'});
+     const url=URL.createObjectURL(blob);
+     if(kind==='pdf'&&ios){if(popup)popup.location.href=url;else window.location.href=url;}
+     else{const link=document.createElement('a');link.href=url;link.download=monthlyReportFilename(r,commission,kind==='csv'?'csv':'pdf');document.body.appendChild(link);link.click();link.remove();}
+     setTimeout(()=>URL.revokeObjectURL(url),60000);toast(kind==='csv'?'Planilha CSV gerada.':'PDF pronto para imprimir.');
+   }
+   if(state.reportMonth===month)monthlyReportState.report=r;if(state.page==='reports'&&!state.selectedId)render();
+ }catch(ex){if(popup)popup.close();toast('Não foi possível gerar o relatório: '+ex.message)}finally{setLoading(false)}
 }
 function patientCard(a){
   const p=patient(a.patientId),t=totals(a.id),r=currentRate(a),m=balanceMeta(t.balance);
@@ -366,7 +416,7 @@ async function expireIdleSession(){
   try{await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:authHeaders(token)})}catch{}
 }
 function storeAuth(session,{activity=true,preserveEpoch=false}={}){
-  if(!preserveEpoch)authEpoch++;
+  if(!preserveEpoch){authEpoch++;monthlyReportState={report:null,loading:false,error:'',revision:monthlyReportState.revision+1};}
   if(!session)passwordOnlyMode=false;
   authState=session?normalizeSession(session):null;
   try{
@@ -1436,7 +1486,7 @@ function dischargeModal(a,proposedAt=null){
 function bindDetail(a){
   bindScheduledReceipts();
   bindReceiptEdits();
-  document.querySelectorAll('[data-action="back"]').forEach(b=>b.onclick=()=>{state.selectedId=null;render()});
+  document.querySelectorAll('[data-action="back"]').forEach(b=>b.onclick=()=>{state.selectedId=null;if(state.page==='reports')loadMonthlyReport();else render()});
   document.querySelectorAll('[data-action="payment"]').forEach(b=>b.onclick=()=>paymentModal(a));
   document.querySelectorAll('[data-action="refund"]').forEach(b=>b.onclick=()=>refundModal(a));
   document.querySelectorAll('[data-action="extra"]').forEach(b=>b.onclick=()=>extraModal(a));
@@ -1457,6 +1507,19 @@ function bindDetail(a){
 
 
 function bindPage(){
+  if(state.page==='reports'&&!state.selectedId){
+    document.getElementById('reportMonth').onchange=e=>{if(!e.target.value)return;state.reportMonth=e.target.value;loadMonthlyReport()};
+    document.getElementById('reportCommission').onchange=e=>state.reportCommission=e.target.checked;
+    document.getElementById('reportRefresh').onclick=()=>loadMonthlyReport();
+    document.getElementById('reportPdf').onclick=()=>exportMonthlyReport('pdf');document.getElementById('reportPrint').onclick=()=>exportMonthlyReport('print');document.getElementById('reportCsv').onclick=()=>exportMonthlyReport('csv');
+    document.querySelectorAll('[data-report-open]').forEach(b=>b.onclick=async()=>{
+      if(remoteBusy)return;const id=b.dataset.reportOpen;
+      if(!admission(id)){try{setLoading(true);const ok=await loadRemote({quiet:true});if(!ok)return}finally{setLoading(false)}}
+      if(!admission(id)){toast('Esta internação não está mais disponível. Atualize o relatório.');return}
+      state.selectedId=id;render();
+    });
+    if(!monthlyReportState.loading&&!monthlyReportState.error&&monthlyReportState.report?.month!==state.reportMonth)loadMonthlyReport();
+  }
   bindScheduledReceipts();
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{state.selectedId=b.dataset.open;render()});
   const s=document.getElementById('searchPatients');if(s)s.oninput=e=>{
@@ -1516,7 +1579,7 @@ document.addEventListener('click',async e=>{
   if(nav){
     state.page=nav.dataset.nav;
     state.selectedId=null;
-    render();
+    if(state.page==='reports')loadMonthlyReport();else render();
     // The new main node already exists. A deferred focus can steal the cursor
     // from a field the user starts editing immediately after navigation.
     document.getElementById('content')?.focus();
