@@ -790,6 +790,8 @@ function bindReceiptTiming(a,prefix,whenId,submitId){
    const label=when.closest('.field')?.querySelector('.field-label');if(label)label.textContent=planned?'Data e hora previstas':'Data e hora do recebimento';
    document.getElementById(prefix+'TimingNote').textContent=planned?'Previsão: o valor só reduz o saldo após confirmar o recebimento.':late?'Recebimento após a alta. Confirme somente se o dinheiro já foi recebido.':'Confirme somente o valor que já foi recebido.';
    submit.innerHTML=icon(planned?'clock':'check')+(planned?'Salvar previsão':late?'Confirmar recebimento posterior':'Confirmar recebimento');
+   const footer=document.getElementById('dDone');
+   if(footer?.dataset.receiptSubmit==='true')footer.innerHTML=icon(planned?'clock':'check')+(planned?'Salvar previsão':'Confirmar recebimento');
  };
  root.querySelectorAll('[data-receipt-mode]').forEach(b=>b.onclick=()=>{root.dataset.mode=b.dataset.receiptMode;if(b.dataset.receiptMode==='received'&&new Date(parseLocal(when.value)).getTime()>Date.now())when.value=nowLocalInput();update()});
  when.addEventListener('input',update);when.addEventListener('change',update);update();
@@ -1307,7 +1309,7 @@ function dischargeModal(a,proposedAt=null){
   if(!can('discharge')){toast('Seu perfil não pode registrar alta.');return}
   const alreadyDischarged=!!a.dischargeAt;
   const def=a.dischargeAt||proposedAt?toLocalInput(new Date(a.dischargeAt||proposedAt)):nowLocalInput();
-  let lastPreview=null,lastDis=null,confirmedSnapshot=null,calculationRevision=0;
+  let lastPreview=null,lastDis=null,confirmedSnapshot=null,calculationRevision=0,submitSettlementReceipt=null;
   openModal('Alta e acerto','Informe a saída, confira a sugestão automática e somente depois confirme o fechamento.',`
     <div class="form">
       <div class="settle-intro">
@@ -1329,6 +1331,7 @@ function dischargeModal(a,proposedAt=null){
   const snapshot=s=>JSON.stringify([Number(s.accountVersion||0),Number(s.total||0),Number(s.received||0),Number(s.refunded||0),Number(s.balance||0),Number(s.dailyUnits||0)]);
 
   const bindPreviewActions=()=>{
+    submitSettlementReceipt=null;
     bindScheduledReceipts();
     bindReceiptEdits(getDis);
     const payBtn=document.getElementById('settlePayBtn');
@@ -1336,17 +1339,21 @@ function dischargeModal(a,proposedAt=null){
       bindCardDetails('settlePay','settlePayMethod');
       bindReceiptTiming(a,'settlePay','settlePayWhen','settlePayBtn');
       const paymentRef=crypto.randomUUID();
-      payBtn.onclick=async()=>{
+      submitSettlementReceipt=async(closeAfter=false)=>{
         if(remoteBusy)return;
-        const val=Number(document.getElementById('settlePayValue').value.replace(',','.')),method=document.getElementById('settlePayMethod').value,when=parseLocal(document.getElementById('settlePayWhen').value),er=document.getElementById('settlePayError');
+        const er=document.getElementById('settlePayError');
         er.innerHTML='';
-        if(!val||val<=0){er.innerHTML='<div class="form-error">⚠ Informe um valor válido.</div>';return}
         try{
+          const val=Number(document.getElementById('settlePayValue').value.replace(',','.')),method=document.getElementById('settlePayMethod').value,when=parseLocal(document.getElementById('settlePayWhen').value);
+          if(!Number.isFinite(val)||val<=0)throw new Error('Informe um valor válido.');
           setLoading(true,'Registrando recebimento…');
           const result=await registerPayment(a,{amount:val,when,method,notes:'Recebimento no acerto de alta',clientRef:paymentRef,prefix:'settlePay'});
-          await loadRemote({quiet:true});a=admission(a.id);render();await calculate();toast(result?.scheduled?'Previsão salva. O saldo permanece em aberto.':'Pagamento registrado.');
-        }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+          await loadRemote({quiet:true});a=admission(a.id);render();
+          if(closeAfter)closeModal();else await calculate();
+          toast(result?.scheduled?'Previsão salva. O saldo permanece em aberto.':result==='finalized'?'Recebimento confirmado e conta finalizada.':'Recebimento confirmado.');
+        }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`;er.scrollIntoView({block:'nearest',behavior:'smooth'})}finally{setLoading(false)}
       };
+      payBtn.onclick=()=>submitSettlementReceipt(false);
     }
     const refundBtn=document.getElementById('settleRefundBtn');
     if(refundBtn){
@@ -1367,14 +1374,16 @@ function dischargeModal(a,proposedAt=null){
 
   const renderActions=()=>{
     const box=document.getElementById('dActions');
+    const hasReceipt=alreadyDischarged&&!!submitSettlementReceipt&&!!document.getElementById('settlePayBtn');
+    const planned=document.getElementById('settlePayTiming')?.dataset.mode==='scheduled';
     box.innerHTML='<button class="btn btn-secondary" data-close2>Cancelar</button>'+
       (alreadyDischarged&&lastPreview?'<button class="btn btn-secondary sheet-trigger" id="dPrint">▤ Visualizar / imprimir</button><button class="btn btn-secondary sheet-trigger" id="dPdf">⇩ Baixar PDF</button>':'')+
       (!alreadyDischarged&&lastPreview?'<button class="btn btn-primary" id="dConfirm">✓ Confirmar alta</button>':'')+
-      (alreadyDischarged?'<button class="btn btn-primary" id="dDone">Concluir</button>':'');
+      (alreadyDischarged?`<button type="button" class="btn btn-primary" id="dDone" data-receipt-submit="${hasReceipt}">${hasReceipt?(planned?'Salvar previsão':'Confirmar recebimento'):'Fechar acerto'}</button>`:'');
     box.querySelector('[data-close2]').onclick=closeModal;
     const pr=document.getElementById('dPrint');if(pr)pr.onclick=()=>printSettlementSheet(a,lastPreview);
     const pd=document.getElementById('dPdf');if(pd)pd.onclick=()=>downloadSettlementPdf(a,lastPreview);
-    const done=document.getElementById('dDone');if(done)done.onclick=closeModal;
+    const done=document.getElementById('dDone');if(done)done.onclick=()=>{if(remoteBusy)return;if(hasReceipt)submitSettlementReceipt(true);else closeModal()};
     const cf=document.getElementById('dConfirm');if(cf)cf.onclick=confirmDischarge;
     polishIcons(document.getElementById('modal'));
   };

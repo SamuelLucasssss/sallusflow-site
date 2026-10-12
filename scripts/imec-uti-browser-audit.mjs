@@ -265,7 +265,7 @@ try{
   await click('[data-nav="finance"]');await click('[data-ftab="planned"]');await surface('previstos-financeiro');
   await click('.scheduled-patient');await click('[data-cancel-receipt]');await fill('#cancelReceiptReason','Família alterou a previsão');await click('#cancelReceiptForm button:not([type=button])');await page.locator('[role=dialog]').waitFor({state:'detached'});
   assert.equal((await fixture.db.query("select count(*)::int as n from public.scheduled_receipts where admission_id=$1 and status='cancelled'",[discountId])).rows[0].n,1);
-  await click('[data-action="discharge"]');await wait('#settlePayWhen');await fill('#settlePayWhen',plannedWhen);await click('#settlePayBtn');
+  await click('[data-action="discharge"]');await wait('#settlePayWhen');await fill('#settlePayWhen',plannedWhen);assert.match(await page.locator('#dDone').textContent(),/Salvar previsão/);await click('#settlePayBtn');
   await wait('#modal .scheduled-panel');await surface('previsao-no-acerto');await page.keyboard.press('Escape');await page.locator('[role=dialog]').waitFor({state:'detached'});
   await page.setViewportSize({width:360,height:950});await surface('previstos-na-conta-360');
   await click('[data-confirm-receipt]');await fill('#cWhen',plannedWhen);await click('#confirmReceiptForm button:not([type=button])');await wait('#confirmReceiptError .form-error');
@@ -275,6 +275,22 @@ try{
   assert.equal((await fixture.db.query('select sum(amount)::float8 as total from public.payments where admission_id=$1 and cancelled_at is null',[discountId])).rows[0].total,800);
   assert.equal((await fixture.db.query("select count(*)::int as n from public.scheduled_receipts where admission_id=$1 and status='confirmed'",[discountId])).rows[0].n,1);
   // A future date can be switched back to receipt now without recording in the future.
+  // A discharged private account is paid through the footer, never merely closed.
+  await fixture.asUser('admin');
+  const footerId=await createSyntheticAdmission(fixture.db,{name:'Rodapé — Recebimento sintético',bed:14,mode:'private',entry:'2026-09-30T16:55:00-03:00',rate:7000});
+  const footerPreview=(await fixture.db.query('select public.preview_uti_settlement($1,$2::timestamptz) as s',[footerId,'2026-10-01T11:40:00-03:00'])).rows[0].s;
+  await fixture.db.query('select public.discharge_uti($1,$2::timestamptz,$3::bigint)',[footerId,footerPreview.dischargeAt,footerPreview.accountVersion]);
+  await page.setViewportSize({width:1365,height:950});await click('[data-nav="settings"]');await click('#manualRefresh');await click('[data-nav="patients"]');await click('[data-filter="all"]');await fill('#searchPatients','Rodape');await click('.table-row[data-open]');await page.setViewportSize({width:360,height:950});
+  await click('[data-action="discharge"]');await wait('#settlePayWhen');await fill('#settlePayWhen',actualWhen);
+  assert.match(await page.locator('#dDone').textContent(),/Confirmar recebimento/);
+  await fill('#settlePayValue','');await click('#dDone');await wait('#settlePayError .form-error');
+  assert.equal((await fixture.db.query('select count(*)::int n from public.payments where admission_id=$1',[footerId])).rows[0].n,0);
+  await fill('#settlePayValue','7000.00');await surface('confirmar-pix-no-rodape-360');await click('#dDone');await page.locator('[role=dialog]').waitFor({state:'detached'});
+  const footerPayments=(await fixture.db.query('select amount::float8 as amount,method from public.payments where admission_id=$1 and cancelled_at is null',[footerId])).rows;
+  assert.deepEqual(footerPayments,[{amount:7000,method:'PIX'}]);
+  assert.equal((await fixture.db.query('select status from public.admissions where id=$1',[footerId])).rows[0].status,'finalized');
+  await assert.rejects(()=>fixture.db.query('select public.add_uti_payment($1,$2::timestamptz,7000,$3,null,$4)',[footerId,new Date(Date.now()-60000).toISOString(),'PIX','synthetic-duplicate-footer-payment']),/finalizada|saldo pendente/);
+  assert.equal((await fixture.db.query('select count(*)::int n from public.payments where admission_id=$1',[footerId])).rows[0].n,1);
   await click('[data-nav="patients"]');await click('[data-filter="all"]');await fill('#searchPatients','Ana Carolina');await click('.table-row[data-open]');await click('[data-action="payment"]');await fill('#pWhen',plannedWhen);
   await click('#pTiming [data-receipt-mode="received"]');assert.equal(await page.locator('#pTiming').getAttribute('data-mode'),'received');assert.notEqual(await page.locator('#pWhen').inputValue(),plannedWhen);
   await page.keyboard.press('Escape');await page.setViewportSize({width:1365,height:950});await click('[data-nav="settings"]');await wait('#logoutBtn');
