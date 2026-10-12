@@ -178,7 +178,12 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 38) fail(`Esperadas 38 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 39) fail(`Esperadas 39 migrations versionadas; encontradas ${migrations.length}.`);
+const scheduledFile=migrations.find(name=>name.endsWith('_scheduled_receipts.sql'));
+if(!scheduledFile)fail('Migration de recebimentos previstos ausente.');
+else for(const required of ['enable row level security','private.has_permission','for update','confirm_uti_receipt','schedule_uti_receipt','cancel_uti_receipt']){
+  if(!read('supabase/migrations/'+scheduledFile).includes(required))fail('Proteção de previsão ausente: '+required);
+}
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
 const discountMigration = read('supabase/migrations/20261012001555_uti_audited_settlement_discount.sql');
 for (const guard of ['private.is_admin()','v_amount>v_balance','private.reconcile_admission_status(a.id)','insert into public.audits',"'Desconto no acerto'"]) {

@@ -7,6 +7,7 @@ import http from 'node:http';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { isolatedDatabase,createSyntheticAdmission,auditUsers } from '../tests/fixtures/imec-uti-database.ts';
+import {toLocalInput} from '../src/imec-uti/domain.ts';
 
 const output=path.resolve(process.env.IMEC_AUDIT_OUTPUT||'tmp/imec-audit');
 fs.mkdirSync(output,{recursive:true});
@@ -25,7 +26,7 @@ const browser=await chromium.launch({headless:true,...(process.env.IMEC_CHROME_P
 const context=await browser.newContext({viewport:{width:1365,height:950},serviceWorkers:'block',acceptDownloads:true});
 const api=[],errors=[],steps=[],visualChecks=[];let queue=Promise.resolve();let failNetwork=false;
 const session=()=>({access_token:'synthetic.'+Buffer.from(JSON.stringify({sub:auditUsers.admin,aal:'aal1',session_id:auditUsers.admin,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')+'.signature',refresh_token:'synthetic-refresh',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:auditUsers.admin,email:'admin@audit.invalid',factors:[]}});
-const tables=new Set(['profiles','patients','admissions','rate_periods','charges','payments','refunds','audits','app_settings','commercial_closers']);
+const tables=new Set(['profiles','patients','admissions','rate_periods','charges','payments','scheduled_receipts','refunds','audits','app_settings','commercial_closers']);
 const identifier=value=>{if(!/^[a-z_][a-z_0-9]*$/i.test(value))throw new Error('Invalid test identifier');return '"'+value+'"';};
 await context.route('https://nxaxkczyeythvzdxqwyu.supabase.co/**',async route=>{
   if(failNetwork){await route.abort('internetdisconnected');return;}
@@ -212,7 +213,7 @@ try{
     await page.setViewportSize({width,height:950});
     await click('[data-nav="home"]');await surface('inicio-'+width);
     await click('[data-nav="finance"]');
-    for(const tab of ['pending','receipts','finalized']){await click('[data-ftab="'+tab+'"]');await surface('financeiro-'+tab+'-'+width);}
+    for(const tab of ['pending','receipts','planned','finalized']){await click('[data-ftab="'+tab+'"]');await surface('financeiro-'+tab+'-'+width);}
     await click('[data-nav="settings"]');await surface('configuracoes-'+width);
     await page.locator('.settings-diagnostics>summary').click();await surface('diagnosticos-'+width);
     await reviewDialog('#inviteUserBtn','convite-'+width);
@@ -228,6 +229,30 @@ try{
   }
   await page.setViewportSize({width:1365,height:950});
   await click('[data-nav="settings"]');await wait('#logoutBtn');assert.match(await page.locator('.security-status').textContent(),/e-mail e senha/);await shot('desktop-configuracoes');
+  // Future promises never enter the ledger. Confirmation records the actual date.
+  await click('[data-nav="patients"]');await click('[data-filter="all"]');await fill('#searchPatients','Marina');await click('.table-row[data-open]');
+  const plannedWhen=toLocalInput(new Date(Date.now()+2*86400000)),actualWhen=toLocalInput(new Date(Date.now()-60000));
+  await click('[data-action="payment"]');await fill('#pValue','300');await fill('#pWhen',plannedWhen);
+  assert.equal(await page.locator('#pTiming').getAttribute('data-mode'),'scheduled');
+  await surface('previsao-futura-formulario');await click('#pSubmit');await wait('.scheduled-panel');
+  assert.match(await page.locator('.scheduled-copy>span').first().textContent(),/PIX/);
+  assert.equal((await fixture.db.query('select sum(amount)::float8 as total from public.payments where admission_id=$1 and cancelled_at is null',[discountId])).rows[0].total,500);
+  await click('[data-nav="finance"]');await click('[data-ftab="planned"]');await surface('previstos-financeiro');
+  await click('.scheduled-patient');await click('[data-cancel-receipt]');await fill('#cancelReceiptReason','Família alterou a previsão');await click('#cancelReceiptForm button:not([type=button])');await page.locator('[role=dialog]').waitFor({state:'detached'});
+  assert.equal((await fixture.db.query("select count(*)::int as n from public.scheduled_receipts where admission_id=$1 and status='cancelled'",[discountId])).rows[0].n,1);
+  await click('[data-action="discharge"]');await wait('#settlePayWhen');await fill('#settlePayWhen',plannedWhen);await click('#settlePayBtn');
+  await wait('#modal .scheduled-panel');await surface('previsao-no-acerto');await page.keyboard.press('Escape');await page.locator('[role=dialog]').waitFor({state:'detached'});
+  await page.setViewportSize({width:360,height:950});await surface('previstos-na-conta-360');
+  await click('[data-confirm-receipt]');await fill('#cWhen',plannedWhen);await click('#confirmReceiptForm button:not([type=button])');await wait('#confirmReceiptError .form-error');
+  assert.equal((await fixture.db.query('select sum(amount)::float8 as total from public.payments where admission_id=$1 and cancelled_at is null',[discountId])).rows[0].total,500);
+  await fill('#cWhen',actualWhen);await surface('confirmar-recebimento-posterior-360');await click('#confirmReceiptForm button:not([type=button])');await page.locator('[role=dialog]').waitFor({state:'detached'});
+  assert.equal((await fixture.db.query('select status from public.admissions where id=$1',[discountId])).rows[0].status,'finalized');
+  assert.equal((await fixture.db.query('select sum(amount)::float8 as total from public.payments where admission_id=$1 and cancelled_at is null',[discountId])).rows[0].total,800);
+  assert.equal((await fixture.db.query("select count(*)::int as n from public.scheduled_receipts where admission_id=$1 and status='confirmed'",[discountId])).rows[0].n,1);
+  // A future date can be switched back to receipt now without recording in the future.
+  await click('[data-nav="patients"]');await click('[data-filter="all"]');await fill('#searchPatients','Ana Carolina');await click('.table-row[data-open]');await click('[data-action="payment"]');await fill('#pWhen',plannedWhen);
+  await click('#pTiming [data-receipt-mode="received"]');assert.equal(await page.locator('#pTiming').getAttribute('data-mode'),'received');assert.notEqual(await page.locator('#pWhen').inputValue(),plannedWhen);
+  await page.keyboard.press('Escape');await page.setViewportSize({width:1365,height:950});await click('[data-nav="settings"]');await wait('#logoutBtn');
   const [exported]=await Promise.all([page.waitForEvent('download'),click('[data-action="export"]')]);await exported.saveAs(path.join(output,'exportacao-sintetica.json'));
   await context.setOffline(true);await wait('#networkStatus.show');assert.match(await page.locator('#networkStatus').textContent(),/Sem conexão/);await context.setOffline(false);
   await click('#logoutBtn');await wait('#loginForm');assert.equal(await page.locator('.detail-hero').count(),0);
