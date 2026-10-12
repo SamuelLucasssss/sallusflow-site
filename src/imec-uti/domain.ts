@@ -65,6 +65,15 @@ export function cpfMask(value: unknown): string {
   return normalized ? normalized.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'Não informado';
 }
 
+export function matchesPatientSearch(patient: {name?: string; cpf?: string} | null | undefined, query: string): boolean {
+  const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();
+  const term=normalize(query);
+  if(!term)return true;
+  if(normalize(patient?.name||'').includes(term))return true;
+  const digits=cpfNorm(query);
+  return digits.length>0 && /^[\d\s.\-]+$/.test(query) && cpfNorm(patient?.cpf).includes(digits);
+}
+
 export const dayKey = (value: Date | string | number): string => {
   const p = businessParts(value);
   return `${p.year}-${p.month}-${p.day}`;

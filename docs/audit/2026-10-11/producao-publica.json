@@ -1,0 +1,94 @@
+{
+  "checkedAt": "2026-10-11T23:43:19.389Z",
+  "timing": {
+    "ttfb_ms": 22,
+    "dom_ms": 575,
+    "resources": [
+      {
+        "name": "https://www.sallusflow.com.br/_astro/index.Bb2Fmsjj.css",
+        "bytes": 10022,
+        "ms": 62
+      },
+      {
+        "name": "https://www.sallusflow.com.br/_astro/index.astro_astro_type_script_index_0_lang.DALJBvbj.js",
+        "bytes": 33748,
+        "ms": 41
+      },
+      {
+        "name": "https://www.sallusflow.com.br/imec-uti/icon.svg",
+        "bytes": 665,
+        "ms": 28
+      }
+    ]
+  },
+  "errors": [],
+  "responses": [
+    {
+      "status": 200,
+      "url": "https://www.sallusflow.com.br/imec-uti/"
+    },
+    {
+      "status": 200,
+      "url": "https://www.sallusflow.com.br/_astro/index.Bb2Fmsjj.css"
+    },
+    {
+      "status": 200,
+      "url": "https://www.sallusflow.com.br/_astro/index.astro_astro_type_script_index_0_lang.DALJBvbj.js"
+    },
+    {
+      "status": 200,
+      "url": "https://www.sallusflow.com.br/imec-uti/icon.svg"
+    }
+  ],
+  "anonymous_checks": [
+    {
+      "resource": "/rest/v1/patients?select=id",
+      "status": 401
+    },
+    {
+      "resource": "/rest/v1/payments?select=id",
+      "status": 401
+    },
+    {
+      "resource": "/functions/v1/invite-uti-user",
+      "status": 400
+    }
+  ],
+  "public_monitor": {
+    "healthy": true,
+    "results": [
+      {
+        "path": "/imec-uti/",
+        "ok": true,
+        "code": "OK"
+      },
+      {
+        "path": "/imec-uti/manifest.webmanifest",
+        "ok": true,
+        "code": "OK"
+      },
+      {
+        "path": "/imec-uti/sw.js",
+        "ok": true,
+        "code": "OK"
+      },
+      {
+        "path": "/imec-uti/icon-192.png",
+        "ok": true,
+        "code": "OK"
+      },
+      {
+        "path": "/imec-uti/icon-512.png",
+        "ok": true,
+        "code": "OK"
+      },
+      {
+        "path": "/imec-uti/icon-maskable-512.png",
+        "ok": true,
+        "code": "OK"
+      }
+    ],
+    "checkedAt": "2026-10-11T23:43:19.389Z"
+  },
+  "whole_probe_ms": 2885
+}

@@ -4,12 +4,9 @@
 
 The application is invite-only. There is no public signup flow. Administrators invite users through the protected `invite-uti-user` Edge Function.
 
-Every active user must use:
-1. email + password;
-2. TOTP multi-factor authentication;
-3. an authenticated Supabase session that still exists server-side.
+Current operation uses email + password and an authenticated Supabase session that still exists server-side. Active profile and role authorization remain mandatory. TOTP is optional according to the database policy.
 
-The database can enforce AAL2 globally through `app_settings.mfa_required`. The switch is enabled only after the Package 3 frontend has reached production so existing users are not locked out before the enrollment UI exists.
+The database can enforce AAL2 through `app_settings.mfa_required`. The current authorized value is `false`; never re-enable it as an automatic audit or deployment step. The old mandatory-MFA descriptions describe historical Package 3 behavior.
 
 ## Password policy
 
@@ -24,7 +21,7 @@ Supabase's native leaked-password toggle remains recommended as defense in depth
 
 ## MFA
 
-TOTP is mandatory for application access. The app supports:
+TOTP is implemented and configurable, and required only when the policy enables it. The app supports:
 - first-factor login;
 - enrollment by QR code/manual secret;
 - challenge and verification;
@@ -43,7 +40,7 @@ The backend additionally validates the JWT `session_id` against `auth.sessions`.
 
 Invitation and recovery callbacks are handled by the application. Tokens present in the URL fragment are consumed, stored as a session, and immediately removed from the browser address/history before operational data is shown.
 
-First access and recovery require the user to define a strong, non-leaked password before continuing to MFA.
+First access and recovery require the user to define a strong, non-leaked password before continuing under the current authentication policy.
 
 ## Browser security
 
@@ -70,7 +67,7 @@ Both Edge Functions require a valid JWT and use a pinned Supabase client version
 - active profile;
 - admin role.
 
-The privileged invitation path re-checks authorization through `is_uti_admin_secure_session()` using the caller's JWT before the Edge Function creates a service-role client. Revoked sessions therefore cannot continue to invite users with a still-unexpired access token.
+The privileged invitation path must re-check authorization through `is_uti_admin_secure_session()` using the caller's JWT before the Edge Function creates a service-role client. The audit fix explicitly supplies that JWT in `global.headers.Authorization`: `getUser(token)` alone does not install it as the client's RPC session. Revoked sessions remain blocked. Native invitation delivery and optional administrator step-up require human homologation.
 
 Allowed browser origins are restricted to the production domain and legitimate Vercel previews.
 

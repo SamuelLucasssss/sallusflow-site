@@ -9,6 +9,7 @@
     "preview": "astro preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit -p tsconfig.check.json",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:browser": "node --experimental-strip-types scripts/imec-uti-browser-audit.mjs",
     "quality": "node scripts/quality-gate.mjs",
     "check": "npm run typecheck && npm run test && npm run quality && npm run security && npm run build",
     "security": "node scripts/security-audit.mjs",
@@ -16,14 +17,16 @@
     "postbuild": "node scripts/verify-imec-pwa-icons.mjs"
   },
   "dependencies": {
-    "astro": "7.3.6",
     "@astrojs/react": "7.0.0",
+    "astro": "7.3.6",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
+    "playwright": "1.62.1",
     "typescript": "6.0.3"
   },
   "engines": {

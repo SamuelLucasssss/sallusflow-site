@@ -33,3 +33,9 @@ jobs:
 
       - name: Full quality gate
         run: npm run check
+
+      - name: Install isolated browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser and isolated PostgreSQL user journey
+        run: npm run test:browser

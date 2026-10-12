@@ -41,7 +41,10 @@ Deno.serve(async (req) => {
     const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const userClient = createClient(url, anon, { auth: { persistSession: false } });
+    const userClient = createClient(url, anon, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
     const { data: userData, error: userError } = await userClient.auth.getUser(token);
     if (userError || !userData.user) throw new Error("Sessão inválida.");
     if (jwtPayload(token)?.aal !== "aal2") {

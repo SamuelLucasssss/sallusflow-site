@@ -30,7 +30,7 @@ Migration: `20261008124228_package6_document_output_audit.sql`.
 
 RPC: `public.log_uti_document_event(p_admission_id, p_event, p_document_kind)`.
 
-- Exige `private.is_active_member()` (perfil ativo, sessão presente em `auth.sessions` e MFA/AAL2 obrigatório).
+- Exige `private.is_active_member()` (perfil ativo, sessão presente em `auth.sessions` e MFA conforme a política vigente).
 - Confere internação e valores permitidos; grava `public.audits` com usuário, tipo de ação e data.
 - Eventos do app: ficha (`print_requested`), folha aberta (`print_view_opened`), impressão solicitada da folha (`print_requested`), PDF (`pdf_downloaded`).
 - O popup da folha usa event listeners instalados após abertura; não depende de `onclick` inline, incompatível com CSP restrita.
@@ -41,7 +41,7 @@ Migration: `20261008125711_package6_secure_admin_json_export.sql`.
 
 RPC: `public.log_uti_data_export()`.
 
-- Exige `private.is_admin()` (administrador ativo, sessão válida, MFA/AAL2).
+- Exige `private.is_admin()` (administrador ativo, sessão válida, MFA conforme a política vigente).
 - Confirmação prévia sobre dados pessoais/financeiros.
 - Download JSON só é liberado depois do evento auditado.
 - O arquivo baixado é responsabilidade institucional: protegê-lo, restringir acesso e evitar envio a serviços pessoais.
@@ -51,14 +51,14 @@ RPC: `public.log_uti_data_export()`.
 - `npm run check`: TypeScript, testes, quality gate, auditoria de dependências e build.
 - Testes do Pacote 6: manifest, PWA sem cache de PHI, regiões acessíveis, modais/foco, auditoria de impressão, exportação segura e safe-area.
 - `npm run build`: gera PNGs e valida PNG signature, dimensões e manifest no diretório de publicação.
-- Supabase: validar privilégio de execução, teste AAL2 autorizado, testes AAL1 e sessão inexistente bloqueados; transação com `ROLLBACK` não produz auditorias permanentes.
+- Supabase: validar privilégios e política vigente. Com MFA opcional, AAL1 ativa e válida deve passar; com a flag habilitada, AAL1 deve ser negada. Sessão inexistente sempre deve ser bloqueada; transações com `ROLLBACK` não produzem auditorias permanentes.
 - Deploy: verificar commit correspondente na `main`, CI `quality` e Vercel `success`.
 
 ## Homologação em aparelhos reais
 
 Para conformidade operacional 10/10, complementar CI com conferência por pessoa autorizada:
 
-1. Chrome Android: instalar, abrir no ícone, autenticar com MFA; verificar ícone adaptativo.
+1. Chrome Android: instalar, abrir no ícone, autenticar conforme a política vigente; verificar ícone adaptativo.
 2. Safari iOS: Compartilhar → Adicionar à Tela de Início; conferir ícone 180×180 e margens do notch/home indicator.
 3. Alternar rede: verificar banner e página estática de indisponibilidade; reconectar e atualizar.
 4. Navegar no teclado: skip link, Tab/Shift+Tab, Escape e retorno de foco em todos os modais.

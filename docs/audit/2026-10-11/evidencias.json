@@ -1,0 +1,61 @@
+{
+  "reference": {
+    "main": "8d4b1fb2e4c176b99af0a005887e960e3990a409",
+    "deployment": "dpl_7AD4uXUDyZyXc5RqDuVnzLxqWMZo",
+    "state": "READY",
+    "branch": "codex/auditoria-forense-imec-uti",
+    "integrated_main": "9907be20cbbd57b418e45f5927628e014dfcfb28",
+    "final_deployment_verification": "unavailable: Vercel API 403; CLI authentication unavailable"
+  },
+  "baseline": {
+    "tests": 40,
+    "migrations": 36,
+    "public_tables_with_rls": 12,
+    "main_protected": false,
+    "repository_private": false,
+    "mfa_required": false,
+    "active_cron_jobs": 3,
+    "cron_failures_24h": 0,
+    "unresolved_alerts": 0,
+    "integrity_anomalies_checked": 0,
+    "postgres_error_events_24h": {
+      "total": 11,
+      "sqlstate_42501": 7,
+      "sqlstate_P0001": 4
+    },
+    "native_leaked_password_protection": false,
+    "unused_indexes_advisor": 14
+  },
+  "proposal": {
+    "tests": 71,
+    "passed": 71,
+    "failed": 0,
+    "skipped": 0,
+    "migrations": 38,
+    "known_npm_vulnerabilities": 0,
+    "build": "passed",
+    "browser": "passed",
+    "sql_engine": "PostgreSQL 17.5 via PGlite 0.3.14",
+    "hosted_auth": "not homologated",
+    "concurrency_independent_connections": "not homologated",
+    "production_mutations_during_audit": 0,
+    "production_deployed": false,
+    "new_audit_tests": 27,
+    "integrated_main_tests": 4
+  },
+  "render_benchmark": {
+    "synthetic_admissions": 500,
+    "synthetic_charges": 5000,
+    "synthetic_payments": 500,
+    "samples_ms": [
+      175,
+      101,
+      101,
+      110,
+      100
+    ],
+    "median_ms": 101,
+    "html_bytes": 196804,
+    "scope": "local render only; no hosted SQL/network benchmark"
+  }
+}

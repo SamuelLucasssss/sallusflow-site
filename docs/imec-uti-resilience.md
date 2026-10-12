@@ -13,14 +13,14 @@ O sistema deve responder rapidamente a quatro perguntas:
 
 ## Monitor de saúde
 
-A tabela `public.system_health_checks` registra snapshots operacionais. Somente administradores autenticados com sessão válida e MFA server-side passam pela RLS de leitura.
+A tabela `public.system_health_checks` registra snapshots operacionais. Somente administradores ativos com sessão válida passam pela RLS de leitura; a exigência de MFA segue a configuração vigente.
 
 O job `imec-uti-health-check` executa a cada 15 minutos e chama `private.run_uti_health_check()`.
 
 Cada checagem valida:
 
 - existência de administrador ativo;
-- `mfa_required=true`;
+- configuração de autenticação vigente (o modo normal por senha não é incidente);
 - ausência de dois pacientes ativos no mesmo leito;
 - ausência de ciclos de diária duplicados;
 - existência de condição de diária válida em toda conta aberta;
@@ -57,7 +57,7 @@ Tratar antes de lançar novas movimentações quando o alerta envolver:
 - internação sem condição de diária;
 - faturamento automático inativo/atrasado com conta aberta;
 - ausência de administrador ativo;
-- MFA server-side desativado.
+- falha efetiva de autorização ou sessão; MFA opcional por decisão operacional não é falha.
 
 ### Warning
 
