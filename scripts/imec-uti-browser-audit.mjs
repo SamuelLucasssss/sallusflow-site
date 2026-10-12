@@ -285,7 +285,7 @@ try{
   assert.match(await page.locator('#dDone').textContent(),/Confirmar recebimento/);
   await fill('#settlePayValue','');await click('#dDone');await wait('#settlePayError .form-error');
   assert.equal((await fixture.db.query('select count(*)::int n from public.payments where admission_id=$1',[footerId])).rows[0].n,0);
-  await fill('#settlePayValue','7000.00');await surface('confirmar-pix-no-rodape-360');await click('#dDone');await page.locator('[role=dialog]').waitFor({state:'detached'});
+  await fill('#settlePayValue','7000.00');assert.equal(await page.locator('#settlePayError .form-error').count(),0);await surface('confirmar-pix-no-rodape-360');await click('#dDone');await page.locator('[role=dialog]').waitFor({state:'detached'});
   const footerPayments=(await fixture.db.query('select amount::float8 as amount,method from public.payments where admission_id=$1 and cancelled_at is null',[footerId])).rows;
   assert.deepEqual(footerPayments,[{amount:7000,method:'PIX'}]);
   assert.equal((await fixture.db.query('select status from public.admissions where id=$1',[footerId])).rows[0].status,'finalized');

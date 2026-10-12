@@ -789,7 +789,7 @@ function bindReceiptTiming(a,prefix,whenId,submitId){
    root.querySelectorAll('[data-receipt-mode]').forEach(b=>{const active=b.dataset.receiptMode===root.dataset.mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
    const label=when.closest('.field')?.querySelector('.field-label');if(label)label.textContent=planned?'Data e hora previstas':'Data e hora do recebimento';
    document.getElementById(prefix+'TimingNote').textContent=planned?'Previsão: o valor só reduz o saldo após confirmar o recebimento.':late?'Recebimento após a alta. Confirme somente se o dinheiro já foi recebido.':'Confirme somente o valor que já foi recebido.';
-   submit.innerHTML=icon(planned?'clock':'check')+(planned?'Salvar previsão':late?'Confirmar recebimento posterior':'Confirmar recebimento');
+   submit.innerHTML=icon(planned?'clock':'check')+(planned?'Salvar previsão':'Confirmar recebimento');
    const footer=document.getElementById('dDone');
    if(footer?.dataset.receiptSubmit==='true')footer.innerHTML=icon(planned?'clock':'check')+(planned?'Salvar previsão':'Confirmar recebimento');
  };
@@ -1338,6 +1338,8 @@ function dischargeModal(a,proposedAt=null){
     if(payBtn){
       bindCardDetails('settlePay','settlePayMethod');
       bindReceiptTiming(a,'settlePay','settlePayWhen','settlePayBtn');
+      payBtn.closest('.settle-paybox')?.addEventListener('input',()=>{document.getElementById('settlePayError').innerHTML=''});
+      payBtn.closest('.settle-paybox')?.addEventListener('change',()=>{document.getElementById('settlePayError').innerHTML=''});
       const paymentRef=crypto.randomUUID();
       submitSettlementReceipt=async(closeAfter=false)=>{
         if(remoteBusy)return;
