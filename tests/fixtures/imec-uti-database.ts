@@ -50,7 +50,7 @@ export async function isolatedDatabase({hardened=true}={}){
   await db.exec(read('20261012001555_uti_audited_settlement_discount.sql'));
   await db.exec(read('20261008124228_package6_document_output_audit.sql'));
   await db.exec(read('20261008125711_package6_secure_admin_json_export.sql'));
-  if(hardened)await db.exec(read('20261012002542_audit_integrity_hardening.sql'));
+  if(hardened)await db.exec(read('20261012004235_audit_integrity_hardening.sql'));
   for(const [role,id] of Object.entries(auditUsers)){
     await db.query('insert into auth.users(id,email) values($1,$2)',[id,`${role}@audit.invalid`]);
     await db.query('update public.profiles set display_name=$2,role=$3,active=$4 where id=$1',[id,`Synthetic ${role}`,role==='inactive'?'operator':role,role!=='inactive']);

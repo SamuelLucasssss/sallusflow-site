@@ -1,0 +1,27 @@
+{
+  "status": "passed",
+  "engine": "PostgreSQL 17.11 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit",
+  "scope": "isolated native PostgreSQL, synthetic Auth sessions; independent connections",
+  "results": [
+    {
+      "scenario": "two connections compete for the same bed",
+      "status": "passed",
+      "lock_observed": true
+    },
+    {
+      "scenario": "concurrent identical payment retries after finalization",
+      "status": "passed",
+      "lock_observed": true
+    },
+    {
+      "scenario": "tariff adjustment serializes a concurrent daily sync",
+      "status": "passed",
+      "lock_observed": true
+    },
+    {
+      "scenario": "two admins cannot concurrently remove the last admin",
+      "status": "passed",
+      "lock_observed": true
+    }
+  ]
+}

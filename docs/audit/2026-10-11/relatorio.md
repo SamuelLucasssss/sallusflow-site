@@ -1,6 +1,8 @@
 # IMEC UTI — Auditoria forense e checkup geral
 Data operacional: 11/10/2026, America/Sao_Paulo. Algumas coletas ocorreram em 12/10 UTC.
 
+**Atualização após autorização de publicação:** ver [aplicação das correções](publicacao.md). Este relatório preserva o diagnóstico e o estado anterior ao release; o registro de publicação documenta a migration aplicada, a Edge Function e a validação adicional de concorrência nativa.
+
 Referência inicial de produção: `main@8d4b1fb2e4c176b99af0a005887e960e3990a409`. Branch das correções: `codex/auditoria-forense-imec-uti`. Repositório: `SamuelLucasssss/sallusflow-site`. Deploy inicial verificado: Vercel READY, `dpl_7AD4uXUDyZyXc5RqDuVnzLxqWMZo`.
 
 Na conferência final, main avançou para `9907be20cbbd57b418e45f5927628e014dfcfb28`, incluindo desconto auditado. A branch foi integrada sobre essa revisão e todos os testes foram repetidos. A RPC de desconto já estava implantada, com versão remota `20261012001555`; o nome local também foi alinhado. O escopo de cada coleta anterior continua vinculado à referência inicial, sem presumir que todas foram repetidas no novo deploy.
@@ -135,7 +137,7 @@ O próximo avanço de UX deve ser uma sessão curta com um profissional de plant
 | `src/imec-uti/app.ts`, `domain.ts` | Busca/cursor, geração e refresh de sessão, limpeza imediata, paginação, segurança da senha, mensagens/configuração e cartão com desconto. | 11 testes runtime novos; busca e fluxo também no navegador. |
 | `src/imec-uti/styles.css` | Pacientes compactos no mobile e diagnóstico administrativo recolhível. | Quatro viewports; saldo visível 360/390px; inspeção de capturas sintéticas. |
 | `supabase/functions/invite-uti-user/index.ts` | Encaminhamento do JWT para RPC autorizadora. | Dois testes Edge com SDK/Auth/env simulados; sem disparo de e-mail. |
-| `20261012002542_audit_integrity_hardening.sql` | Idempotência, números finitos, revogação legado, locks de diárias e administração. | 14 testes PostgreSQL novos, incluindo desconto integrado; constraints e financeiro real isolado. Concorrência nativa pendente. |
+| `20261012004235_audit_integrity_hardening.sql` | Idempotência, números finitos, revogação legado, locks de diárias e administração. | 14 testes PostgreSQL novos, incluindo desconto integrado; constraints e financeiro real isolado. Concorrência nativa pendente. |
 | Três migrations renomeadas + `scripts/quality-gate.mjs` | Correspondência com versão implantada; 38 arquivos esperados na branch. | Gate passou; nenhuma reaplicação/reescrita no servidor. |
 | `tests/fixtures/*`, três suites novas | Runtime controlado, SQL/RLS isolado e mocks Edge. | Mais 27 testes de auditoria; quatro testes de desconto incorporados da main; total 71. |
 | `scripts/imec-uti-browser-audit.mjs`, CI, package/lock | Jornada repetível conectando UI e SQL isolado; ferramentas somente dev. | Playwright passou localmente; execução remota acompanha o PR. |
