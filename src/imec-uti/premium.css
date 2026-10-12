@@ -1,5 +1,19 @@
 /* Presentation only. Printed documents keep their independent, economical layout. */
 @media screen {
+  .receipt-timing .segmented { min-height: 44px; padding: 4px; background: #eef2ee; }
+  .receipt-timing .segmented button { min-height: 38px; font-size: 12px; font-weight: 600; }
+  .receipt-timing-note { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 10px 0 0; }
+  .scheduled-panel { margin-bottom: 18px; border-color: #dae6df; }
+  .panel:has(>.scheduled-panel) { padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .scheduled-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; border-top: 1px solid var(--line); }
+  .scheduled-row:first-child { border-top: 0; padding-top: 0; }
+  .scheduled-row:last-child { padding-bottom: 0; }
+  .scheduled-copy { min-width: 0; }
+  .scheduled-copy>strong { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 15px; font-weight: 650; }
+  .scheduled-copy>span, .scheduled-copy>small { display: block; font-size: 12px; color: var(--muted); margin-top: 5px; overflow-wrap: anywhere; }
+  .scheduled-patient { border: 0; background: transparent; color: var(--text); padding: 0; margin-bottom: 6px; font-size: 13px; font-weight: 600; text-align: left; overflow-wrap: anywhere; }
+  .scheduled-patient:hover { color: var(--brand); text-decoration: underline; }
+  .scheduled-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
   :root {
     font-family: "Segoe UI Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --brand: #12635e;
@@ -325,6 +339,9 @@
 }
 
 @media screen and (max-width: 520px) {
+  .scheduled-row { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .scheduled-actions { width: 100%; }
+  .scheduled-actions .btn { flex: 1; min-height: 44px; }
   .metric-grid, .finance-metrics { gap: 10px; }
   .metric-card { padding: 15px; min-height: 150px; }
   .metric-icon { display: grid; width: 28px; height: 28px; margin-bottom: 12px; }

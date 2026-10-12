@@ -85,7 +85,7 @@ let modalReturnFocus=null;
 const MODAL_FOCUSABLE='a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-function blankData(){return {patients:[],admissions:[],charges:[],payments:[],refunds:[],audits:[],health:null,healthHistory:[],alerts:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
+function blankData(){return {patients:[],admissions:[],charges:[],payments:[],scheduledReceipts:[],refunds:[],audits:[],health:null,healthHistory:[],alerts:[],currentUser:'Samuel',currentRole:null,onDuty:'Samuel',seededDemo:false}}
 function currentRate(a,at=new Date()){return [...a.rateHistory].filter(r=>new Date(r.effectiveAt)<=at).sort((x,y)=>new Date(y.effectiveAt)-new Date(x.effectiveAt))[0]||a.rateHistory[0]}
 function totals(id){const billed=data.charges.filter(c=>c.admissionId===id).reduce((s,c)=>s+c.amount,0),received=data.payments.filter(p=>p.admissionId===id).reduce((s,p)=>s+p.amount,0),refunded=(data.refunds||[]).filter(r=>r.admissionId===id).reduce((s,r)=>s+r.amount,0),netReceived=received-refunded;return {billed,received,refunded,netReceived,balance:billed-received+refunded}}
 function patient(id){return data.patients.find(p=>p.id===id)}
@@ -166,8 +166,9 @@ function financePage(){
   let body='';
   if(state.financeTab==='pending')body=pending.length?`<div class="finance-list">${pending.map(({a,t})=>{const p=patient(a.patientId),pays=data.payments.filter(x=>x.admissionId===a.id).sort((x,y)=>new Date(y.occurredAt)-new Date(x.occurredAt)),m=balanceMeta(t.balance);return `<button class="finance-row" data-open="${a.id}"><div><div class="finance-name"><strong>${esc(p?.name)}</strong>${a.status==='discharge_pending'?'<span class="badge badge-warn">Alta pendente</span>':''}</div><span>Leito ${String(a.bed).padStart(2,'0')} • Último pagamento: ${pays[0]?fmtDT(pays[0].occurredAt):'nenhum'}</span></div><div class="finance-amount"><span>${m.label}</span><strong>${money(m.amount)}</strong></div><span>›</span></button>`}).join('')}</div>`:empty('Nenhuma pendência financeira','Não há valores a receber nem créditos a devolver.');
   else if(state.financeTab==='receipts')body=movements.length?`<div class="receipt-list">${movements.map(x=>{const a=admission(x.admissionId),pt=a?patient(a.patientId):null;return `<div class="receipt-row"><div class="receipt-icon">${x.flow==='in'?'↙':'↗'}</div><div><strong>${esc(pt?.name||'Paciente')}</strong><span>${fmtDT(x.occurredAt)} • ${x.flow==='in'?'Recebimento':'Reembolso'} • ${esc(x.method)} • por ${esc(x.createdBy)}</span></div><strong>${x.flow==='in'?'+ ':'- '}${money(x.amount)}</strong></div>`}).join('')}</div>`:empty('Nenhuma movimentação','Recebimentos e reembolsos aparecerão aqui.');
+  else if(state.financeTab==='planned')body=scheduledReceiptPanel()||empty('Nenhum recebimento previsto','Use Receber depois ao registrar um recebimento.');
   else body=fin.length?`<div class="finance-list">${fin.map(a=>{const p=patient(a.patientId),t=totals(a.id);return `<button class="finance-row" data-open="${a.id}"><div><div class="finance-name"><strong>${esc(p?.name)}</strong><span class="badge badge-good">Finalizado</span></div><span>Alta ${a.dischargeAt?fmtDT(a.dischargeAt):'—'} • ${a.mode==='private'?'Particular':'Hotelaria'}</span></div><div class="finance-amount"><span>Total</span><strong>${money(t.billed)}</strong></div><span>›</span></button>`}).join('')}</div>`:empty('Nenhuma conta finalizada','Internações quitadas e encerradas aparecerão aqui.');
-  return `<section class="page-head"><div><span class="eyebrow">RECEBIMENTOS</span><h1>Financeiro</h1><p>Entradas, reembolsos e contas que precisam de fechamento.</p></div></section><div class="metric-grid finance-metrics">${metric('A receber',money(totalOpen),'',totalOpen>0?'warn':'good')}${metric('Crédito a devolver',money(totalCredit),'',totalCredit>0?'warn':'good')}${metric('Recebido líquido hoje',money(payToday-refToday),'','good')}${metric('Recebido líquido no mês',money(payMonth-refMonth))}</div><div class="tabs"><button data-ftab="pending" class="${state.financeTab==='pending'?'active':''}">Pendências <span>${pending.length}</span></button><button data-ftab="receipts" class="${state.financeTab==='receipts'?'active':''}">Movimentações</button><button data-ftab="finalized" class="${state.financeTab==='finalized'?'active':''}">Finalizados</button></div><section class="panel">${body}</section>`;
+  return `<section class="page-head"><div><span class="eyebrow">RECEBIMENTOS</span><h1>Financeiro</h1><p>Entradas, reembolsos e contas que precisam de fechamento.</p></div></section><div class="metric-grid finance-metrics">${metric('A receber',money(totalOpen),'',totalOpen>0?'warn':'good')}${metric('Crédito a devolver',money(totalCredit),'',totalCredit>0?'warn':'good')}${metric('Recebido líquido hoje',money(payToday-refToday),'','good')}${metric('Recebido líquido no mês',money(payMonth-refMonth))}</div><div class="tabs"><button data-ftab="pending" class="${state.financeTab==='pending'?'active':''}">Pendências <span>${pending.length}</span></button><button data-ftab="receipts" class="${state.financeTab==='receipts'?'active':''}">Movimentações</button><button data-ftab="planned" class="${state.financeTab==='planned'?'active':''}">Previstos</button><button data-ftab="finalized" class="${state.financeTab==='finalized'?'active':''}">Finalizados</button></div><section class="panel">${body}</section>`;
 }
 function patientDetail(a){
   const p=patient(a.patientId),t=totals(a.id),r=currentRate(a),charges=data.charges.filter(c=>c.admissionId===a.id),payments=data.payments.filter(x=>x.admissionId===a.id),refunds=(data.refunds||[]).filter(x=>x.admissionId===a.id),m=balanceMeta(t.balance);
@@ -184,7 +185,7 @@ function patientDetail(a){
   <section class="detail-hero print-area"><div class="detail-identity"><div class="bed-large">${String(a.bed).padStart(2,'0')}</div><div><div class="detail-badges">${statusBadge(a.status)}<span class="badge ${a.mode==='private'?'badge-brand':'badge-neutral'}">${a.mode==='private'?'Particular':'Hotelaria'}</span></div><h1>${esc(p?.name)}</h1><p>CPF ${cpfMask(p?.cpf)} • Responsável pelo fechamento: <strong>${esc(a.closer)}</strong></p></div></div><div class="detail-meta-grid"><div><span>Entrada</span><strong>${fmtDT(a.entryAt)}</strong></div><div><span>Saída</span><strong>${a.dischargeAt?fmtDT(a.dischargeAt):'Em andamento'}</strong></div><div><span>Tempo de internação</span><strong>${hospitalDays(a)} dia${hospitalDays(a)>1?'s':''}</strong></div><div><span>Condição atual</span><strong>${esc(r.label)}</strong></div><div><span>Diária atual</span><strong>${money(r.negotiatedRate)}</strong></div></div></section>
   <div class="money-hero print-area"><div><span>Cobrado</span><strong>${money(t.billed)}</strong></div><div><span>Recebido líquido</span><strong>${money(t.netReceived)}</strong>${t.refunded>0?`<small>Reembolsado: ${money(t.refunded)}</small>`:''}</div><div class="balance ${Math.abs(t.balance)<=0.009?'paid':'open'}"><span>${m.label}</span><strong>${money(m.amount)}</strong></div></div>
   <div class="quick-actions no-print"><button data-action="payment" ${!canPay?'disabled':''}><div>R$</div><span>Registrar pagamento</span></button><button data-action="extra" ${!can('add_extra')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>＋</div><span>Adicionar extra</span></button>${canDiscount?'<button data-action="discount"><div>−</div><span>Conceder desconto</span></button>':''}<button data-action="rate" ${!can('adjust_rate')||a.status!=='active'?'disabled':''}><div>↻</div><span>Ajustar diária</span></button>${canRefund?'<button data-action="refund"><div>↗</div><span>Reembolsar crédito</span></button>':''}<button data-action="discharge" ${!can('discharge')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>→</div><span>${a.status==='discharge_pending'?'Acerto / saída':'Registrar alta'}</span></button></div>
-  <div class="detail-columns print-area"><section class="panel"><div class="panel-head"><div><h2>Movimentação financeira</h2><p>Resumo da conta; as diárias são agrupadas para evitar repetição visual.</p></div></div>${timeline.length?`<div class="timeline">${timeline.map(row=>row.kind==='p'?`<div class="timeline-row payment"><div class="timeline-dot">↙</div><div><strong>Pagamento recebido</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}</div><strong class="good-text">+ ${money(row.item.amount)}</strong></div>`:row.kind==='r'?`<div class="timeline-row payment"><div class="timeline-dot">↗</div><div><strong>Reembolso ao paciente</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}</div><strong>- ${money(row.item.amount)}</strong></div>`:row.kind==='d'?`<div class="timeline-row charge"><div class="timeline-dot">▤</div><div><strong>Diárias da internação — ${Number(row.item.units).toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong><span>${fmtDM(row.item.first)} a ${fmtDM(row.item.last)} • ${row.item.count} lançamento(s)</span></div><strong>${money(row.item.amount)}</strong></div>`:`<div class="timeline-row charge"><div class="timeline-dot">${row.item.amount<0?'−':'＋'}</div><div><strong>${esc(row.item.description)}</strong><span>${fmtDT(row.at)} • ${esc(row.item.category)}</span></div><strong>${row.item.amount<0?'− ':''}${money(Math.abs(row.item.amount))}</strong></div>`).join('')}</div>`:empty('Sem movimentações','As diárias, extras, pagamentos e reembolsos aparecerão aqui.')}</section>
+  ${scheduledReceiptPanel(a)}<div class="detail-columns print-area"><section class="panel"><div class="panel-head"><div><h2>Movimentação financeira</h2><p>Resumo da conta; as diárias são agrupadas para evitar repetição visual.</p></div></div>${timeline.length?`<div class="timeline">${timeline.map(row=>row.kind==='p'?`<div class="timeline-row payment"><div class="timeline-dot">↙</div><div><strong>Pagamento recebido</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}</div><strong class="good-text">+ ${money(row.item.amount)}</strong></div>`:row.kind==='r'?`<div class="timeline-row payment"><div class="timeline-dot">↗</div><div><strong>Reembolso ao paciente</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}</div><strong>- ${money(row.item.amount)}</strong></div>`:row.kind==='d'?`<div class="timeline-row charge"><div class="timeline-dot">▤</div><div><strong>Diárias da internação — ${Number(row.item.units).toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong><span>${fmtDM(row.item.first)} a ${fmtDM(row.item.last)} • ${row.item.count} lançamento(s)</span></div><strong>${money(row.item.amount)}</strong></div>`:`<div class="timeline-row charge"><div class="timeline-dot">${row.item.amount<0?'−':'＋'}</div><div><strong>${esc(row.item.description)}</strong><span>${fmtDT(row.at)} • ${esc(row.item.category)}</span></div><strong>${row.item.amount<0?'− ':''}${money(Math.abs(row.item.amount))}</strong></div>`).join('')}</div>`:empty('Sem movimentações','As diárias, extras, pagamentos e reembolsos aparecerão aqui.')}</section>
   <div class="side-stack"><section class="panel"><div class="panel-head"><div><h2>Diárias geradas</h2><p>${daily.length?Number(dailyUnits).toLocaleString('pt-BR',{maximumFractionDigits:1})+' diária(s) • '+money(dailyTotal):'Nenhuma diária gerada'}</p></div></div>${daily.length?`<details><summary style="cursor:pointer;font-weight:700;padding:10px 0">Ver detalhamento por dia (${daily.length})</summary><div class="coverage-list">${cov.map(({c,paid,status})=>`<div class="coverage-row"><div><strong>${fmtDM(c.occurredAt)}</strong><span>${esc(c.description)}</span></div><div class="coverage-right"><span>${money(c.amount)}</span><span class="badge ${status==='paid'?'badge-good':status==='partial'?'badge-warn':'badge-bad'}">${status==='paid'?'Pago':status==='partial'?`Parcial ${money(paid)}`:'Em aberto'}</span></div></div>`).join('')}</div></details>`:''}</section>
   <section class="panel no-print"><div class="panel-head"><div><h2>Auditoria</h2><p>Últimas alterações relevantes.</p></div></div><div class="audit-list">${audits.slice(0,6).map(x=>`<div><span>${esc(x.action)}</span><strong>${esc(x.detail)}</strong><small>${fmtDT(x.occurredAt)} • ${esc(x.user)}</small></div>`).join('')}</div></section></div></div>
   <div class="print-footer print-only"><strong>IMEC UTI — Extrato de internação</strong><span>Gerado em ${fmtDT(new Date().toISOString())}</span></div>`;
@@ -238,7 +239,7 @@ function closeModal({restore=true}={}){
   document.body.classList.remove('modal-open');
   const host=document.getElementById('modal');if(host)host.innerHTML='';
   const target=modalReturnFocus;modalReturnFocus=null;
-  if(restore&&target&&target.isConnected)requestAnimationFrame(()=>target.focus());
+  if(restore)requestAnimationFrame(()=>{const next=target?.isConnected?target:document.getElementById('content');next?.focus()});
 }
 function field(label,html,hint=''){return `<label class="field"><span class="field-label">${label}</span>${html}${hint?`<small>${hint}</small>`:''}</label>`}
 function newAdmissionModal(){
@@ -549,7 +550,7 @@ async function checkPasswordSafety(password){
   return true;
 }
 
-function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings,profiles,closers,profile,healthHistory,alerts}){
+function mapRemote({patients,admissions,rates,charges,payments,scheduledReceipts,refunds,audits,settings,profiles,closers,profile,healthHistory,alerts}){
   const rateMap={};(rates||[]).forEach(r=>(rateMap[r.admission_id]??=[]).push({id:r.id,effectiveAt:r.effective_at,standardRate:Number(r.standard_rate),negotiatedRate:Number(r.negotiated_rate),ventilation:r.ventilation??undefined,label:r.label,changedBy:r.changed_by_name}));
   teamProfiles=profiles||[];
   teamClosers=closers||[];
@@ -558,6 +559,7 @@ function mapRemote({patients,admissions,rates,charges,payments,refunds,audits,se
     admissions:(admissions||[]).map(a=>({id:a.id,patientId:a.patient_id,bed:a.bed,mode:a.mode,entryAt:a.entry_at,dischargeAt:a.discharge_at||undefined,status:a.status,closerId:a.closer_id||undefined,closer:a.closer_name,createdBy:a.created_by_name,halfInitial:a.half_initial,commissionAmount:Number(a.commission_amount||0),accountVersion:Number(a.account_version||1),notes:a.notes||undefined,createdAt:a.created_at,rateHistory:rateMap[a.id]||[]})),
     charges:(charges||[]).map(c=>({id:c.id,admissionId:c.admission_id,occurredAt:c.occurred_at,kind:c.kind,category:c.category,description:c.description,amount:Number(c.amount),cycleKey:c.cycle_key||undefined,createdBy:c.created_by_name})),
     payments:(payments||[]).map(p=>({id:p.id,admissionId:p.admission_id,occurredAt:p.occurred_at,amount:Number(p.amount),method:p.method,cardType:p.card_type,installmentDates:p.installment_dates,notes:p.notes||undefined,createdBy:p.created_by_name})),
+    scheduledReceipts:(scheduledReceipts||[]).map(p=>({id:p.id,admissionId:p.admission_id,expectedAt:p.expected_at,amount:Number(p.amount),method:p.method,installmentDates:p.installment_dates||[],notes:p.notes||'',status:p.status,createdBy:p.created_by_name})),
     refunds:(refunds||[]).map(r=>({id:r.id,admissionId:r.admission_id,occurredAt:r.occurred_at,amount:Number(r.amount),method:r.method,notes:r.notes||undefined,createdBy:r.created_by_name})),
     audits:(audits||[]).map(a=>({id:a.id,admissionId:a.admission_id||undefined,occurredAt:a.occurred_at,user:a.user_name,action:a.action,detail:a.detail})),
     health:healthHistory?.[0]?{id:healthHistory[0].id,checkedAt:healthHistory[0].checked_at,status:healthHistory[0].status,issues:healthHistory[0].issues||[],metrics:healthHistory[0].metrics||{},source:healthHistory[0].source}:null,
@@ -578,12 +580,13 @@ async function loadRemote({quiet=false}={}){
     if(!profile){renderAccountState('Seu perfil ainda está sendo preparado.','Tente novamente em alguns segundos.');return false}
     if(!profile.active){data=blankData();data.currentUser=profile.display_name;data.currentRole=profile.role;renderPending(profile);return false}
     try{await rpc('sync_uti_charges',{})}catch(e){console.warn('sync daily charges',e)}
-    const [patients,admissions,rates,charges,payments,refunds,audits,settingsRows,profiles,closers,healthHistory,alerts]=await Promise.all([
+    const [patients,admissions,rates,charges,payments,scheduledReceipts,refunds,audits,settingsRows,profiles,closers,healthHistory,alerts]=await Promise.all([
       restAll('patients?select=*&order=created_at.asc,id.asc'),
       restAll('admissions?select=*&order=entry_at.desc,id.asc'),
       restAll('rate_periods?select=*&order=effective_at.asc,id.asc'),
       restAll('charges?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
       restAll('payments?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
+      restAll('scheduled_receipts?status=eq.pending&select=*&order=expected_at.asc,id.asc'),
       restAll('refunds?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
       restAll('audits?select=*&order=occurred_at.asc,id.asc'),
       rest('app_settings?id=eq.1&select=*'),
@@ -593,7 +596,7 @@ async function loadRemote({quiet=false}={}){
       profile.role==='admin'?rest('system_alerts?select=id,alert_key,code,severity,message,details,status,first_detected_at,last_detected_at,occurrence_count,health_check_id,acknowledged_at,acknowledged_by_name,resolved_at&order=last_detected_at.desc&limit=50'):Promise.resolve([])
     ]);
     if(epoch!==authEpoch||!authState)return false;
-    data=mapRemote({patients,admissions,rates,charges,payments,refunds,audits,settings:settingsRows?.[0],profiles,closers,profile,healthHistory,alerts});
+    data=mapRemote({patients,admissions,rates,charges,payments,scheduledReceipts,refunds,audits,settings:settingsRows?.[0],profiles,closers,profile,healthHistory,alerts});
     if(!quiet)render();
     return true;
   }catch(e){
@@ -774,22 +777,90 @@ function bindCardDetails(prefix,methodId){
   };
   method.addEventListener('change',update);count.addEventListener('change',update);update();
 }
+function receiptTimingMarkup(prefix){return `<div class="receipt-timing" id="${prefix}Timing" data-mode="received"><div class="segmented" role="group" aria-label="Situação do recebimento"><button type="button" data-receipt-mode="received" class="active" aria-pressed="true">Já recebi</button><button type="button" data-receipt-mode="scheduled" aria-pressed="false">Receber depois</button></div><p id="${prefix}TimingNote" class="receipt-timing-note" role="status"></p></div>`}
+function bindReceiptTiming(a,prefix,whenId,submitId){
+ const root=document.getElementById(prefix+'Timing'),when=document.getElementById(whenId),submit=document.getElementById(submitId);
+ if(!root||!when||!submit)return;
+ const update=()=>{
+   const future=new Date(parseLocal(when.value)).getTime()>Date.now();
+   if(future)root.dataset.mode='scheduled';
+   const planned=root.dataset.mode==='scheduled',late=!!a.dischargeAt&&new Date(parseLocal(when.value))>new Date(a.dischargeAt);
+   root.querySelectorAll('[data-receipt-mode]').forEach(b=>{const active=b.dataset.receiptMode===root.dataset.mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
+   const label=when.closest('.field')?.querySelector('.field-label');if(label)label.textContent=planned?'Data e hora previstas':'Data e hora do recebimento';
+   document.getElementById(prefix+'TimingNote').textContent=planned?'Previsão: o valor só reduz o saldo após confirmar o recebimento.':late?'Recebimento após a alta. Confirme somente se o dinheiro já foi recebido.':'Confirme somente o valor que já foi recebido.';
+   submit.innerHTML=icon(planned?'clock':'check')+(planned?'Salvar previsão':late?'Confirmar recebimento posterior':'Confirmar recebimento');
+ };
+ root.querySelectorAll('[data-receipt-mode]').forEach(b=>b.onclick=()=>{root.dataset.mode=b.dataset.receiptMode;if(b.dataset.receiptMode==='received'&&new Date(parseLocal(when.value)).getTime()>Date.now())when.value=nowLocalInput();update()});
+ when.addEventListener('input',update);when.addEventListener('change',update);update();
+}
+function receiptDates(prefix,method,when){
+ const dates=method==='credit'?Array.from(document.querySelectorAll(`[data-installment="${prefix}"]`)).map(x=>x.value):[];
+ if(method==='credit'){const error=validateInstallmentDates(dates,docIsoDate(when));if(error)throw new Error(error)}
+ return dates;
+}
+function scheduledReceiptPanel(a=null){
+ const items=(data.scheduledReceipts||[]).filter(s=>s.status==='pending'&&(!a||s.admissionId===a.id));
+ if(!items.length)return '';
+ return `<section class="panel scheduled-panel no-print"><div class="panel-head"><div><h2>Recebimentos previstos</h2><p>Não incluídos no recebido. O saldo permanece em aberto até a confirmação.</p></div><span class="badge badge-neutral">${items.length}</span></div><div class="scheduled-list">${items.map(s=>{
+   const account=admission(s.admissionId),person=account?patient(account.patientId):null,overdue=new Date(s.expectedAt)<new Date();
+   const methodLabel=paymentMethodLabel({method:['credit','debit'].includes(s.method)?'Cartão':s.method,cardType:['credit','debit'].includes(s.method)?s.method:null,installmentDates:s.installmentDates});
+   const confirm=can('add_payment')&&account&&!['cancelled','finalized'].includes(account.status)&&totals(account.id).balance>0.009;
+   return `<div class="scheduled-row"><div class="scheduled-copy">${!a?`<button class="scheduled-patient" data-open="${s.admissionId}">${esc(person?.name||'Paciente')}</button>`:''}<strong>${money(s.amount)} <span class="badge ${overdue?'badge-warn':'badge-neutral'}">${overdue?'Data prevista vencida':'Previsto'}</span></strong><span>${fmtDT(s.expectedAt)} · ${esc(methodLabel)}</span>${s.notes?`<small>${esc(s.notes)}</small>`:''}</div>${can('add_payment')?`<div class="scheduled-actions">${confirm?`<button class="btn btn-secondary" data-confirm-receipt="${s.id}">${icon('check')}Confirmar recebimento</button>`:''}<button class="icon-btn" data-cancel-receipt="${s.id}" aria-label="Cancelar previsão de ${money(s.amount)}">${icon('close')}</button></div>`:''}</div>`;
+ }).join('')}</div></section>`;
+}
+function bindScheduledReceipts(){
+ document.querySelectorAll('[data-confirm-receipt]').forEach(b=>b.onclick=()=>{const s=data.scheduledReceipts.find(x=>x.id===b.dataset.confirmReceipt);if(s)confirmReceiptModal(s)});
+ document.querySelectorAll('[data-cancel-receipt]').forEach(b=>b.onclick=()=>{const s=data.scheduledReceipts.find(x=>x.id===b.dataset.cancelReceipt);if(s)cancelReceiptModal(s)});
+}
+function confirmReceiptModal(s){
+ const a=admission(s.admissionId);if(!a||!can('add_payment'))return;
+ openModal('Confirmar recebimento',`Previsão: ${fmtDT(s.expectedAt)}. Informe quando o dinheiro foi realmente recebido.`,
+ `<form id="confirmReceiptForm" class="form">${field('Valor previsto',`<div class="read-value">${money(s.amount)}</div>`)}<div class="form-grid two">${field('Data real do recebimento',`<input id="cWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Forma recebida',paymentMethodSelect('cMethod'))}</div>${cardDetailsMarkup('c')}${field('Observação',`<textarea id="cNotes" rows="2" maxlength="2000">${esc(s.notes)}</textarea>`)}<div id="confirmReceiptError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Confirmar recebimento</button></div></form>`);
+ document.querySelector('[data-close2]').onclick=closeModal;
+ document.getElementById('cMethod').value=s.method;
+ document.getElementById('cCount').value=String(s.installmentDates.length||1);
+ bindCardDetails('c','cMethod');
+ document.querySelectorAll('[data-installment="c"]').forEach((el,i)=>el.value=s.installmentDates[i]||'');
+ document.getElementById('confirmReceiptForm').addEventListener('input',()=>document.getElementById('confirmReceiptError').innerHTML='');
+ document.getElementById('confirmReceiptForm').onsubmit=async e=>{
+   e.preventDefault();if(remoteBusy)return;const er=document.getElementById('confirmReceiptError');er.innerHTML='';
+   try{
+     const when=parseLocal(document.getElementById('cWhen').value),method=document.getElementById('cMethod').value;
+     if(!when||new Date(when).getTime()>Date.now())throw new Error('Informe a data real do recebimento, sem data futura.');
+     const dates=receiptDates('c',method,when);
+     setLoading(true,'Confirmando recebimento…');
+     const status=await rpc('confirm_uti_receipt',{p_schedule_id:s.id,p_occurred_at:when,p_method:method,p_installment_dates:dates,p_notes:document.getElementById('cNotes').value.trim()||null});
+     await loadRemote({quiet:true});closeModal();toast(status==='finalized'?'Recebimento confirmado e conta finalizada.':'Recebimento confirmado.');render();
+   }catch(ex){er.innerHTML=`<div class="form-error">${esc(ex.message)}</div>`}finally{setLoading(false)}
+ };
+}
+function cancelReceiptModal(s){
+ if(!can('add_payment'))return;
+ openModal('Cancelar previsão',`${money(s.amount)} previstos para ${fmtDT(s.expectedAt)}.`,`<form id="cancelReceiptForm" class="form">${field('Motivo','<textarea id="cancelReceiptReason" rows="2" minlength="8" maxlength="220" required></textarea>')}<p class="receipt-timing-note">Cancelar uma previsão não altera pagamentos ou o saldo da conta.</p><div id="cancelReceiptError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Voltar</button><button class="btn btn-danger">Cancelar previsão</button></div></form>`);
+ document.querySelector('[data-close2]').onclick=closeModal;
+ document.getElementById('cancelReceiptForm').onsubmit=async e=>{e.preventDefault();if(remoteBusy)return;
+   try{setLoading(true,'Cancelando previsão…');await rpc('cancel_uti_receipt',{p_schedule_id:s.id,p_reason:document.getElementById('cancelReceiptReason').value.trim()});await loadRemote({quiet:true});closeModal();toast('Previsão cancelada com auditoria.');render()}
+   catch(ex){document.getElementById('cancelReceiptError').innerHTML=`<div class="form-error">${esc(ex.message)}</div>`}finally{setLoading(false)}
+ };
+}
 async function registerPayment(a,{amount,when,method,notes,clientRef,prefix}){
+  const dates=receiptDates(prefix,method,when);
+  if(document.getElementById(prefix+'Timing')?.dataset.mode==='scheduled'){
+    const id=await rpc('schedule_uti_receipt',{p_admission_id:a.id,p_expected_at:when,p_amount:amount,p_method:method,p_installment_dates:dates,p_notes:notes,p_client_ref:clientRef});
+    return {scheduled:true,id};
+  }
+  if(new Date(when).getTime()>Date.now())throw new Error('Use a data real do recebimento ou escolha “Receber depois”.');
   if(method==='credit'||method==='debit'){
-    const dates=method==='credit'?Array.from(document.querySelectorAll(`[data-installment="${prefix}"]`)).map(x=>x.value):[];
-    if(method==='credit'){
-      const error=validateInstallmentDates(dates,docIsoDate(when));
-      if(error)throw new Error(error);
-    }
     return rpc('add_uti_card_payment',{p_admission_id:a.id,p_occurred_at:when,p_amount:amount,p_card_type:method,p_installment_dates:dates,p_notes:notes,p_client_ref:clientRef});
   }
   return rpc('add_uti_payment',{p_admission_id:a.id,p_occurred_at:when,p_amount:amount,p_method:method,p_notes:notes,p_client_ref:clientRef});
 }
 function paymentModal(a){
   const t=totals(a.id),paymentRef=crypto.randomUUID();
-  openModal('Registrar pagamento',`Saldo atual: ${money(t.balance)}`,`<form class="form" id="payForm">${field('Valor recebido','<div class="currency-input large"><span>R$</span><input id="pValue" autofocus inputmode="decimal" placeholder="0,00"></div>')}<div class="form-grid two">${field('Data e hora',`<input id="pWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Forma de pagamento',paymentMethodSelect('pMethod'))}</div>${cardDetailsMarkup('p')}${field('Observação','<textarea id="pNotes" rows="2" placeholder="Ex.: pagamento parcial da família"></textarea>','Opcional')}<div id="payWarn"></div><div id="payError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">↙ Registrar recebimento</button></div></form>`);
+  openModal('Registrar recebimento',`Saldo atual: ${money(t.balance)}`,`<form class="form" id="payForm">${receiptTimingMarkup('p')}${field('Valor','<div class="currency-input large"><span>R$</span><input id="pValue" autofocus inputmode="decimal" placeholder="0,00"></div>')}<div class="form-grid two">${field('Data e hora',`<input id="pWhen" type="datetime-local" value="${nowLocalInput()}">`)}${field('Forma de pagamento',paymentMethodSelect('pMethod'))}</div>${cardDetailsMarkup('p')}${field('Observação','<textarea id="pNotes" rows="2" placeholder="Ex.: pagamento parcial da família"></textarea>','Opcional')}<div id="payWarn"></div><div id="payError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button id="pSubmit" class="btn btn-primary">Confirmar recebimento</button></div></form>`);
   document.querySelector('[data-close2]').onclick=closeModal;
   bindCardDetails('p','pMethod');
+  bindReceiptTiming(a,'p','pWhen','pSubmit');
   document.getElementById('pValue').oninput=e=>{
     const v=Number(e.target.value.replace(',','.'));
     document.getElementById('payWarn').innerHTML=v>t.balance?'<div class="form-warning">⚠ O valor está acima do saldo exibido. O servidor confirmará o saldo atualizado antes de registrar.</div>':'';
@@ -803,7 +874,7 @@ function paymentModal(a){
       setLoading(true,'Registrando pagamento…');
       const status=await registerPayment(a,{amount:v,when:parseLocal(document.getElementById('pWhen').value),method:document.getElementById('pMethod').value,notes:document.getElementById('pNotes').value.trim()||null,clientRef:paymentRef,prefix:'p'});
       await loadRemote({quiet:true});closeModal();
-      toast(status==='finalized'?'Pagamento registrado e conta finalizada.':'Pagamento registrado.');render();
+      toast(status?.scheduled?'Previsão salva. O saldo permanece em aberto.':status==='finalized'?'Pagamento registrado e conta finalizada.':'Pagamento registrado.');render();
     }catch(ex){document.getElementById('payError').innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}
     finally{setLoading(false)}
   };
@@ -907,7 +978,7 @@ function settlementPreviewMarkup(a,s){
     </tbody></table></div>
     ${pays.length?`<div class="settle-section-title">Pagamentos realizados</div><div class="settle-table-wrap"><table class="settle-table"><thead><tr><th>Data/hora</th><th>Forma</th><th>Registrado por</th><th>Valor</th></tr></thead><tbody>${pays.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(paymentMethodLabel(x))}${installmentSummary(x)?`<small class="payment-schedule">${esc(installmentSummary(x))}</small>`:''}</td><td>${esc(x.createdBy||'—')}</td><td>${money(Number(x.amount||0))}</td></tr>`).join('')}</tbody></table></div>`:''}
     ${refunds.length?`<div class="settle-section-title">Reembolsos realizados</div><div class="settle-table-wrap"><table class="settle-table"><thead><tr><th>Data/hora</th><th>Forma</th><th>Registrado por</th><th>Valor</th></tr></thead><tbody>${refunds.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(paymentMethodLabel(x))}${installmentSummary(x)?`<small class="payment-schedule">${esc(installmentSummary(x))}</small>`:''}</td><td>${esc(x.createdBy||'—')}</td><td>- ${money(Number(x.amount||0))}</td></tr>`).join('')}</tbody></table></div>`:''}
-    ${bal>0.009&&can('add_payment')?`<div class="settle-paybox"><h3>Registrar recebimento antes da alta</h3><div class="settle-paygrid">
+    ${scheduledReceiptPanel(a)}${bal>0.009&&can('add_payment')?`<div class="settle-paybox"><h3>Registrar recebimento</h3>${receiptTimingMarkup('settlePay')}<div class="settle-paygrid">
       ${field('Valor',`<div class="currency-input"><span>R$</span><input id="settlePayValue" inputmode="decimal" value="${bal.toFixed(2)}"></div>`)}
       ${field('Forma',paymentMethodSelect('settlePayMethod'))}
       ${field('Data/hora',`<input id="settlePayWhen" type="datetime-local" value="${nowLocalInput()}">`)}
@@ -1214,9 +1285,11 @@ function dischargeModal(a){
   const snapshot=s=>JSON.stringify([Number(s.accountVersion||0),Number(s.total||0),Number(s.received||0),Number(s.refunded||0),Number(s.balance||0),Number(s.dailyUnits||0)]);
 
   const bindPreviewActions=()=>{
+    bindScheduledReceipts();
     const payBtn=document.getElementById('settlePayBtn');
     if(payBtn){
       bindCardDetails('settlePay','settlePayMethod');
+      bindReceiptTiming(a,'settlePay','settlePayWhen','settlePayBtn');
       const paymentRef=crypto.randomUUID();
       payBtn.onclick=async()=>{
         if(remoteBusy)return;
@@ -1225,8 +1298,8 @@ function dischargeModal(a){
         if(!val||val<=0){er.innerHTML='<div class="form-error">⚠ Informe um valor válido.</div>';return}
         try{
           setLoading(true,'Registrando recebimento…');
-          await registerPayment(a,{amount:val,when,method,notes:'Recebimento no acerto de alta',clientRef:paymentRef,prefix:'settlePay'});
-          await loadRemote({quiet:true});a=admission(a.id);await calculate();toast('Pagamento registrado.');
+          const result=await registerPayment(a,{amount:val,when,method,notes:'Recebimento no acerto de alta',clientRef:paymentRef,prefix:'settlePay'});
+          await loadRemote({quiet:true});a=admission(a.id);render();await calculate();toast(result?.scheduled?'Previsão salva. O saldo permanece em aberto.':'Pagamento registrado.');
         }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
       };
     }
@@ -1303,6 +1376,7 @@ function dischargeModal(a){
 }
 
 function bindDetail(a){
+  bindScheduledReceipts();
   document.querySelectorAll('[data-action="back"]').forEach(b=>b.onclick=()=>{state.selectedId=null;render()});
   document.querySelectorAll('[data-action="payment"]').forEach(b=>b.onclick=()=>paymentModal(a));
   document.querySelectorAll('[data-action="refund"]').forEach(b=>b.onclick=()=>refundModal(a));
@@ -1324,6 +1398,7 @@ function bindDetail(a){
 
 
 function bindPage(){
+  bindScheduledReceipts();
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{state.selectedId=b.dataset.open;render()});
   const s=document.getElementById('searchPatients');if(s)s.oninput=e=>{
     const start=e.target.selectionStart,end=e.target.selectionEnd;
