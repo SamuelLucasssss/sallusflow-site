@@ -742,7 +742,7 @@ function discountModal(a){
     e.preventDefault();if(remoteBusy)return;
     const value=Number(amountInput.value.replace(',','.'));
     const reason=document.getElementById('discReason').value.trim();
-    if(!Number.isFinite(value)||value<=0||Math.round(value*100)!==value*100||value>t.balance){
+    if(!Number.isFinite(value)||value<=0||Math.abs(Math.round(value*100)-value*100)>0.00001||value>t.balance){
       document.getElementById('discError').textContent='Confira o valor do desconto.';return;
     }
     if(reason.length<8){document.getElementById('discError').textContent='Descreva o motivo do desconto.';return}
