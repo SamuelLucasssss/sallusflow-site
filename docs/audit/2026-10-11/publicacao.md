@@ -37,10 +37,12 @@ Pacote entregue pelo [PR #24](https://github.com/SamuelLucasssss/sallusflow-site
 
 Publicação pela integração GitHub → main → Vercel. URL: [IMEC UTI](https://www.sallusflow.com.br/imec-uti/). Conferir CI e status Vercel no commit publicado; o frontend e a migration são componentes separados do release.
 
-## Pendências externas que não podem ser dadas como aplicadas
+## Atualização das configurações administrativas
 
-- Proteção de main: conector não oferece alteração de branch protection; navegador disponível não está autenticado no GitHub. Precisa de sessão administrativa no repositório.
-- Leaked Password Protection nativa e política/signup/SMTP: conector não oferece atualização da configuração Hosted Auth; painel Supabase exige login. A proteção HIBP da interface e da Edge permanece em funcionamento, mas não substitui configuração do provedor.
+- **Proteção de main aplicada e verificada:** regra clássica `84651589`, padrão exato `main`, PR obrigatório, check `quality` associado ao GitHub Actions, branch atualizada antes de merge, conversas resolvidas, aplicação das regras também ao administrador, force push e exclusão proibidos. A API pública confirmou `protected=true`. A regra não exige aprovação de outro usuário; exige o fluxo de PR e CI. Nenhum colaborador ou acesso novo foi concedido.
+- **Diferença de conta no painel Supabase confirmada:** o conector acessa o IMEC UTI na organização `SallusFloww's Org` (`qclibkmdsphhzdbelxdd`). O login GitHub do navegador abriu uma organização diferente, sem o projeto IMEC UTI. A navegação direta ao projeto retornou à lista de organizações; nenhuma configuração dos outros projetos foi alterada. A alternativa de login ChatGPT exige autenticação própria, indisponível nessa sessão.
+- **Plano do projeto confirmado pelo conector: Free.** A [documentação oficial](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) informa que Leaked Password Protection nativa exige Pro ou superior. Nenhuma assinatura, upgrade ou despesa foi contratada. A proteção HIBP da interface/Edge permanece ativa e não substitui a configuração nativa do provedor.
+- Política/signup/SMTP: conector não oferece atualização de Hosted Auth, e a sessão de navegador disponível não acessa a organização do IMEC UTI. Sem conta administrativa correspondente e configuração do provedor SMTP, essas alterações permanecem pendentes. O login operacional do aplicativo e `mfa_required=false` foram preservados.
 - Backup externo e restore da produção: não há credencial/canal autorizado disponível para pg_dump, download do backup ou definição de destino externo. Nenhuma cópia de dados de pacientes foi colocada no repositório público.
 - Auth, convite/recuperação com mailbox real, step-up administrativo, iPhone/Android/PWA e impressora física ainda exigem homologação específica. Nenhum e-mail foi disparado como teste.
 - Acesso ao painel/logs Vercel retornava 403 durante a auditoria; estado do deploy pode ser conferido pelo status do commit GitHub e pela resposta pública. Logs privados não devem ser considerados verificados por isso.
