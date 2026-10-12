@@ -178,8 +178,14 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 36) fail(`Esperadas 36 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 37) fail(`Esperadas 37 migrations versionadas; encontradas ${migrations.length}.`);
 if (new Set(migrations).size !== migrations.length) fail('Há migrations com nome duplicado.');
+const discountMigration = read('supabase/migrations/20261012103000_uti_audited_settlement_discount.sql');
+for (const guard of ['private.is_admin()','v_amount>v_balance','private.reconcile_admission_status(a.id)','insert into public.audits',"'Desconto no acerto'"]) {
+  if(!discountMigration.includes(guard)) fail('Desconto sem controle essencial: '+guard);
+}
+if(!app.includes('function discountModal(a)')||!app.includes("rpc('grant_uti_settlement_discount'")) fail('Interface de desconto no acerto ausente.');
+
 const normalAuthHealth = read('supabase/migrations/20261011220500_normal_password_auth_health.sql');
 if (normalAuthHealth.includes('MFA_ENFORCEMENT_OFF')) fail('Modo normal por senha não deve gerar incidente operacional de MFA.');
 if (!normalAuthHealth.includes("select private.run_uti_health_check('migration')")) fail('Migração do modo normal não reconcilia o health check.');
