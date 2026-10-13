@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <meta name="referrer" content="no-referrer" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#18383b" />
+  <meta name="description" content="Protótipo interativo do CRM Oncológico IMEC Saúde, com dados demonstrativos." />
+  <title>Sallus Flow | CRM Oncológico — Demonstração</title>
+  <style>
+
+    :root{--ink:#202e36;--muted:#75858a;--line:#e7edef;--bg:#f6f8f8;--card:#fff;--accent:#167d72;--accent2:#e8f5f1;--sidebar:#153739;--sidebar2:#102b2f;--warn:#bd7a29;--warnbg:#fff6e9;--danger:#b44f55;--dangerbg:#ffeff0;--radius:14px;--shadow:0 4px 24px rgba(27,55,64,.025);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-synthesis:none;color:var(--ink)}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);font-size:14px;line-height:1.45}button,input,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(22,125,114,.35);outline-offset:2px}button:disabled{opacity:.45;cursor:not-allowed}.app{display:flex;min-height:100vh}.sidebar{width:243px;min-width:243px;background:linear-gradient(166deg,var(--sidebar),var(--sidebar2));color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;padding:26px 14px 19px}.brand{padding:2px 14px 32px;display:flex;gap:11px;align-items:center}.brand-logo{width:37px;height:37px;border-radius:12px;background:#f2fffc;color:#19786e;display:grid;place-items:center;font-weight:850;font-size:22px}.brand-name{font-size:17px;font-weight:800;letter-spacing:.3px;line-height:1.2}.brand-sub{font-size:10px;letter-spacing:1.7px;font-weight:600;color:#adc8c4;margin-top:4px}.nav-caption{margin:0 13px 9px;color:#82a29f;font-size:10px;font-weight:800;letter-spacing:1.5px}.nav-btn{width:100%;display:flex;align-items:center;gap:11px;text-align:left;border:0;background:transparent;color:#bbd4d1;padding:12px 14px;border-radius:10px;margin-bottom:4px;font-weight:560;transition:background .2s}.nav-btn:hover{background:#ffffff12;color:white}.nav-btn.active{color:#fff;background:#ffffff1c}.nav-btn.active:before{content:"";position:absolute;left:13px;height:23px;width:3px;border-radius:8px;background:#8dddd1}.nav-btn .ico{width:17px;height:17px;opacity:.9}.side-spacer{flex:1}.demo-mini{margin:0 8px 15px;padding:13px 12px;border:1px solid #ffffff20;border-radius:11px;background:#ffffff0a;font-size:11px;color:#bdd2cf;line-height:1.65}.demo-mini strong{display:block;color:#fff;font-size:12px;margin-bottom:3px}.sidebar-bottom{padding:12px 13px 3px;border-top:1px solid #ffffff24;font-size:12px;color:#a9c4c0;display:flex;align-items:center;gap:9px}.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#315a5a;color:white;font-weight:700}.sidebar-bottom b{color:#e4f0ef}.main{flex:1;min-width:0}.topbar{height:77px;background:rgba(255,255,255,.83);backdrop-filter:blur(7px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 clamp(20px,3vw,45px)}.topcrumb{color:#8c999d;font-size:12px}.topcrumb b{font-weight:700;color:#53656a}.top-actions{display:flex;align-items:center;gap:10px}.content{padding:31px clamp(20px,3vw,45px) 52px;max-width:1580px;margin:auto}.eyebrow{color:var(--accent);font-size:10px;letter-spacing:1.55px;font-weight:830;text-transform:uppercase}.heading-row{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:27px}.heading-row h1{font-size:clamp(25px,2.6vw,32px);line-height:1.16;letter-spacing:-.85px;font-weight:730;margin:8px 0 7px}.subhead{color:var(--muted);font-size:13px;margin:0}.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.btn{border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:white;min-height:39px;display:inline-flex;align-items:center;justify-content:center;gap:8px;color:#405359;font-weight:650;font-size:12px;white-space:nowrap}.btn:hover{background:#f9fcfb;border-color:#cfdedb}.btn.primary{border-color:var(--accent);background:var(--accent);color:#fff}.btn.primary:hover{background:#0e685f}.btn.quiet{border-color:transparent;background:transparent}.btn.danger{color:#a33b44;border-color:#f0c6ca;background:#fff}.btn .ico{width:15px;height:15px}.select{border:1px solid var(--line);border-radius:10px;background:#fff;color:#485f62;padding:10px 30px 10px 12px;min-height:39px;font-weight:600;font-size:12px;max-width:100%;cursor:pointer}.card{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.metric{padding:21px 22px;min-height:135px}.metric-label{font-weight:600;color:#718186;font-size:12px;display:flex;justify-content:space-between;gap:8px;align-items:center}.metric-icon{display:grid;place-items:center;width:31px;height:31px;border-radius:9px;color:#4c928b;background:#eef8f5}.metric-number{font-weight:770;letter-spacing:-1.4px;font-size:32px;margin:13px 0 4px;line-height:1}.metric-foot{font-size:11px;color:#99a3a7}.metric.clickable{cursor:pointer;transition:transform .15s,border .15s}.metric.clickable:hover{border-color:#99c9c1;transform:translateY(-2px)}.dashboard-columns{min-width:0;display:grid;grid-template-columns:minmax(0,1.43fr) minmax(300px,1fr);gap:18px;align-items:start}.stack{display:flex;flex-direction:column;gap:18px;min-width:0}.section-card{padding:22px;min-width:0}.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.card-title{font-size:15px;font-weight:760;letter-spacing:-.2px}.card-sub{font-size:11px;color:#92a0a3;margin-top:3px}.link{color:var(--accent);font-weight:700;border:0;background:transparent;padding:2px 0;font-size:12px}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;text-align:left}th{font-size:10px;letter-spacing:.2px;color:#87989a;font-weight:750;background:#f8fafa;padding:12px 12px;white-space:nowrap}td{padding:13px 12px;border-top:1px solid #eef2f3;font-size:12px;vertical-align:middle}tr.item-row{cursor:pointer}tr.item-row:hover td{background:#f9fcfb}.rank-num{color:#a4b2b2;display:inline-grid;place-items:center;width:20px;height:20px;background:#f4f7f7;border-radius:6px;font-size:10px;margin-right:8px;font-weight:800}.name-cell{font-weight:700;color:#304349}.muted{color:#87979b}.pill{display:inline-flex;align-items:center;white-space:nowrap;font-size:10px;padding:5px 8px;border-radius:7px;font-weight:740;background:#eef3f5;color:#647e82}.pill.green{background:#e9f6ef;color:#348667}.pill.blue{background:#eaf2fa;color:#447798}.pill.amber{background:#fff3e3;color:#b27728}.pill.rose{background:#f9e9eb;color:#b35c64}.pill.gray{background:#f0f2f4;color:#72828a}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:6px}.summary-note{padding:12px 14px;border-top:1px solid var(--line);color:#86979a;font-size:11px;background:#fbfcfc;border-radius:0 0 14px 14px}.task-list{display:flex;flex-direction:column;gap:1px}.task-row{padding:11px 0;display:flex;gap:12px;border-bottom:1px solid #f0f2f3;cursor:pointer;align-items:flex-start}.task-row:last-child{border-bottom:0}.task-row:hover .task-title{color:var(--accent)}.task-mark{width:34px;height:34px;border-radius:10px;background:#fff5e7;color:#b47b35;display:grid;place-items:center;flex:0 0 34px}.task-mark .ico{width:17px;height:17px}.task-title{font-size:12px;font-weight:730}.task-meta{font-size:11px;color:#8b999b;margin-top:3px}.task-right{margin-left:auto;color:#a0aaae;font-size:10px;white-space:nowrap}.empty{color:#899ca0;text-align:center;padding:45px 16px;font-size:13px}.graph-bars{display:flex;flex-direction:column;gap:15px}.graph-item-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:7px}.graph-label{font-weight:650;color:#5b7076}.graph-num{font-weight:750;color:#4b686e}.track{width:100%;background:#edf2f2;height:7px;border-radius:999px;overflow:hidden}.fill{background:#79b5ad;height:100%;border-radius:999px;min-width:0}.fill.primary{background:var(--accent)}.light-block{border:1px dashed #dbe8e5;background:#f8fcfb;padding:14px;border-radius:11px;color:#6f8585;font-size:11px;line-height:1.7}.notice{display:flex;align-items:flex-start;gap:10px;padding:12px 15px;color:#95653d;background:#fff7ed;border:1px solid #f4e4c7;border-radius:11px;font-size:11px;line-height:1.55;margin-bottom:20px}.notice .ico{height:16px;width:16px;flex:0 0 16px;margin-top:1px}.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;align-items:center}.searchbox{position:relative;min-width:220px;flex:1}.searchbox input{width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;min-height:42px;padding:10px 12px 10px 38px;outline-color:var(--accent)}.searchbox .ico{position:absolute;left:13px;top:13px;width:16px;height:16px;color:#9aaaae}.panel-count{padding:14px 19px;font-size:12px;color:#728588;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}.patient-table td:first-child{min-width:180px}.patient-sub{font-size:10px;color:#98a5a7;margin-top:4px}.statusbar{display:flex;align-items:center;gap:5px}.step{height:4px;background:#e5eded;border-radius:2px;flex:1;max-width:32px}.step.done{background:#56a99a}.step-label{font-size:11px;margin-top:6px;color:#74898c;white-space:nowrap}.filter-badge{background:#eaf6f3;color:#188075;border:1px solid #cde9e1;padding:6px 10px;border-radius:7px;font-size:11px}.secondary-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.callout{display:flex;gap:12px;align-items:flex-start;background:#f0f8f5;border-radius:12px;padding:16px;color:#476d67;font-size:12px}.callout strong{display:block;color:#246b60;margin-bottom:3px}.footer-caption{font-size:11px;color:#a1adb0;margin-top:21px}.icon-circle{width:35px;height:35px;display:grid;place-items:center;border-radius:10px;background:#eaf5f1;color:#2e8b7c;flex:0 0 35px}.ico{height:17px;width:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}.modal-shade{position:fixed;inset:0;background:rgba(14,35,41,.47);z-index:20;display:none;align-items:center;justify-content:center;padding:22px;backdrop-filter:blur(2px)}.modal-shade.open{display:flex}.modal{background:#fff;border-radius:19px;box-shadow:0 30px 90px #112a3150;width:min(860px,100%);max-height:min(91vh,950px);display:flex;flex-direction:column;overflow:hidden}.modal.narrow{width:min(490px,100%)}.modal-top{padding:22px 27px 18px;display:flex;justify-content:space-between;align-items:start;gap:16px;border-bottom:1px solid var(--line)}.modal-title{font-size:20px;font-weight:780;letter-spacing:-.4px}.modal-desc{font-size:11px;color:#91a0a2;margin-top:5px}.modal-close{border:0;background:#f2f5f5;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#6e8286}.tabs{display:flex;gap:3px;border-bottom:1px solid var(--line);padding:0 25px;overflow-x:auto}.tab{border:0;background:transparent;padding:14px 13px;font-size:12px;font-weight:680;color:#87989a;white-space:nowrap;border-bottom:2px solid transparent}.tab.active{color:var(--accent);border-bottom-color:var(--accent)}.modal-scroll{padding:24px 27px;overflow-y:auto;flex:1}.modal-foot{padding:15px 27px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center;background:#fcfdfd}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px 15px}.field{display:flex;flex-direction:column;gap:6px;min-width:0}.field.wide{grid-column:1/-1}.field label{font-size:11px;font-weight:700;color:#526a6d}.field .required{color:#bf685b}.field input,.field select,.field textarea{border:1px solid #dfe8e8;border-radius:9px;background:#fff;color:#2f454b;min-height:42px;padding:10px 12px;font-size:12px;width:100%;outline-color:#8cc7bd}.field textarea{min-height:75px;resize:vertical}.field small{font-size:10px;color:#9aabae;line-height:1.5}.form-helper{margin:0 0 18px;padding:12px 13px;background:#f5f9f8;border-radius:9px;color:#728b89;font-size:11px}.form-section{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:760;color:#406860;margin-bottom:15px;margin-top:5px}.form-section:not(:first-child){margin-top:24px}.divider{height:1px;background:var(--line);margin:22px 0}.timeline{margin-top:22px;display:flex;flex-direction:column;gap:15px}.timeline-item{display:flex;gap:13px}.timeline-mark{width:23px;height:23px;border-radius:50%;background:#d4ebe6;display:grid;place-items:center;flex:0 0 23px;color:#19776b}.timeline-mark.future{background:#eaf0f1;color:#94a5a8}.timeline-main{font-size:12px;font-weight:700}.timeline-detail{font-size:11px;color:#849597;margin-top:3px}.tagline{font-size:11px;color:#83989a}.toast{position:fixed;right:25px;bottom:24px;background:#234e4b;color:#fff;padding:13px 18px;border-radius:11px;z-index:50;box-shadow:0 8px 22px #19353035;opacity:0;transform:translateY(10px);pointer-events:none;transition:.2s;max-width:350px;font-size:12px}.toast.visible{opacity:1;transform:none}.secondary-small{color:#9caaad;font-size:10px}.btns-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.name-link{background:transparent;border:none;padding:0;text-align:left;color:#294449;font-weight:740}.name-link:hover{color:var(--accent)}.no-wrap{white-space:nowrap}.empty-state{padding:48px 18px;text-align:center}.empty-state .icon-circle{margin:0 auto 13px}.empty-state strong{display:block;margin-bottom:5px}.empty-state p{font-size:12px;color:#89989b;margin:0}.stats-title{display:flex;align-items:center;gap:9px}.inline-hint{font-size:11px;color:#859699}.demo-chip{display:inline-flex;align-items:center;gap:7px;border-radius:50px;padding:7px 10px;background:#fff5e6;color:#ac7935;font-size:10px;font-weight:800;white-space:nowrap}.breakdown-count{background:#f4f8f7;border:1px solid var(--line);border-radius:10px;padding:13px;font-size:12px}.breakdown-count b{display:block;font-size:21px;font-weight:780;margin-top:2px}.btn-reset{background:transparent;color:#ab6671;border:none;padding:8px;font-size:11px;cursor:pointer}.page-actions{display:flex;gap:8px;flex-wrap:wrap}.view{display:none}.view.active{display:block}
+    @media(max-width:1200px){.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-columns{grid-template-columns:1fr}.secondary-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:780px){.app{display:block}.sidebar{position:relative;width:100%;min-width:0;height:auto;flex-direction:row;align-items:center;padding:10px 14px;gap:8px;overflow-x:auto}.brand{padding:4px 10px 4px 0;white-space:nowrap}.brand-logo{width:32px;height:32px;font-size:18px}.brand-name{font-size:14px}.brand-sub{font-size:8px}.nav-caption,.side-spacer,.demo-mini,.sidebar-bottom{display:none}.nav-btn{width:auto;margin:0;padding:10px;white-space:nowrap;font-size:11px}.nav-btn.active:before{display:none}.nav-btn .ico{width:15px;height:15px}.topbar{height:58px;padding:0 17px}.content{padding:22px 16px 40px}.heading-row{align-items:start;flex-direction:column}.heading-row h1{font-size:25px}.metric-grid{gap:10px}.metric{padding:16px;min-height:117px}.metric-number{font-size:28px}.secondary-grid{grid-template-columns:1fr}.section-card{padding:17px}.topcrumb{display:none}.top-actions{margin-left:auto}.mobile-hide{display:none}.modal-shade{padding:8px}.modal{max-height:96vh;border-radius:14px}.modal-top{padding:17px}.tabs{padding:0 9px}.modal-scroll{padding:19px}.modal-foot{padding:12px 17px}.form-grid{grid-template-columns:1fr}.form-grid .field{grid-column:1/-1}.searchbox{min-width:100%}}
+    @media(max-width:440px){.metric-grid{grid-template-columns:1fr 1fr}.metric{padding:13px}.metric-label{font-size:10px}.metric-number{font-size:27px}.metric-icon{width:26px;height:26px}.metric-foot{font-size:10px}.top-actions .btn{padding:9px 10px}.heading-row{margin-bottom:18px}.toolbar{width:100%}.modal-title{font-size:17px}.btn{padding:9px 10px}}
+    .loading-db [data-new],.loading-db [data-open],.loading-db [data-inline-doctor]{pointer-events:none;opacity:.4}
+
+    .login-gate{position:fixed;inset:0;background:#f5f8f7;z-index:100;display:flex;align-items:center;justify-content:center;padding:22px}
+    .login-gate[hidden]{display:none}
+    .login-card{width:min(410px,100%);padding:34px 36px 31px;background:#fff;border:1px solid #e5ecea;border-radius:18px;box-shadow:0 16px 48px #113e3b0b}
+    .login-mark{width:42px;height:42px;border-radius:11px;background:#173d3c;color:#fff;display:grid;place-items:center;font-size:17px;font-weight:800;margin-bottom:24px}
+    .login-eyebrow{font-size:10px;letter-spacing:1.55px;color:#527e76;font-weight:800}
+    .login-card h1{font-size:25px;letter-spacing:-.7px;margin:5px 0 5px;font-weight:760}
+    .login-sub{font-size:12px;color:#849496;margin:0 0 27px}
+    .login-card label{display:block;font-weight:700;font-size:12px;color:#455e60;margin:15px 0 7px}
+    .login-card input{width:100%;height:43px;padding:10px 12px;border:1px solid #dbe6e4;border-radius:9px;background:#fff}
+    .login-submit{display:block;width:100%;margin-top:19px;font-size:13px;height:43px}
+    #login-error{font-size:12px;color:#af4343;min-height:0;margin:10px 0 0}
+    #login-error:empty{display:none}
+    .login-foot{text-align:center;font-size:11px;color:#99a5a6;margin-top:22px}
+    #signout-btn{border:0;background:transparent;color:#e6f0ef;cursor:pointer;font-size:11px;text-decoration:underline;padding:3px 0}
+
+
+html[data-server-mode="yes"]:not(.auth-ready) .app{display:none}
+#signout-mobile{display:none}
+@media(max-width:780px){#signout-mobile{display:inline-flex;font-size:11px;padding:8px}}
+@media(max-width:780px){.main{overflow-x:clip}}
+
+/* Pacote 04: apenas apoio ao cadastro rápido, sem componentes extras de navegação */
+#cities-datalist{display:none}.physician-picker{display:flex;flex-direction:column;gap:8px}
+.physician-picker>input{min-height:40px;border:1px solid #dfe8e8;border-radius:9px;padding:9px 12px;font-size:12px;outline-color:#8cc7bd;background:#fff;width:100%}
+.physician-picker .field{gap:6px}.physician-picker select{min-height:42px}
+.duplicate-warning{border:1px solid #e7d2a8;background:#fffaf0;color:#805f32;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px}
+.duplicate-warning[hidden]{display:none}.duplicate-warning strong{display:block;font-weight:750}.duplicate-warning p{margin:6px 0 10px;line-height:1.5}.duplicate-warning .btn{font-size:11px}
+
+.physician-picker .doctor-search-label{font-weight:700;color:#526a6d;font-size:11px}
+.physician-picker label[for="f-indicatorId"]{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+
+/* Pacote 05: ações contextuais discretas, sem novas abas */
+.soft-action{color:#21645f;background:#eff8f5;border:1px solid #c9e2db;font-weight:650}
+.soft-action:hover{background:#e3f3ee}
+.journey-tools{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 22px;border-top:1px solid #edf0f1}
+.journey-history{display:grid;gap:10px;padding-bottom:20px}
+.journey-history-item{padding:13px 15px;border:1px solid #e3ebea;border-radius:12px;display:grid;gap:5px;background:#fff}
+.journey-history-item span{font-size:12px;color:#677d7b}
+@media(max-width:430px){.journey-tools{padding:10px 14px}}
+/* Correção de usabilidade identificada nos testes reais de navegação:
+   cabeçalho e abas não devem ficar escondidos pelo formulário comprido. */
+.modal form#patient-form{display:flex;flex-direction:column;flex:1;min-height:0}
+.modal .modal-top,.modal .tabs,.modal .modal-foot{flex-shrink:0}
+.modal .tabs{min-height:46px}
+.modal .modal-scroll{min-height:0;overflow-y:auto}
+
+/* Pacote 06 — acompanhamento discreto e acessível, preservando as cinco abas */
+.task-head{gap:12px;flex-wrap:wrap}.task-filters{display:flex;gap:5px;flex-wrap:wrap}
+.task-filter{padding:7px 12px;background:#f7f9f9;border:1px solid #e6eeee;color:#647d7c;border-radius:8px;font-size:11px;cursor:pointer}
+.task-filter.selected{background:#eaf5f1;border-color:#c0e1d5;color:#226c62;font-weight:750}
+.task-operational{display:flex;gap:13px;align-items:center;padding:14px 0}
+.task-info{flex:1;min-width:0}.task-info .name-link{font-size:12px}.task-action{margin-top:5px;color:#3c575b}
+.task-controls{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex:0 0 auto}.task-date{font-size:11px;color:#708687;white-space:nowrap}.task-date.is-overdue{color:#ab613d}
+.task-complete{background:#eff8f4;border-color:#c6e1d5;color:#226d61;font-size:11px;padding:7px 11px}
+.task-history-card{margin-top:17px}.task-history-list{display:grid;gap:0}.task-history-item{padding:11px 2px;border-bottom:1px solid #edf2f2;display:grid;gap:4px;font-size:11px;color:#4b6467}
+.task-history-item span{color:#88999b}.task-history-item:last-child{border:0}
+@media(max-width:560px){.task-operational{align-items:flex-start}.task-operational .task-mark{display:none}.task-controls{align-items:flex-end}.task-head{align-items:stretch}}
+
+/* Pacote 07: perfil conciso do médico, busca e gestão sem abas adicionais */
+.doctor-tools{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:14px 0 18px}.doctor-searchbox{flex:1;min-width:min(260px,100%);max-width:460px}.doctor-inactive-toggle{font-size:11px;color:#60797a;display:flex;align-items:center;gap:6px;white-space:nowrap}.doctor-inactive-toggle input,.doctor-confirm input{accent-color:#2c8075}.doctor-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.doctor-kpi-grid>div{border:1px solid #e0eae7;border-radius:10px;padding:12px 9px;background:#f7faf9;min-width:0}.doctor-kpi-grid small{display:block;font-size:10px;color:#708687;min-height:26px}.doctor-kpi-grid b{display:block;font-size:23px;margin-top:5px;color:#2e5352}.doctor-profile-detail{display:grid;gap:6px;border-bottom:1px solid #edf1f0;padding:15px 1px 11px;font-size:12px}.doctor-profile-detail b{font-size:11px;color:#607876}.doctor-confirm{font-size:12px;display:flex;gap:9px;align-items:flex-start;margin:20px 0}.modal.narrow .modal-foot{flex-wrap:wrap}.modal.narrow .modal-foot .btns-inline{justify-content:flex-end} @media(max-width:480px){.doctor-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.doctor-tools{gap:10px}.modal.narrow .modal-foot{align-items:stretch}.modal.narrow .modal-foot .btns-inline{justify-content:flex-start}}
+
+/* Mobile 10/10: só mostrar o essencial; métricas completas no perfil do médico. */
+@media(max-width:600px){
+  #physicians-content>article.card:first-of-type th:nth-child(2),
+  #physicians-content>article.card:first-of-type td:nth-child(2),
+  #physicians-content>article.card:first-of-type th:nth-child(4),
+  #physicians-content>article.card:first-of-type td:nth-child(4),
+  #physicians-content>article.card:first-of-type th:nth-child(5),
+  #physicians-content>article.card:first-of-type td:nth-child(5),
+  #physicians-content>article.card:first-of-type th:nth-child(6),
+  #physicians-content>article.card:first-of-type td:nth-child(6),
+  #physicians-content .section-card th:nth-child(3),
+  #physicians-content .section-card td:nth-child(3){display:none}
+  #physicians-content>article.card:first-of-type table{table-layout:fixed}
+  #physicians-content>article.card:first-of-type th:first-child{width:61%}
+  #physicians-content>article.card:first-of-type th:nth-child(3){width:20%}
+  #physicians-content>article.card:first-of-type th:last-child{width:19%}
+  #physicians-content .section-card table{table-layout:fixed}
+  #physicians-content .section-card th:first-child{width:48%}
+  #physicians-content .section-card th:nth-child(2){width:30%}
+  #physicians-content .section-card th:last-child{width:22%}
+  #physicians-content table th,#physicians-content table td{padding:12px 7px;overflow-wrap:anywhere}
+  #physicians-content .panel-count{align-items:flex-start;gap:6px;flex-direction:column}
+  #physicians-content .section-card .name-link{font-size:11px}
+}
+
+/* Pacote 08: explicação do período compacta e discreta; sem novos módulos */
+.dashboard-method{font-size:11px;color:var(--muted);margin:-9px 0 21px;line-height:1.5}
+.dashboard-task-overdue{color:#a76125!important;font-weight:650}
+@media(max-width:600px){.dashboard-method{font-size:10.5px;margin:-7px 0 17px}}
+
+/* Pacote 09 — relatórios enxutos; filtros e resultados claros */
+.report-filters{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:0 0 19px}
+.report-label{display:flex;flex-direction:column;gap:6px;font-size:11px;color:#607878;font-weight:650;min-width:180px;flex:1}
+.report-label .select{width:100%;min-width:0;font-weight:500}
+.report-clear{white-space:nowrap;align-self:flex-end}
+.report-clear:disabled{opacity:.45;cursor:not-allowed}
+.report-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}
+.report-kpi{padding:17px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.report-kpi>span{font-size:11px;color:#6a8080}.report-kpi>b{font-size:30px;color:#234f4d;line-height:1.2}
+.report-kpi>small{font-size:11px;color:#738986}
+.report-time{border:1px solid #e4eeec;background:#f8fbfa;border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:26px;margin-bottom:18px;flex-wrap:wrap}
+.report-time>div{display:flex;flex-direction:column;gap:4px;min-width:165px}.report-time span{font-size:11px;color:#6d8580}
+.report-time strong{font-size:17px;color:#315d57}.report-time>small{margin-left:auto;font-size:10px;color:#80928f}
+.report-breakdowns .card{min-width:0}.report-method{font-size:11px;color:#718886;line-height:1.65;margin:19px 2px}
+@media(max-width:1050px){.report-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.report-filters{gap:9px}.report-label{flex:1 1 140px;min-width:0}.report-summary{gap:8px}.report-kpi{padding:13px}.report-kpi>b{font-size:26px}.report-kpi>small{font-size:10px}.report-time{gap:11px;padding:13px}.report-time>div{flex:1 1 120px;min-width:0}.report-time>small{margin-left:0}.report-clear{width:100%}}
+
+/* Pacote 10 | Consistência, legibilidade e acessibilidade — sem componentes extras */
+:root{--muted:#566e73;--line:#dce6e5}
+.skip-link{position:fixed;z-index:9999;top:10px;left:12px;background:#fff;color:#154c47;border:2px solid #167d72;padding:10px 14px;border-radius:8px;transform:translateY(-160%);text-decoration:none;font-weight:700}
+.skip-link:focus{transform:translateY(0)}
+:where(button,[role="button"],input,select,textarea,a):focus-visible{outline:3px solid #147f73;outline-offset:3px}
+.nav-btn,.btn,.select,.task-filter{min-height:42px}
+.field input,.field select,.field textarea{min-height:42px}
+.subhead,.panel-count,.card-sub,.report-method,.dashboard-method,.footer-caption{color:#526a70}
+.metric-label,.report-kpi>span,.report-kpi>small,.task-meta,.patient-sub,.form-helper{color:#526a70}
+.login-sub,.login-foot,.login-card label{color:#526a70}
+input::placeholder{color:#657c81;opacity:1}
+.item-row,.task-row{transition:background-color .13s ease}
+.item-row:hover,.task-row:hover{background:#f6faf9}
+.modal-shade .modal:focus{outline:none}
+.modal-close{min-width:40px;min-height:40px;display:grid;place-items:center}
+.tabs .tab{min-height:43px}
+.panel-count{min-height:43px}
+.table-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.table-wrap:focus-visible{outline:3px solid #147f73;outline-offset:2px}
+.task-date.is-overdue,.dashboard-task-overdue{color:#8a4c1b!important}
+#patient-rows .name-link,#physicians-content .name-link{min-height:32px;display:inline-flex;align-items:center}
+@media(max-width:780px){
+  .sidebar{scrollbar-width:thin;scroll-snap-type:x proximity}
+  .sidebar>.nav-btn{scroll-snap-align:center;min-height:42px}
+  .content{padding-inline:14px}
+  .heading-row{gap:11px}
+  .heading-row .toolbar{gap:7px}
+  .nav-btn{font-size:12px}
+}
+@media(max-width:600px){
+  .patient-table th:nth-child(3),.patient-table td:nth-child(3),
+  .patient-table th:nth-child(5),.patient-table td:nth-child(5),
+  .patient-table th:nth-child(6),.patient-table td:nth-child(6),
+  .patient-table th:nth-child(8),.patient-table td:nth-child(8){display:none}
+  .patient-table th,.patient-table td{padding:12px 8px;overflow-wrap:anywhere}
+  .patient-table th:nth-child(1){width:39%}
+  .patient-table th:nth-child(2){width:26%}
+  .patient-table th:nth-child(4){width:15%}
+  .patient-table th:nth-child(7){width:20%}
+  .task-operational .task-controls .btn{min-height:41px}
+  .footer-caption{font-size:11px;line-height:1.6}
+  .card-title{font-size:14px}
+}
+@media(max-width:380px){
+  .patient-table th:nth-child(4),.patient-table td:nth-child(4){display:none}
+  .patient-table th:nth-child(1){width:46%}
+  .patient-table th:nth-child(2){width:33%}
+  .patient-table th:nth-child(7){width:21%}
+  .topbar{padding:0 12px}
+  .metric-label{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+/* Listas de consulta em celular: informações principais visíveis, restante no cadastro. */
+@media(max-width:600px){
+ #view-pacientes .patient-table{display:block;width:100%;border-collapse:collapse}
+ #view-pacientes .patient-table thead{display:none}
+ #view-pacientes .patient-table tbody{display:block}
+ #view-pacientes .patient-table tr.item-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,auto);grid-template-areas:"patient stage" "referrer referrer";gap:4px 12px;border-bottom:1px solid #e8efed;padding:13px 12px;align-items:center}
+ #view-pacientes .patient-table tr.item-row:last-child{border-bottom:0}
+ #view-pacientes .patient-table tr.item-row td{display:none;padding:0!important;border:0;min-width:0}
+ #view-pacientes .patient-table tr.item-row td:nth-child(1){display:block;grid-area:patient}
+ #view-pacientes .patient-table tr.item-row td:nth-child(2){display:block;grid-area:referrer;color:#526a70;font-size:11px}
+ #view-pacientes .patient-table tr.item-row td:nth-child(2):before{content:'Indicado por: ';font-weight:600}
+ #view-pacientes .patient-table tr.item-row td:nth-child(7){display:block;grid-area:stage;text-align:right}
+ #view-pacientes .patient-table tr.item-row td:nth-child(7) .pill{white-space:normal;display:inline-block;line-height:1.4;text-align:center;max-width:138px;font-size:11px}
+ #view-pacientes .patient-table tr.item-row .patient-sub{font-size:10px}
+ #view-pacientes .patient-table tbody tr:not(.item-row){display:block}
+ #view-pacientes .patient-table tbody tr:not(.item-row) td{display:block}
+ #dashboard-content .dashboard-columns > .stack:first-child > article:first-child th:nth-child(3),
+ #dashboard-content .dashboard-columns > .stack:first-child > article:first-child td:nth-child(3),
+ #dashboard-content .dashboard-columns > .stack:first-child > article:first-child th:nth-child(4),
+ #dashboard-content .dashboard-columns > .stack:first-child > article:first-child td:nth-child(4){display:none}
+ #dashboard-content .dashboard-columns > .stack:first-child > article:nth-child(2) th:nth-child(2),
+ #dashboard-content .dashboard-columns > .stack:first-child > article:nth-child(2) td:nth-child(2),
+ #dashboard-content .dashboard-columns > .stack:first-child > article:nth-child(2) th:nth-child(3),
+ #dashboard-content .dashboard-columns > .stack:first-child > article:nth-child(2) td:nth-child(3){display:none}
+ #dashboard-content .dashboard-columns > .stack:first-child > article:nth-child(2) td:last-child .pill{white-space:normal;text-align:center;line-height:1.4;max-width:140px}
+}
+
+</style>
+</head>
+<body>
+<div role="note" style="background:#e7f4f0;color:#174e4a;text-align:center;font:600 12px/1.5 system-ui,sans-serif;padding:9px 14px;border-bottom:1px solid #c0e0d8">DEMONSTRAÇÃO · Dados fictícios. Não inserir informações reais de pacientes. Sem armazenamento hospitalar.</div>
+<a class="skip-link" href="#main-content">Ir para o conteúdo</a>
+<section id="login-gate" class="login-gate" aria-label="Acesso ao CRM" hidden>
+  <div class="login-card">
+    <div class="login-mark">IM</div>
+    <div class="login-eyebrow">IMEC SAÚDE</div>
+    <h1>CRM Oncológico</h1>
+    <p class="login-sub">Acesso da equipe · ambiente de testes</p>
+    <form id="auth-login-form" autocomplete="on">
+      <label for="login-username">Usuário</label><input id="login-username" name="username" required autocomplete="username" maxlength="80" autocapitalize="none" spellcheck="false" />
+      <label for="login-password">Senha</label><input type="password" id="login-password" name="password" required autocomplete="current-password" maxlength="128" />
+      <p id="login-error" role="alert" aria-live="polite"></p>
+      <button class="btn primary login-submit" type="submit">Entrar</button>
+    </form>
+    <div class="login-foot">Sem dados reais. Contas criadas pelo administrador.</div>
+  </div>
+</section>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m8 11 2 2 4-4M8 17h8"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18M7 16v-4m5 4V7m5 9v-8"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m10.3 3.4-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.7-2.6l-8-14a2 2 0 0 0-3.4 0ZM12 9v4m0 4h.01"/></symbol>
+  <symbol id="i-doctor" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2M9 17h6m-3-3v6"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M5.7 9A7 7 0 0 1 18 7l2 5M4 12l2 5a7 7 0 0 0 12.3-2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 11v5m0-8h.01"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h14v18H6a2 2 0 0 1-2-2Zm0 0a2 2 0 0 1 2-2h14"/></symbol>
+</svg>
+<div class="app">
+  <aside class="sidebar" role="navigation" aria-label="Navegação principal">
+    <div class="brand"><div class="brand-logo">✦</div><div><div class="brand-name">IMEC Saúde</div><div class="brand-sub">ONCO CRM</div></div></div>
+    <div class="nav-caption">GESTÃO ONCOLÓGICA</div>
+    <button class="nav-btn active" data-view="dashboard"><svg class="ico"><use href="#i-layout"/></svg>Visão geral</button>
+    <button class="nav-btn" data-view="pacientes"><svg class="ico"><use href="#i-users"/></svg>Pacientes</button>
+    <button class="nav-btn" data-view="acompanhamento"><svg class="ico"><use href="#i-tasks"/></svg>Acompanhamento</button>
+    <button class="nav-btn" data-view="relatorios"><svg class="ico"><use href="#i-chart"/></svg>Relatórios</button>
+    <button class="nav-btn" data-view="indicadores"><svg class="ico"><use href="#i-doctor"/></svg>Médicos indicadores</button>
+    <div class="side-spacer"></div>
+    <div class="demo-mini"><strong>Demonstração funcional</strong>Utilize apenas dados fictícios. Este protótipo não possui login nem armazenamento hospitalar seguro.</div>
+    <div class="sidebar-bottom"><div class="avatar">IM</div><div><b id="active-username">Equipe Oncologia</b><br><button id="signout-btn" hidden type="button">Sair da conta</button><span id="demo-account-label">Demonstração</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="topcrumb">IMEC Saúde <span style="margin:0 10px;color:#cbd3d4">/</span><b id="crumb">Visão geral</b></div>
+      <div class="top-actions"><span class="demo-chip"><svg class="ico" style="width:13px;height:13px"><use href="#i-info"/></svg> MODO TESTES</span><button id="signout-mobile" hidden type="button" class="btn quiet">Sair</button><button id="top-new" class="btn primary"><svg class="ico"><use href="#i-plus"/></svg>Novo paciente</button></div>
+    </header>
+    <main class="content" id="main-content" tabindex="-1">
+      <div class="notice"><svg class="ico"><use href="#i-alert"/></svg><div><b>Protótipo para avaliação interna.</b> Os exemplos são fictícios. Não cadastre dados reais de pacientes nesta versão.</div></div>
+      <section class="view active" id="view-dashboard"><div id="dashboard-content"></div></section>
+      <section class="view" id="view-pacientes"><div id="patients-content"></div></section>
+      <section class="view" id="view-acompanhamento"><div id="followup-content"></div></section>
+      <section class="view" id="view-relatorios"><div id="reports-content"></div></section>
+      <section class="view" id="view-indicadores"><div id="physicians-content"></div></section>
+      <p class="footer-caption">IMEC Saúde · CRM Oncológico · Pacote 10 · versão 2.1 (demonstração) · Dados de exemplo, sem conexão com prontuários.</p>
+    </main>
+  </div>
+</div>
+<div class="modal-shade" id="modal-shade" aria-hidden="true"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-heading" id="modal-root"></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+
+'use strict';
+const ico=(id)=>`<svg class="ico" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const html=(s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const attr=html;
+const key='imec_onco_demo_v1_6'; // Preserva dados demonstrativos da versão anterior na mesma sessão
+const nowDate=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const labels={dashboard:'Visão geral',pacientes:'Pacientes',acompanhamento:'Acompanhamento',relatorios:'Relatórios',indicadores:'Médicos indicadores'};
+const stageLabels={indicacao:'Indicação recebida',agendada:'Consulta agendada',ausente:'Não compareceu',cancelada:'Consulta cancelada',consultou:'Consulta realizada',preparacao:'Preparação do tratamento',iniciado:'Tratamento iniciado',acompanhamento:'Acompanhamento',encerrado:'Encerrado'};
+const stageColors={indicacao:'gray',agendada:'blue',ausente:'amber',cancelada:'gray',consultou:'blue',preparacao:'amber',iniciado:'green',acompanhamento:'green',encerrado:'gray'};
+const getStage=p=>p.closure==='encerrado'?'encerrado':p.treatmentStarted?'iniciado':p.closure==='acompanhamento'?'acompanhamento':p.indicationDecision==='sim'?'preparacao':p.indicationDecision==='nao'?'acompanhamento':p.consultDone?'consultou':p.consultStatus==='nao_compareceu'?'ausente':p.consultStatus==='cancelada'?'cancelada':p.consultScheduled?'agendada':'indicacao';
+const formatDate=(s)=>{if(!s)return '—';const [y,m,d]=s.split('-').map(Number);return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`};
+const fmtShort=(s)=>{if(!s)return '—';return formatDate(s).slice(0,5)};
+const taskHistoryDate=s=>{if(!s)return '—';const utc=String(s).match(/(Z|[+-]\d\d:\d\d)$/)?s:s+'Z';return new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(utc))};
+const pretty=(s)=>s?String(s).charAt(0).toUpperCase()+String(s).slice(1):'—';
+const safeCSV=v=>{let s=String(v??'');if(/^[\s]*[=+@\-\t\r]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'};
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
+const byDateDesc=(a,b)=>String(b.indicationDate).localeCompare(String(a.indicationDate));
+const demoDoctors=[
+{id:'med1',name:'Dr. Indicador A',crm:'10001',uf:'GO',specialty:'Clínica Médica'},
+{id:'med2',name:'Dra. Indicadora B',crm:'10002',uf:'GO',specialty:'Ginecologia'},
+{id:'med3',name:'Dr. Indicador C',crm:'10003',uf:'GO',specialty:'Cirurgia Geral'},
+{id:'med4',name:'Dra. Indicadora D',crm:'10004',uf:'GO',specialty:'Gastroenterologia'},
+{id:'med5',name:'Dr. Indicador E',crm:'10005',uf:'GO',specialty:'Urologia'},
+{id:'med6',name:'Dra. Indicadora F',crm:'10006',uf:'GO',specialty:'Clínica Médica'}
+];
+const baseTasks=['Solicitar autorização','Confirmar retorno','Agendar primeira consulta','Verificar documentação','Contactar paciente','Acompanhar liberação'];
+function seededPatients(){
+const cities=['Ceres','Rialma','Goianésia','Itapaci','Uruana','Rubiataba','Crixás','São Patrício'];
+const insurers=['IPASGO','Unimed','Particular','IPASGO','Unimed','Particular','Outro convênio'];
+return Array.from({length:29},(_,i)=>{
+ const n=i+1,oct=i<22,day=oct?(1+(i*7)%12):(6+(i*3)%22),indicationDate=`2026-${oct?'10':'09'}-${String(day).padStart(2,'0')}`;
+ const indicatorType=(i%7===6)?(i%2===0?'Demanda espontânea':'Paciente/familiar'):'Médico';
+ const indicatorId=indicatorType==='Médico'?demoDoctors[i%demoDoctors.length].id:'';
+ const ptype=insurers[i%insurers.length]==='Particular'?'Particular':'Convênio';
+ const ordered=(i*11+4)%6;let consultScheduled='',consultDone='',indicationDecision='pendente',treatmentStarted='',treatmentType='',authorization='Não iniciado',closure='',nextAction='',nextActionDue='';
+ const advance=(date,days)=>{const x=new Date(date+'T12:00:00');x.setDate(x.getDate()+days);return x.toISOString().slice(0,10)};
+ if(ordered!==0){consultScheduled=advance(indicationDate,1);if(consultScheduled>nowDate)consultScheduled='2026-10-15'}
+ if(ordered>=2){consultDone=advance(indicationDate,2);if(consultDone>nowDate)consultDone=''}
+ if(ordered>=3 && consultDone){indicationDecision=(i%9===0)?'nao':'sim'}
+ if(ordered>=4 && indicationDecision==='sim')authorization=ordered===4?'Em análise':'Autorizado';
+ if(ordered===5 && indicationDecision==='sim'){treatmentStarted=advance(consultDone,3);if(treatmentStarted>nowDate)treatmentStarted='';treatmentType='Quimioterapia'}
+ if(indicationDecision==='nao')closure='acompanhamento';
+ const stage=getStage({consultScheduled,consultDone,indicationDecision,treatmentStarted,closure});
+ if(stage!=='iniciado' && stage!=='acompanhamento'){
+  nextAction=stage==='indicacao'?'Agendar primeira consulta':stage==='agendada'?'Confirmar agendamento':stage==='consultou'?'Confirmar decisão médica':stage==='preparacao'?'Acompanhar autorização':'Contactar paciente';
+  nextActionDue=(i%3===0)?'2026-10-10':(i%3===1)?'2026-10-12':'2026-10-15';
+ }
+ return {id:`demo-${n}`,insurerOther:ptype==='Convênio'&&insurers[i%insurers.length]==='Outro convênio'?'Convênio Demonstrativo':'',name:`Paciente Exemplo ${String(n).padStart(2,'0')}`,phone:'',city:cities[i%cities.length],uf:'GO',indicatorType,indicatorId,indicatorOther:'',payerType:ptype,insurer:ptype==='Convênio'?insurers[i%insurers.length]:'',indicationDate,consultScheduled,consultDone,consultStatus:'agendada',closureReason:'',oncologist:consultDone?'Dra. Oncologista Exemplo':'',indicationDecision,authorization,treatmentType,treatmentStarted,closure,nextAction,nextActionDue,actionOwner:nextAction?'Equipe Oncologia':'',createdAt:indicationDate+'T12:00:00',updatedAt:indicationDate+'T12:00:00'};
+}).sort(byDateDesc)}
+const API_MODE=document.documentElement.dataset.serverMode==='yes';
+const initial=()=>API_MODE?({doctors:[],patients:[]}):({doctors:demoDoctors,patients:seededPatients()});
+function load(){if(API_MODE)return initial();try{const raw=sessionStorage.getItem(key);if(raw){const d=JSON.parse(raw);if(Array.isArray(d.patients)&&Array.isArray(d.doctors))return d}}catch(e){}return initial()}
+let database=load(); if(!Array.isArray(database.tasks))database.tasks=[];
+const state={doctorQuery:'',doctorShowInactive:false,reportDoctor:'all',reportCity:'all',reportPlan:'all',view:'dashboard',period:nowDate.slice(0,7),query:'',stage:'all',listDateMode:'indicacao',payer:'all',indicator:'all',listMode:'patients',modal:null,modalTab:'origem',editingId:null,newJourney:false,doctorModal:false,resumePatient:null,taskFilter:'all',historyExpanded:false};
+function save(){if(API_MODE)return;try{sessionStorage.setItem(key,JSON.stringify(database))}catch(e){toast('Sessão sem armazenamento disponível. Dados permanecem até recarregar.')}}
+function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('visible');clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>el.classList.remove('visible'),3300)}
+const dr=id=>database.doctors.find(d=>d.id===id);
+const drName=p=>p.indicatorType==='Médico'?(dr(p.indicatorId)?.name||'Não informado'):p.indicatorType==='Outros'?(p.indicatorOther||'Outros'):p.indicatorType||'Não informado';
+const planName=p=>p.payerType==='Convênio'?(p.insurer==='Outro convênio'?(p.insurerOther||'Outro convênio'):(p.insurer||'Convênio')):(p.payerType||'—');
+const inPeriod=(date,period=state.period)=>date&& (period==='all'||String(date).slice(0,7)===period);
+const referrals=()=>database.indications||database.patients;
+const periodPatients=()=>referrals().filter(p=>inPeriod(p.indicationDate));
+const patientSource=()=>state.listMode==='journeys'?referrals():database.patients;
+const openTasks=()=>database.patients.filter(p=>p.nextAction && p.closure!=='encerrado' && !p.treatmentStarted).sort((a,b)=>(a.nextActionDue||'9999').localeCompare(b.nextActionDue||'9999'));
+const displayTasks=()=>API_MODE?(database.tasks||[]).filter(t=>t.status==='aberta'&&t.activeJourney).map(t=>({...t,patientVersion:database.patients.find(p=>p.id===t.patientId)?.version||0})):openTasks().map(p=>({id:p.taskId||p.id,patientId:p.id,patientName:p.name,action:p.nextAction,owner:p.actionOwner,dueDate:p.nextActionDue,city:p.city,patientVersion:p.version||1,status:'aberta'}));
+const pendingPatientOptions=()=>database.patients.filter(p=>p.closure!=='encerrado'&&!p.treatmentStarted&&!p.nextAction).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+
+const pct=(a,b)=>b?Math.round(100*a/b)+'%':'—';
+function stagePill(p){const st=getStage(p);return `<span class="pill ${stageColors[st]||'gray'}">${html(stageLabels[st])}</span>`}
+const monthOptions=()=>{const months=[...new Set([nowDate.slice(0,7),...referrals().flatMap(p=>[p.indicationDate,p.consultDone,p.treatmentStarted].map(d=>String(d||'').slice(0,7))),state.period].filter(m=>/^\d{4}-(0[1-9]|1[0-2])$/.test(m)))].sort().reverse();return months.map(m=>{const [y,mm]=m.split('-').map(Number);const label=new Intl.DateTimeFormat('pt-BR',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,mm-1,1)));return `<option value="${m}" ${state.period===m?'selected':''}>${html(label.charAt(0).toUpperCase()+label.slice(1))}</option>`}).join('')+`<option value="all" ${state.period==='all'?'selected':''}>Todo o período</option>`};
+function title(k,sub,right=''){return `<div class="heading-row"><div><div class="eyebrow">CRM ONCOLÓGICO / IMEC SAÚDE</div><h1>${k}</h1><p class="subhead">${sub}</p></div>${right?`<div class="toolbar">${right}</div>`:''}</div>`}
+function periodControl(){return `<select aria-label="Período" class="select" id="period-select-${state.view}">${monthOptions()}</select>`}
+function statCard(label,val,desc,iconName,view,filter=''){return `<article class="metric card ${view?'clickable':''}" ${view?`data-goto="${view}" data-filter="${filter}" role="button" tabindex="0"`:''}><div class="metric-label"><span>${label}</span><span class="metric-icon">${ico(iconName)}</span></div><div class="metric-number">${val}</div><div class="metric-foot">${desc}</div></article>`}
+function headerTableRanking(data,limit){const rows=data.slice(0,limit).map((r,i)=>`<tr class="item-row"><td><span class="rank-num">${i+1}</span><button type="button" class="name-link" data-doctor-profile="${attr(r.id)}">${html(r.name)}</button><div class="patient-sub" style="padding-left:30px">${html(r.specialty||'Especialidade não informada')}</div></td><td style="text-align:center"><b>${r.total}</b></td><td style="text-align:center">${r.consulted}</td><td style="text-align:center">${r.started}</td></tr>`).join('');return `<div class="table-wrap"><table><thead><tr><th>Médico indicador</th><th style="text-align:center">Indicados</th><th style="text-align:center">Consultas</th><th style="text-align:center">Tratamentos</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="empty">Nenhuma indicação médica no período.</td></tr>'}</tbody></table></div>`}
+function ranks(){return database.doctors.map(d=>{const p=periodPatients().filter(x=>x.indicatorType==='Médico'&&x.indicatorId===d.id);return {...d,total:p.length,uniquePatients:new Set(p.map(x=>x.id)).size,consulted:p.filter(x=>x.consultDone).length,started:p.filter(x=>x.treatmentStarted).length}}).filter(d=>d.total>0).sort((a,b)=>b.total-a.total||b.consulted-a.consulted||a.name.localeCompare(b.name,'pt-BR'))}
+// Fonte única para os números e os detalhamentos do painel. Indicações = data de entrada;
+// consultas e tratamentos = data REAL dos eventos. Pendências = abertas em todos os períodos.
+function dashboardSummary(){return {
+ indications:referrals().filter(p=>inPeriod(p.indicationDate)),
+ consultations:referrals().filter(p=>inPeriod(p.consultDone)),
+ treatments:referrals().filter(p=>inPeriod(p.treatmentStarted)),
+ tasks:displayTasks().sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999'))
+}}
+function taskMarkup(tasks,limit=5){return tasks.slice(0,limit).map(t=>{const late=t.dueDate&&t.dueDate<nowDate;return `<div class="task-row" role="button" tabindex="0" data-open="${attr(t.patientId)}" data-tab="pendencia"><span class="task-mark">${ico('calendar')}</span><div class="task-info"><div class="task-title">${html(t.patientName)}</div><div class="task-meta">${html(t.action)}${t.owner?' · '+html(t.owner):''}</div></div><span class="task-right ${late?'dashboard-task-overdue':''}">${t.dueDate?fmtShort(t.dueDate):'Sem prazo'}${late?' · Vencida':''}</span></div>`}).join('')||'<div class="empty">Nenhuma pendência aberta.</div>'}
+function dashboard(){const summary=dashboardSummary();const p=summary.indications;const r=ranks();const tasks=summary.tasks;const recent=p.slice().sort(byDateDesc).slice(0,5);const late=tasks.filter(t=>t.dueDate&&t.dueDate<nowDate).length;
+document.getElementById('dashboard-content').innerHTML=`
+${title('Visão geral','O essencial para acompanhar a Oncologia.',periodControl())}
+<div class="metric-grid">
+${statCard('Indicações recebidas',p.length,'Entradas no período','users','pacientes','all')}
+${statCard('Primeiras consultas',summary.consultations.length,'Realizadas no período','calendar','pacientes','consultas')}
+${statCard('Tratamentos iniciados',summary.treatments.length,'Inícios no período','check','pacientes','tratamentos')}
+${statCard('Pendências abertas',tasks.length,late?`${late} vencida${late===1?'':'s'} · todos os períodos`:'Em todos os períodos','alert','acompanhamento')}
+</div>
+<p class="dashboard-method">Indicações por data de entrada · Consultas e tratamentos por data de realização · Pendências abertas em todos os períodos.</p>
+<div class="dashboard-columns"><div class="stack">
+<article class="card section-card"><div class="card-head"><div><div class="card-title">Médicos que mais indicaram</div><div class="card-sub">Indicações recebidas no período</div></div><button class="link" data-goto="indicadores">Ver ranking ${ico('arrow')}</button></div>${headerTableRanking(r,5)}</article>
+<article class="card section-card"><div class="card-head"><div><div class="card-title">Indicações recentes</div><div class="card-sub">Últimas entradas no período</div></div><button class="link" data-goto="pacientes" data-filter="indicacoes">Ver todas ${ico('arrow')}</button></div><div class="table-wrap"><table><thead><tr><th>Paciente</th><th>Indicador</th><th>Data</th><th>Etapa</th></tr></thead><tbody>${recent.map(x=>{const canOpen=database.patients.some(p=>p.id===x.id);return `<tr class="item-row"><td>${canOpen?`<button type="button" class="name-link" ${x.active===false?`data-open-history="${attr(x.id)}"`:`data-open="${attr(x.id)}"`}>${html(x.name)}</button>`:html(x.name)}${x.active===false?'<div class="patient-sub">Indicação anterior</div>':''}</td><td>${html(drName(x))}</td><td class="muted">${fmtShort(x.indicationDate)}</td><td>${stagePill(x)}</td></tr>`}).join('')||'<tr><td colspan="4" class="empty">Nenhuma indicação no período.</td></tr>'}</tbody></table></div></article>
+</div><div class="stack">
+<article class="card section-card"><div class="card-head"><div><div class="card-title">Precisam de atenção</div><div class="card-sub">${late?`${late} vencida${late===1?'':'s'} · `:''}Próximas ações, todos os períodos</div></div><button class="link" data-goto="acompanhamento">Ver todas ${ico('arrow')}</button></div><div class="task-list">${taskMarkup(tasks,5)}</div></article>
+<article class="card section-card"><div class="card-head"><div><div class="card-title">Distribuição por plano</div><div class="card-sub">Indicações recebidas no período</div></div></div>${barChart(groupCount(p,x=>planName(x)),5)}</article>
+</div></div>`}
+
+function groupCount(items,get){const d=new Map();items.forEach(x=>{const label=String(get(x)||'Não informado').trim();const k=norm(label);if(d.has(k))d.get(k).total++;else d.set(k,{label,total:1})});return [...d.values()].sort((a,b)=>b.total-a.total||a.label.localeCompare(b.label))}
+function barChart(data,limit=8){const m=Math.max(1,...data.map(v=>v.total));return `<div class="graph-bars">${data.slice(0,limit).map((x,i)=>`<div><div class="graph-item-top"><span class="graph-label">${html(x.label)}</span><span class="graph-num">${x.total}</span></div><div class="track"><div class="fill ${i===0?'primary':''}" style="width:${100*x.total/m}%"></div></div></div>`).join('')||'<div class="empty">Nenhum registro para exibir.</div>'}</div>`}
+function patientFilter(p){const refDate=state.listDateMode==='consulta'?p.consultDone:state.listDateMode==='tratamento'?p.treatmentStarted:p.indicationDate;if(!inPeriod(refDate))return false;const q=norm(state.query);if(q&&!norm([p.name,p.city,p.uf,drName(p),planName(p)].join(' ')).includes(q))return false;if(state.payer!=='all'&&planName(p)!==state.payer)return false;if(state.indicator!=='all'&&(state.indicator==='other'?p.indicatorType==='Médico':p.indicatorId!==state.indicator))return false;if(state.stage==='all')return true;return getStage(p)===state.stage}
+function patients(){const data=patientSource().filter(patientFilter).sort(byDateDesc);const plans=[...new Set(referrals().map(planName))].sort();const x=`${title('Pacientes','Uma lista simples com origem, convênio e etapa de cada paciente.',`<button class="btn" data-export="patients">${ico('download')} Exportar CSV</button><button class="btn primary" data-new="patient">${ico('plus')} Novo paciente</button>`)}<div class="filters"><div class="searchbox">${ico('search')}<input id="patient-search" type="search" autocomplete="off" aria-label="Buscar pacientes" placeholder="Buscar paciente, médico, cidade ou plano..." value="${attr(state.query)}" /></div>${periodControl()}<select class="select" id="stage-select" aria-label="Filtrar etapa"><option value="all">Todas as etapas</option>${Object.entries(stageLabels).map(([k,v])=>`<option value="${k}" ${state.stage===k?'selected':''}>${v}</option>`).join('')}</select><select class="select" aria-label="Filtrar plano" id="payer-select"><option value="all">Todos os planos</option>${plans.map(p=>`<option ${state.payer===p?'selected':''}>${html(p)}</option>`).join('')}</select>${state.indicator!=='all'?`<button class="filter-badge" data-remove-indicator>Filtro: ${html(dr(state.indicator)?.name||'Outro')} ×</button>`:''}${state.listMode==='journeys'?`<span class="filter-badge">${state.listDateMode==='consulta'?'Consultas realizadas':state.listDateMode==='tratamento'?'Tratamentos iniciados':'Indicações recebidas'} no período</span>`:''}</div><div class="card"><div class="panel-count"><span role="status" aria-live="polite"><b>${data.length}</b> ${state.listMode==='journeys'?'indicação':'paciente'}${data.length===1?'':'s'} exibida${data.length===1?'':'s'}</span><span>Selecione uma linha para acompanhar a jornada ${ico('chevron')}</span></div><div class="table-wrap"><table class="patient-table"><thead><tr><th>Paciente</th><th>Quem indicou</th><th>Cidade</th><th>Plano</th><th>Primeira consulta</th><th>Tratamento</th><th>Etapa</th><th></th></tr></thead><tbody id="patient-rows">${patientRows(data)}</tbody></table></div></div>`;document.getElementById('patients-content').innerHTML=x}
+function patientRows(data){return data.length?data.map(p=>`<tr class="item-row" ${p.active===false?`data-open-history="${attr(p.id)}"`:`data-open="${attr(p.id)}"`}><td><button type="button" class="name-link" ${p.active===false?`data-open-history="${attr(p.id)}"`:`data-open="${attr(p.id)}"`}>${html(p.name)}</button><div class="patient-sub">Entrada: ${formatDate(p.indicationDate)}${p.active===false?' · Histórico':''}</div></td><td>${html(drName(p))}</td><td>${html(p.city)}${p.uf?' / '+html(p.uf):''}</td><td>${html(planName(p))}</td><td>${p.consultDone?formatDate(p.consultDone):p.consultScheduled?`<span class="muted">Ag. ${formatDate(p.consultScheduled)}</span>`:'—'}</td><td>${p.treatmentStarted?formatDate(p.treatmentStarted):'—'}</td><td>${stagePill(p)}</td><td style="color:#a2aeb0">${ico('chevron')}</td></tr>`).join(''):'<tr><td colspan="8" class="empty">Nenhum paciente encontrado com esses filtros.</td></tr>'}
+function operationalTaskRow(t){const overdue=t.dueDate&&t.dueDate<nowDate,upcoming=t.dueDate===nowDate;return `<div class="task-row task-operational"><div class="task-mark">${ico('calendar')}</div><div class="task-info"><button type="button" class="name-link" data-open="${attr(t.patientId)}" data-tab="pendencia">${html(t.patientName)}</button><div class="task-meta task-action">${html(t.action)}</div><div class="task-meta">${html(t.owner||'Sem responsável')} · ${html(t.city||'')}</div></div><div class="task-controls"><span class="task-date ${overdue?'is-overdue':''}">${t.dueDate?formatDate(t.dueDate):'Sem prazo'}${overdue?' · Vencida':upcoming?' · Hoje':''}</span><button type="button" class="btn task-complete" data-task-complete="${attr(t.id)}" data-task-patient="${attr(t.patientId)}" data-task-version="${attr(t.patientVersion)}" aria-label="Concluir ação de ${attr(t.patientName)}">${ico('check')} Concluir</button></div></div>`}
+function followup(){const all=displayTasks().sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999')),late=all.filter(t=>t.dueDate&&t.dueDate<nowDate).length;
+ const list=all.filter(t=>state.taskFilter==='mine'?signedUser&&norm(t.owner)===norm(signedUser.displayName):state.taskFilter==='overdue'?t.dueDate&&t.dueDate<nowDate:true);
+ const history=API_MODE?(database.tasks||[]).filter(t=>t.status!=='aberta').sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||'')):database.tasks.filter(t=>t.status!=='aberta');
+ document.getElementById('followup-content').innerHTML=`${title('Acompanhamento','Uma ação de cada vez, com responsável e prazo.',`<button class="btn primary" data-task-new>${ico('plus')} Nova pendência</button>`)}
+ <div class="secondary-grid" style="margin-bottom:18px"><div class="card section-card"><div class="card-title">Em aberto</div><div class="metric-number" style="margin-bottom:6px">${all.length}</div><div class="muted" style="font-size:12px">Ações aguardando conclusão</div></div><div class="card section-card"><div class="card-title">Vencidas</div><div class="metric-number" style="margin-bottom:6px;color:#b47735">${late}</div><div class="muted" style="font-size:12px">Prazos anteriores a ${formatDate(nowDate)}</div></div></div>
+ <article class="card section-card"><div class="card-head task-head"><div><div class="card-title">Próximas ações</div><div class="card-sub">Por prazo, mais urgente primeiro</div></div><div class="task-filters">${[['all','Todas'],['mine','Minhas'],['overdue','Vencidas']].map(([id,label])=>`<button class="task-filter ${state.taskFilter===id?'selected':''}" data-task-filter="${id}" aria-pressed="${state.taskFilter===id}">${label}</button>`).join('')}</div></div><div class="task-list">${list.map(operationalTaskRow).join('')||'<div class="empty">Nenhuma pendência nesse filtro.</div>'}</div></article>
+ <article class="card section-card task-history-card"><div class="card-head"><div><div class="card-title">Histórico</div><div class="card-sub">Concluídas e substituídas, sem apagamento</div></div><button type="button" class="link" data-task-history-toggle>${state.historyExpanded?'Mostrar menos':'Ver histórico'} (${history.length})</button></div>${state.historyExpanded?`<div class="task-history-list">${history.map(t=>`<div class="task-history-item"><div><b>${html(t.patientName||'Paciente')}</b> · ${html(t.action)}</div><span>${t.status==='concluida'?'Concluída':'Substituída'} · ${t.completedAt?taskHistoryDate(t.completedAt):'—'} · ${html(t.completedBy||'Sistema')}</span></div>`).join('')||'<div class="empty">Ainda não há ações finalizadas.</div>'}</div>`:''}</article>
+ <p class="footer-caption">O acompanhamento é operacional. O CRM não armazena laudos, prescrições ou evolução clínica.</p>`}
+function openTaskQuick(){const p=pendingPatientOptions();if(!p.length){toast('Não há pacientes disponíveis sem pendência.');return}modalOpen(`<div class="modal-top"><div><div class="eyebrow">ACOMPANHAMENTO</div><div class="modal-title">Nova pendência</div><div class="modal-desc">Uma ação objetiva para o próximo passo.</div></div><button class="modal-close" data-close aria-label="Fechar">${ico('x')}</button></div><form id="task-quick-form"><div class="modal-scroll"><div class="form-grid">${selectField('patientId','Paciente',p[0].id,p.map(x=>[x.id,x.name+' · '+x.city]),{wide:true,required:true})}${field('action','O que precisa ser feito?','','text',{wide:true,required:true,placeholder:'Ex.: Confirmar autorização'})}${field('dueDate','Prazo','','date')}${field('owner','Responsável',signedUser?.displayName||'Equipe Oncologia','text')}</div></div><div class="modal-foot"><span class="tagline">Sem informações clínicas</span><div class="btns-inline"><button type="button" class="btn" data-close>Cancelar</button><button type="submit" class="btn primary">Criar pendência</button></div></div></form>`,true)}
+async function quickTaskSubmit(e){e.preventDefault();if(apiSaving)return;const f=e.target,id=f.elements.patientId.value,p=database.patients.find(p=>p.id===id);const action=f.elements.action.value.trim();if(action.length<2){toast('Descreva a ação a realizar.');return}const data={action,owner:f.elements.owner.value.trim(),dueDate:f.elements.dueDate.value||null};apiSaving=true;f.querySelector('button[type=submit]').disabled=true;try{if(API_MODE){await apiRequest(`/api/v1/patients/${encodeURIComponent(id)}/tasks`,{method:'POST',headers:{'If-Match':String(p.version)},body:JSON.stringify(data)});await reloadServerState()}else{p.nextAction=data.action;p.nextActionDue=data.dueDate||'';p.actionOwner=data.owner;p.taskId='local-'+cryptoRandom();save()}modalClose();render();toast('Pendência criada.')}catch(err){toast(err.message);if(err.code===409&&API_MODE){await reloadServerState();render()}}finally{apiSaving=false;f.querySelector('button[type=submit]').disabled=false}}
+async function quickCompleteTask(tid,pid,version){if(apiSaving)return;apiSaving=true;try{if(API_MODE){await apiRequest(`/api/v1/tasks/${encodeURIComponent(tid)}/complete`,{method:'POST',headers:{'If-Match':String(version)},body:'{}'});await reloadServerState()}else{const p=database.patients.find(x=>x.id===pid);database.tasks.push({id:tid,patientId:pid,patientName:p.name,action:p.nextAction,owner:p.actionOwner,dueDate:p.nextActionDue,status:'concluida',completedAt:new Date().toISOString(),completedBy:'Demonstração'});p.nextAction='';p.nextActionDue='';p.actionOwner='';save()}render();toast('Pendência concluída.')}catch(err){toast(err.message);if(err.code===409&&API_MODE){await reloadServerState();render()}}finally{apiSaving=false}}
+
+// Pacote 09: uma fonte de verdade para tela e exportação, sem dados de prontuário.
+const countDistinct=rows=>new Set(rows.map(p=>p.id)).size;
+const utcDays=(a,b)=>{
+ if(!a||!b)return null;
+ const da=Date.parse(a+'T00:00:00Z'),db=Date.parse(b+'T00:00:00Z');
+ if(!Number.isFinite(da)||!Number.isFinite(db)||db<da)return null;
+ return Math.round((db-da)/86400000);
+};
+const median=values=>{
+ if(!values.length)return null;
+ const a=[...values].sort((x,y)=>x-y),m=Math.floor(a.length/2);
+ return a.length%2?a[m]:(a[m-1]+a[m])/2;
+};
+const formatDays=value=>value===null?'—':String(value).replace('.',',')+' '+(value===1?'dia':'dias');
+const reportCity=p=>[p.city||'Não informada',p.uf||''].filter(Boolean).join(' / ');
+function groupDoctor(rows){
+ const result=new Map();
+ rows.filter(p=>p.indicatorType==='Médico').forEach(p=>{
+  const id=p.indicatorId||'sem-cadastro';
+  if(!result.has(id))result.set(id,{label:dr(id)?.name||'Médico não identificado',total:0,id});
+  result.get(id).total++;
+ });
+ return [...result.values()].sort((a,b)=>b.total-a.total||a.label.localeCompare(b.label,'pt-BR'));
+}
+function reportSnapshot(){
+ const rows=periodPatients().filter(p=>(state.reportDoctor==='all'||(state.reportDoctor==='other'?p.indicatorType!=='Médico':p.indicatorId===state.reportDoctor))&&
+  (state.reportCity==='all'||reportCity(p)===state.reportCity)&&
+  (state.reportPlan==='all'||planName(p)===state.reportPlan));
+ const consulted=rows.filter(p=>!!p.consultDone),indicated=rows.filter(p=>p.indicationDecision==='sim'),started=rows.filter(p=>!!p.treatmentStarted);
+ const consultationDays=consulted.map(p=>utcDays(p.indicationDate,p.consultDone)).filter(v=>v!==null);
+ const treatmentDays=started.map(p=>utcDays(p.consultDone,p.treatmentStarted)).filter(v=>v!==null);
+ return {rows,total:rows.length,unique:countDistinct(rows),consulted:consulted.length,indicated:indicated.length,started:started.length,
+  noIndication:rows.filter(p=>p.indicationDecision==='nao').length,consultRate:pct(consulted.length,rows.length),startRate:pct(started.length,indicated.length),
+  medianConsult:median(consultationDays),medianTreatment:median(treatmentDays),
+  doctors:groupDoctor(rows),cities:groupCount(rows,reportCity),plans:groupCount(rows,planName),sources:groupCount(rows,p=>p.indicatorType)};
+}
+function reportControls(){
+ const d=database.doctors.filter(doc=>referrals().some(p=>p.indicatorId===doc.id)).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+ const cities=[...new Set(referrals().map(reportCity))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+ const plans=[...new Set(referrals().map(planName))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+ const select=(id,label,current,options)=>`<label class="report-label" for="${id}">${label}<select class="select" id="${id}">${options.map(([value,text])=>`<option value="${attr(value)}" ${current===value?'selected':''}>${html(text)}</option>`).join('')}</select></label>`;
+ return `<div class="report-filters" aria-label="Filtros dos relatórios">
+ ${select('report-doctor','Indicador',state.reportDoctor,[['all','Todos os indicadores'],['other','Outras origens'],...d.map(x=>[x.id,x.name])])}
+ ${select('report-city','Cidade',state.reportCity,[['all','Todas as cidades'],...cities.map(x=>[x,x])])}
+ ${select('report-plan','Plano',state.reportPlan,[['all','Todos os planos'],...plans.map(x=>[x,x])])}
+ <button type="button" class="btn report-clear" data-report-clear ${[state.reportDoctor,state.reportCity,state.reportPlan].every(v=>v==='all')?'disabled':''}>Limpar filtros</button>
+ </div>`;
+}
+function reportCard(label,value,desc){return `<div class="card report-kpi"><span>${html(label)}</span><b>${html(value)}</b><small>${html(desc)}</small></div>`}
+function reportBars(items){const limit=6,rest=items.slice(limit).reduce((t,x)=>t+x.total,0);return barChart(items.slice(0,limit).concat(rest?[{label:'Demais',total:rest}]:[]),7)}
+function reports(){
+ const s=reportSnapshot();
+ document.getElementById('reports-content').innerHTML=`${title('Relatórios','Onde chegam os pacientes e como avançam.',`${periodControl()}<button class="btn" data-export="report">${ico('download')} Exportar resumo CSV</button>`)}
+ ${reportControls()}
+ <div class="report-summary" aria-live="polite">
+ ${reportCard('Indicações',s.total,`${s.unique} paciente${s.unique===1?'':'s'} único${s.unique===1?'':'s'}`)}
+ ${reportCard('Primeiras consultas',s.consulted,`${s.consultRate} das indicações`)}
+ ${reportCard('Tratamentos indicados',s.indicated,`${s.noIndication} sem indicação clínica`)}
+ ${reportCard('Tratamentos iniciados',s.started,`${s.startRate} dos indicados`)}
+ </div>
+ <div class="report-time"><div><span>Da indicação à consulta</span><strong>${formatDays(s.medianConsult)}</strong></div><div><span>Da consulta ao tratamento</span><strong>${formatDays(s.medianTreatment)}</strong></div><small>Tempo mediano · apenas etapas realizadas</small></div>
+ <div class="secondary-grid report-breakdowns">
+ <article class="card section-card"><div class="card-head"><div><div class="card-title">Médicos indicadores</div><div class="card-sub">Encaminhamentos no período</div></div>${ico('doctor')}</div>${reportBars(s.doctors)}</article>
+ <article class="card section-card"><div class="card-head"><div><div class="card-title">Cidades de origem</div><div class="card-sub">Municípios por indicação</div></div>${ico('pin')}</div>${reportBars(s.cities)}</article>
+ <article class="card section-card"><div class="card-head"><div><div class="card-title">Convênios e atendimento</div><div class="card-sub">Distribuição das indicações</div></div>${ico('chart')}</div>${reportBars(s.plans)}</article>
+ <article class="card section-card"><div class="card-head"><div><div class="card-title">Origem do encaminhamento</div><div class="card-sub">Médico e outras fontes</div></div>${ico('users')}</div>${reportBars(s.sources)}</article>
+ </div>
+ <p class="report-method">Resultados por <strong>data da indicação</strong>: consultas e tratamentos dessa coorte continuam contabilizados mesmo quando acontecem em outro mês. Início/indicação médica não é indicador de qualidade clínica. Períodos recentes ainda podem estar em maturação.</p>`;
+}
+
+function doctorDirectoryRows(){const q=norm(state.doctorQuery);const entries=database.doctors.filter(d=>(state.doctorShowInactive||d.active!==false)&&norm([d.name,d.crm,d.uf,d.specialty].join(' ')).includes(q)).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));return entries.map(d=>`<tr><td><button class="name-link" data-doctor-profile="${attr(d.id)}">${html(d.name)}</button>${d.active===false?'<span class="pill gray" style="margin-left:8px">Inativo</span>':''}</td><td>${html(d.crm||'—')}${d.crm?'/'+html(d.uf):''}</td><td>${html(d.specialty||'—')}</td><td><button class="link" data-doctor-profile="${attr(d.id)}">Detalhes</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Nenhum médico encontrado.</td></tr>'}
+function physicians(){const r=ranks();document.getElementById('physicians-content').innerHTML=`${title('Médicos indicadores','Quem encaminhou, quantos consultaram e quantos iniciaram tratamento.',`<button class="btn" data-export="ranking">${ico('download')} Exportar</button><button class="btn primary" data-new="doctor">${ico('plus')} Novo médico</button>`)}<div class="filters">${periodControl()}<span class="inline-hint">${database.doctors.filter(d=>d.active!==false).length} médicos ativos · ${r.length} com encaminhamentos no período</span></div><article class="card"><div class="panel-count"><b>Ranking de encaminhamentos</b><span>Período da indicação, não da consulta</span></div><div class="table-wrap"><table><thead><tr><th>Médico</th><th>CRM/UF</th><th style="text-align:center">Indicações</th><th style="text-align:center">Pacientes únicos</th><th style="text-align:center">Consultas</th><th style="text-align:center">Inícios</th><th></th></tr></thead><tbody>${r.map((d,i)=>`<tr><td><span class="rank-num">${i+1}</span><button type="button" class="name-link" data-doctor-profile="${attr(d.id)}">${html(d.name)}</button><div class="patient-sub" style="padding-left:30px">${html(d.specialty||'—')}</div></td><td>${d.crm?html(d.crm)+'/'+html(d.uf):'—'}</td><td style="text-align:center;font-weight:800">${d.total}</td><td style="text-align:center">${d.uniquePatients}</td><td style="text-align:center">${d.consulted}</td><td style="text-align:center">${d.started}</td><td><button class="link" data-doctor-profile="${attr(d.id)}">Ver</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">Nenhum encaminhamento médico no período.</td></tr>'}</tbody></table></div><div class="summary-note">A mesma pessoa pode ter mais de uma indicação. Consultas e tratamentos são resultados das indicações dessa coorte, mesmo que ocorram em outro mês. Não representam qualidade clínica.</div></article><div style="height:18px"></div><article class="card section-card"><div class="card-head"><div><div class="card-title">Cadastro de médicos</div><div class="card-sub">Pesquisar, consultar e corrigir sem duplicar</div></div><button class="link" data-new="doctor">Novo médico ${ico('plus')}</button></div><div class="doctor-tools"><div class="searchbox doctor-searchbox">${ico('search')}<input id="doctor-directory-search" type="search" autocomplete="off" aria-label="Buscar nome, CRM ou especialidade" placeholder="Buscar nome, CRM ou especialidade..." value="${attr(state.doctorQuery)}" /></div><label class="doctor-inactive-toggle"><input type="checkbox" id="doctor-show-inactive" ${state.doctorShowInactive?'checked':''}/> Incluir inativos</label></div><div class="table-wrap"><table><thead><tr><th>Nome</th><th>CRM/UF</th><th>Especialidade</th><th></th></tr></thead><tbody id="doctor-directory-rows">${doctorDirectoryRows()}</tbody></table></div></article>`}
+function doctorProfile(id){const d=dr(id);if(!d){toast('Médico não encontrado.');return}const cohort=referrals().filter(p=>p.indicatorType==='Médico'&&p.indicatorId===id&&inPeriod(p.indicationDate)).sort(byDateDesc),unique=new Set(cohort.map(p=>p.id)).size;const editable=!API_MODE||['gestor','coordenacao'].includes(signedUser?.role);const canMerge=!API_MODE||signedUser?.role==='gestor';const isMerged=!!d.mergedInto;const status=d.active===false?(isMerged?'Unificado':'Inativo'):'Ativo';const cities=groupCount(cohort,p=>p.city).slice(0,3).map(x=>`${html(x.label)} (${x.total})`).join(' · ')||'—';const plans=groupCount(cohort,p=>planName(p)).slice(0,3).map(x=>`${html(x.label)} (${x.total})`).join(' · ')||'—';let controls='';if(editable){controls+=d.active!==false?`<button class="btn" data-doctor-edit="${attr(id)}">Editar cadastro</button><button class="btn" data-doctor-status="${attr(id)}" data-doctor-action="deactivate">Inativar</button>`:(!isMerged?`<button class="btn" data-doctor-status="${attr(id)}" data-doctor-action="reactivate">Reativar</button>`:'');}if(canMerge&&d.active!==false&&database.doctors.some(x=>x.id!==id&&x.active!==false)){controls+=`<button type="button" class="link" data-doctor-merge="${attr(id)}">Unificar duplicidade</button>`}modalOpen(`<div class="modal-top"><div><div class="eyebrow">MÉDICO INDICADOR · ${html(status)}</div><div class="modal-title">${html(d.name)}</div><div class="modal-desc">${html(d.crm?'CRM '+d.crm+'/'+d.uf:'CRM não informado')} · ${html(d.specialty||'Especialidade não informada')}</div></div><button class="modal-close" data-close aria-label="Fechar">${ico('x')}</button></div><div class="modal-scroll"><div class="doctor-kpi-grid"><div><small>Indicações</small><b>${cohort.length}</b></div><div><small>Pacientes únicos</small><b>${unique}</b></div><div><small>Consultas</small><b>${cohort.filter(p=>p.consultDone).length}</b></div><div><small>Tratamentos iniciados</small><b>${cohort.filter(p=>p.treatmentStarted).length}</b></div></div><div class="doctor-profile-detail"><b>Principais cidades</b><span>${cities}</span></div><div class="doctor-profile-detail"><b>Convênios / atendimento</b><span>${plans}</span></div><p class="form-helper" style="margin-top:17px">Indicações recebidas ${state.period==='all'?'em todo o histórico':'no mês selecionado'}. O mesmo paciente pode ter mais de um encaminhamento.</p></div><div class="modal-foot"><button class="btn primary" data-doctor-referrals="${attr(id)}">Ver encaminhamentos</button><div class="btns-inline">${controls}</div></div>`,true)}
+function doctorMergeOpen(id){const d=dr(id);if(!d||d.active===false)return;const targets=database.doctors.filter(x=>x.id!==id&&x.active!==false);if(!targets.length){toast('Não há médico de destino ativo.');return}modalOpen(`<div class="modal-top"><div><div class="eyebrow">CORREÇÃO DE DUPLICIDADE</div><div class="modal-title">Unificar cadastro</div><div class="modal-desc">Origem: ${html(d.name)}. A operação conserva todos os encaminhamentos, transferindo-os ao cadastro correto.</div></div><button class="modal-close" data-close aria-label="Fechar">${ico('x')}</button></div><form id="doctor-merge-form" data-source="${attr(id)}"><div class="modal-scroll"><div class="form-grid">${selectField('mergeTarget','Cadastro correto',targets[0].id,targets.map(t=>[t.id,t.name+(t.crm?' · '+t.crm+'/'+t.uf:'')]),{required:true,wide:true})}</div><p class="form-helper" style="margin-top:16px">Confira a identidade médica antes de unificar. A origem ficará inativa; esta ação exige perfil gestor.</p><label class="doctor-confirm"><input type="checkbox" name="confirmed" required/> Confirmei que são o mesmo profissional</label></div><div class="modal-foot"><button class="btn" type="button" data-close>Cancelar</button><button type="submit" class="btn primary">Unificar cadastros</button></div></form>`,true)}
+async function doctorMergeSubmit(e){e.preventDefault();if(apiSaving)return;const f=e.target,sourceId=f.dataset.source,targetId=f.elements.mergeTarget.value,source=dr(sourceId);if(!source||!targetId||sourceId===targetId){toast('Selecione o cadastro de destino.');return}apiSaving=true;const btn=f.querySelector('button[type=submit]');btn.disabled=true;try{if(API_MODE){await apiRequest(`/api/v1/doctors/${encodeURIComponent(sourceId)}/merge`,{method:'POST',headers:{'If-Match':String(source.version)},body:JSON.stringify({targetId})});await reloadServerState();}else{referrals().forEach(j=>{if(j.indicatorId===sourceId)j.indicatorId=targetId});source.active=false;source.mergedInto=targetId;source.version=(source.version||1)+1;save()}modalClose();render();toast('Cadastros unificados. Histórico preservado.')}catch(err){toast(err.message);if(API_MODE&&err.code===409)await reloadServerState()}finally{apiSaving=false;btn.disabled=false}}
+async function doctorStatus(id,action){const d=dr(id);if(!d)return;if(action==='deactivate'&&!confirm(`Inativar ${d.name}? As indicações anteriores permanecem nos relatórios.`))return;if(apiSaving)return;apiSaving=true;try{if(API_MODE){await apiRequest(`/api/v1/doctors/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:{'If-Match':String(d.version)},body:'{}'});await reloadServerState();}else{d.active=action==='reactivate';d.version=(d.version||1)+1;save()}modalClose();render();toast(action==='deactivate'?'Médico inativado sem apagar histórico.':'Médico reativado.')}catch(err){toast(err.message);if(API_MODE&&err.code===409)await reloadServerState()}finally{apiSaving=false}}
+
+function render(){
+ const focused=document.activeElement;
+ const restoreId=focused?.id&&focused.matches('select,input')&&!focused.closest('#modal-root')?focused.id:null;
+ document.querySelectorAll('.nav-btn').forEach(b=>{const active=b.dataset.view===state.view;b.classList.toggle('active',active);if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
+ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+state.view));
+ document.getElementById('crumb').textContent=labels[state.view];
+ ({dashboard,pacientes:patients,acompanhamento:followup,relatorios:reports,indicadores:physicians}[state.view])();
+ if(restoreId){const next=document.getElementById(restoreId);if(next && !next.closest('.view:not(.active)'))next.focus({preventScroll:true})}
+}
+function goto(page,filter){state.view=page;if(page==='pacientes'){state.listMode=filter?'journeys':'patients';state.stage='all';state.listDateMode=filter==='consultas'?'consulta':filter==='tratamentos'?'tratamento':'indicacao';state.query='';state.payer='all';state.indicator='all'}if(page==='acompanhamento')state.taskFilter='all';render();window.scrollTo({top:0,behavior:'smooth'})}
+let modalPreviousFocus=null;
+function modalOpen(body,narrow=false){
+ const shade=document.getElementById('modal-shade');const root=document.getElementById('modal-root');
+ if(!shade.classList.contains('open'))modalPreviousFocus=document.activeElement;
+ root.className='modal'+(narrow?' narrow':'');root.innerHTML=body;
+ const heading=root.querySelector('.modal-title');if(heading)heading.id='modal-heading';
+ shade.classList.add('open');shade.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+ const first=root.querySelector('input:not([type="hidden"]):not([disabled]),select:not([disabled]),textarea:not([disabled])')||root.querySelector('button:not([disabled])');
+ if(first)setTimeout(()=>{if(shade.classList.contains('open'))first.focus({preventScroll:true})},30);
+}
+function modalClose(){
+ document.getElementById('modal-shade').classList.remove('open');document.getElementById('modal-shade').setAttribute('aria-hidden','true');
+ document.body.style.overflow='';state.editingId=null;state.newJourney=false;state.editingDoctorId=null;
+ const target=modalPreviousFocus;modalPreviousFocus=null;
+ if(target?.isConnected&&typeof target.focus==='function')target.focus({preventScroll:true});
+}
+function closeActiveModal(){if(document.getElementById('doctor-form')&&state.resumePatient){const r=state.resumePatient;state.resumePatient=null;state.editingId=r.editingId;state.modalTab=r.tab;renderEditor();return}modalClose()}
+function field(name,title,value='',type='text',opts={}){const required=opts.required?`required`:'';const min=opts.min?`min="${opts.min}"`:'';const max=opts.max?`max="${opts.max}"`:'';return `<div class="field ${opts.wide?'wide':''}"><label for="f-${name}">${html(title)}${opts.required?' <span class="required">*</span>':''}</label><input id="f-${name}" name="${name}" type="${type}" value="${attr(value)}" ${required} ${min} ${max} ${opts.placeholder?`placeholder="${attr(opts.placeholder)}"`:''} />${opts.hint?`<small>${html(opts.hint)}</small>`:''}</div>`}
+function selectField(name,title,value,options,opts={}){return `<div class="field ${opts.wide?'wide':''}"><label for="f-${name}">${html(title)}${opts.required?' <span class="required">*</span>':''}</label><select name="${name}" id="f-${name}" ${opts.required?'required':''}>${options.map(([v,label])=>`<option value="${attr(v)}" ${String(value)===String(v)?'selected':''}>${html(label)}</option>`).join('')}</select>${opts.hint?`<small>${html(opts.hint)}</small>`:''}</div>`}
+function draftPatient(){return {id:'',name:'',phone:'',city:'',uf:'GO',indicatorType:'Médico',indicatorId:'',indicatorOther:'',payerType:'Convênio',insurer:'',insurerOther:'',indicationDate:nowDate,consultScheduled:'',consultDone:'',consultStatus:'agendada',oncologist:'',indicationDecision:'pendente',authorization:'Não iniciado',treatmentType:'',treatmentStarted:'',closure:'',closureReason:'',nextAction:'',nextActionDue:'',actionOwner:'',confirmDuplicate:false}}
+let editingDraft=null;
+const physicianOptions=()=>[['','Selecione o médico...'],...database.doctors.filter(d=>d.active!==false || d.id===editingDraft?.indicatorId).slice().sort((a,b)=>a.name.localeCompare(b.name,'pt-BR')).map(d=>[d.id,d.name+(d.crm?` · CRM ${d.crm}/${d.uf}`:'')+(d.active===false?' · Inativo':'' )])];
+const cityOptions=()=>[...new Set(['Ceres','Rialma','Goianésia','Itapaci','Uruana','Rubiataba','Crixás','São Patrício',...database.patients.map(x=>x.city)])].sort((a,b)=>a.localeCompare(b,'pt-BR')).map(c=>`<option value="${attr(c)}"></option>`).join('');
+function filterDoctors(){
+  const search=document.getElementById('doctor-search'), select=document.getElementById('f-indicatorId');
+  if(!search||!select)return;
+  const query=norm(search.value),chosen=select.value;
+  const items=physicianOptions().filter(([id,label])=>!id||id===chosen||norm(label).includes(query));
+  select.innerHTML=items.map(([id,label])=>`<option value="${attr(id)}" ${id===chosen?'selected':''}>${html(label)}</option>`).join('');
+  if(query&&!items.some(([id])=>id&&id!==chosen))select.innerHTML+='<option disabled>Nenhum outro médico encontrado</option>';
+}
+function showDuplicateWarning(candidate){
+  const el=document.getElementById('duplicate-warning'); if(!el)return;
+  el.hidden=false;
+  el.innerHTML=`<strong>Possível cadastro já existente</strong><p>${html(candidate.name||'Paciente com dados semelhantes')}. Confira antes de criar outro registro.</p><div class="btns-inline"><button type="button" class="btn" data-open-existing="${attr(candidate.id)}">Abrir cadastro</button><button type="button" class="btn primary" data-confirm-duplicate>É outra pessoa · cadastrar</button></div>`;
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function editOpen(id=null,tab='origem'){const existing=id?database.patients.find(x=>x.id===id):null;if(id&&!existing){toast('Paciente não encontrado. Atualize a lista.');return}state.editingId=id;state.newJourney=false;editingDraft=existing?{...existing}:draftPatient();state.modalTab=id?tab:'origem';renderEditor()}
+function editorForm(tab){const p=editingDraft;if(tab==='origem')return `<p class="form-helper">Registre a indicação em poucos passos. Consulta e tratamento ficam para depois.</p><div class="form-grid">${field('name','Nome do paciente',p.name,'text',{required:true,wide:true,placeholder:'Nome completo'})}${field('phone','Telefone para contato',p.phone,'tel',{placeholder:'(62) 99999-9999'})}${field('city','Cidade',p.city,'text',{required:true,placeholder:'Ex.: Ceres'})}<datalist id="cities-datalist">${cityOptions()}</datalist>${selectField('uf','UF',p.uf,[['GO','Goiás (GO)'],['DF','Distrito Federal (DF)'],['MT','Mato Grosso (MT)'],['TO','Tocantins (TO)'],['MG','Minas Gerais (MG)'],['Outro','Outro']])}${field('indicationDate','Data da indicação',p.indicationDate,'date',{required:true,max:nowDate})}${selectField('indicatorType','Origem da indicação',p.indicatorType,[['Médico','Médico indicador'],['Demanda espontânea','Demanda espontânea'],['Paciente/familiar','Paciente ou familiar'],['Internet','Internet / redes sociais'],['Outros','Outros']],{required:true})}<div class="field" id="indicator-physician"><div class="physician-picker"><label for="doctor-search" class="doctor-search-label">Quem indicou? <span class="required">*</span></label><input type="search" id="doctor-search" aria-label="Pesquisar médico indicador" placeholder="Digite o nome ou CRM para localizar" autocomplete="off" spellcheck="false" />${selectField('indicatorId','Selecione o médico',p.indicatorId,physicianOptions(),{required:p.indicatorType==='Médico',hint:'Médico encaminhador, não necessariamente o oncologista.'})}</div><button type="button" class="link" data-inline-doctor style="text-align:left;align-self:flex-start">+ Cadastrar novo médico</button></div><div id="indicator-other" class="field ${p.indicatorType==='Outros'?'':'hidden'}">${field('indicatorOther','Outra origem',p.indicatorOther)}</div>${selectField('payerType','Modalidade de atendimento',p.payerType,[['Convênio','Convênio'],['Particular','Particular'],['SUS / Outro','SUS / Outro']])}<div id="insurer-box">${selectField('insurer','Convênio / plano',p.insurer,[['','Selecione...'],['IPASGO','IPASGO'],['Unimed','Unimed'],['Outro convênio','Outro convênio']],{required:p.payerType==='Convênio'})}</div><div id="insurer-other" style="${p.payerType==='Convênio'&&p.insurer==='Outro convênio'?'':'display:none'}">${field('insurerOther','Nome do convênio',p.insurerOther||'','text',{required:p.payerType==='Convênio'&&p.insurer==='Outro convênio',placeholder:'Informe o nome da operadora'})}</div></div>`;
+if(tab==='consulta')return `<p class="form-helper">Agendamento não significa comparecimento. Confirme apenas o que aconteceu.</p><div class="form-grid">${field('consultScheduled','Primeira consulta agendada',p.consultScheduled,'date')}${field('consultDone','Primeira consulta realizada',p.consultDone,'date')}<div class="field wide"><button type="button" class="btn soft-action" data-fast-consult>✓ Marcar realizada hoje</button></div>${!p.consultDone&&p.consultScheduled?selectField('consultStatus','Se não aconteceu',p.consultStatus||'agendada',[['agendada','Aguardando / agendada'],['nao_compareceu','Paciente não compareceu'],['cancelada','Consulta cancelada']],{wide:true}):''}${field('oncologist','Oncologista responsável',p.oncologist,'text',{wide:true,placeholder:'Nome do médico assistente'})}${selectField('indicationDecision','Tratamento oncológico indicado?',p.indicationDecision,[['pendente','Ainda não definido'],['sim','Sim'],['nao','Não']],{wide:true,hint:'Somente após confirmação da equipe assistencial.'})}${selectField('closure','Situação da jornada',p.closure,[['','Jornada ativa'],['acompanhamento','Acompanhamento clínico / sem tratamento iniciado'],['encerrado','Encerrado']],{wide:true})}<div id="closure-reason-box" class="field wide" style="${p.closure==='encerrado'?'':'display:none'}">${selectField('closureReason','Motivo do encerramento',p.closureReason||'',[['','Não informado'],['sem_indicacao','Sem indicação de tratamento'],['outro_servico','Tratamento em outro serviço'],['desistiu','Paciente optou por não continuar'],['sem_contato','Sem contato'],['outro','Outro']])}</div></div>`;
+if(tab==='tratamento')return `<p class="form-helper">Registre o início somente após confirmação de realização. Evite anotar informações clínicas detalhadas no CRM.</p><div class="form-grid">${selectField('authorization','Autorização',p.authorization,[['Não iniciado','Não iniciado'],['Não se aplica','Não se aplica'],['Pendente','Pendente'],['Em análise','Em análise'],['Autorizado','Autorizado'],['Negado','Negado']])}${selectField('treatmentType','Modalidade inicial',p.treatmentType,[['','Não informado'],['Quimioterapia','Quimioterapia'],['Imunoterapia','Imunoterapia'],['Hormonioterapia','Hormonioterapia'],['Terapia-alvo','Terapia-alvo'],['Outra','Outra']])}${field('treatmentStarted','Data de início do tratamento',p.treatmentStarted,'date',{hint:'Só registrar após início efetivo.'})}<div class="field wide"><button type="button" class="btn soft-action" data-fast-treatment>✓ Marcar início hoje</button></div></div>`;
+if(tab==='pendencia')return `<p class="form-helper">Uma próxima ação objetiva por paciente. Sem precisar manter listas paralelas.</p><div class="form-grid">${field('nextAction','Próxima ação',p.nextAction,'text',{wide:true,placeholder:'Ex.: Contatar plano para liberação'})}${field('nextActionDue','Prazo da ação',p.nextActionDue,'date')}${field('actionOwner','Responsável',p.actionOwner,'text',{placeholder:'Ex.: Equipe Oncologia'})}</div><div class="divider"></div><div class="form-section">${ico('book')} Histórico da jornada</div>${timeline(p)}`;return ''}
+function timeline(p){const entries=[['Indicação recebida',p.indicationDate],['Consulta agendada',p.consultScheduled],['Primeira consulta realizada',p.consultDone],['Tratamento iniciado',p.treatmentStarted]];if(['nao_compareceu','cancelada'].includes(p.consultStatus)&&!p.consultDone)entries.splice(2,0,[p.consultStatus==='nao_compareceu'?'Não compareceu':'Consulta cancelada',p.consultScheduled]);const decision=p.indicationDecision==='sim'?'Tratamento indicado · sem data específica':p.indicationDecision==='nao'?'Tratamento não indicado':'Decisão médica ainda não registrada';const dDone=p.indicationDecision!=='pendente';entries.splice(3,0,['Decisão clínica',decision,dDone]);return `<div class="timeline">${entries.map(([label,day,confirmed])=>{const d=label==='Decisão clínica';const done=d?confirmed:!!day;const detail=d?day:(day?formatDate(day):'Ainda não registrado');return `<div class="timeline-item"><span class="timeline-mark ${done?'':'future'}">${done?ico('check'):ico('calendar')}</span><div><div class="timeline-main" style="color:${done?'#395f5b':'#91a1a3'}">${label}</div><div class="timeline-detail">${html(detail)}</div></div></div>`}).join('')}</div>`}
+function editorNewJourney(){
+const p=editingDraft;
+return `<p class="form-helper">Mesmo paciente, nova indicação. O histórico anterior permanece preservado.</p><div class="form-grid">${field('indicationDate','Data da nova indicação',p.indicationDate,'date',{required:true,max:nowDate})}${selectField('indicatorType','Origem da indicação',p.indicatorType,[['Médico','Médico indicador'],['Demanda espontânea','Demanda espontânea'],['Paciente/familiar','Paciente ou familiar'],['Internet','Internet / redes sociais'],['Outros','Outros']])}<div class="field" id="indicator-physician"><label for="doctor-search">Quem indicou?</label><input type="search" id="doctor-search" placeholder="Buscar médico ou CRM" />${selectField('indicatorId','Médico',p.indicatorId,physicianOptions())}<button type="button" class="link" data-inline-doctor>+ Cadastrar médico</button></div><div id="indicator-other" class="field" style="display:none">${field('indicatorOther','Outra origem',p.indicatorOther)}</div>${selectField('payerType','Atendimento',p.payerType,[['Convênio','Convênio'],['Particular','Particular'],['SUS / Outro','SUS / Outro']])}<div id="insurer-box">${selectField('insurer','Convênio',p.insurer,[['','Selecione...'],['IPASGO','IPASGO'],['Unimed','Unimed'],['Outro convênio','Outro convênio']])}</div><div id="insurer-other" style="display:none">${field('insurerOther','Outro convênio',p.insurerOther)}</div></div>`;
+}
+function startNewJourney(){if(!state.editingId||editingDraft?.closure!=='encerrado'){toast('Encerre a jornada atual antes de abrir uma nova.');return}const old=editingDraft;editingDraft={...draftPatient(),id:old.id,name:old.name,phone:old.phone,city:old.city,uf:old.uf,version:old.version};state.newJourney=true;state.modalTab='origem';renderEditor()}
+async function showJourneyHistory(){
+ if(!API_MODE)return;
+ captureForm();
+ try{const data=await apiRequest(`/api/v1/patients/${encodeURIComponent(state.editingId)}/journeys`);
+ const rows=data.journeys.map(j=>`<div class="journey-history-item"><b>${formatDate(j.indicationDate)} ${j.active?'· Atual':'· Anterior'}</b><span>${html(drName(j))} · ${html(planName(j))}</span><span>${html(stageLabels[getStage(j)]||'Indicação recebida')}${j.closureReason?' · '+html(({sem_indicacao:'Sem indicação',outro_servico:'Outro serviço',desistiu:'Não continuou',sem_contato:'Sem contato',outro:'Outro'})[j.closureReason]||''):''}</span></div>`).join('');
+ document.getElementById('modal-root').innerHTML=`<div class="modal-top"><div><div class="eyebrow">HISTÓRICO OPERACIONAL</div><div class="modal-title">${html(editingDraft.name)}</div><div class="modal-desc">${data.journeys.length} indicação(ões), sem dados de prontuário.</div></div><button class="modal-close" data-close aria-label="Fechar">${ico('x')}</button></div><div class="modal-scroll"><div class="journey-history">${rows}</div></div><div class="modal-foot"><button class="btn primary" data-back-editor>Voltar ao cadastro</button></div>`;
+ }catch(e){toast(e.message||'Erro ao consultar histórico.');}
+}
+function renderEditor(){const isNew=!state.editingId;const isNewJourney=state.newJourney;const tab=state.modalTab;const body=`<div class="modal-top"><div><div class="eyebrow">${isNew?'NOVO REGISTRO':isNewJourney?'NOVA INDICAÇÃO':'JORNADA DO PACIENTE'}</div><div class="modal-title">${isNew?'Novo paciente':isNewJourney?'Nova indicação · '+html(editingDraft.name):html(editingDraft.name)}</div><div class="modal-desc">${isNew?'Preencha o cadastro inicial para acompanhar a indicação.':`${html(editingDraft.city)} · ${html(planName(editingDraft))} · ${html(drName(editingDraft))}`}</div></div><button class="modal-close" data-close aria-label="Fechar">${ico('x')}</button></div>${isNew||isNewJourney?'':`<div class="tabs">${[['origem','Indicação'],['consulta','Primeira consulta'],['tratamento','Tratamento'],['pendencia','Pendências']].map(([k,v])=>`<button class="tab ${k===tab?'active':''}" data-tab-switch="${k}">${v}</button>`).join('')}</div>`}<form id="patient-form"><div class="modal-scroll"><div id="duplicate-warning" class="duplicate-warning" role="alert" hidden></div>${isNewJourney?editorNewJourney():editorForm(tab)}</div>${(!isNew&&!isNewJourney&&API_MODE)?`<div class="journey-tools"><button type="button" class="link" data-journey-history>Ver histórico de indicações</button>${editingDraft.closure==='encerrado'?`<button type="button" class="link" data-new-journey>+ Nova indicação</button>`:''}</div>`:''}<div class="modal-foot"><span class="tagline">${isNew||isNewJourney?'* Campos necessários para cadastrar':(API_MODE?'Alterações protegidas e registradas':'Modificações salvas nesta sessão de demonstração')}</span><div class="btns-inline"><button class="btn" type="button" data-close>Cancelar</button><button class="btn primary" type="submit">${ico('check')} ${isNew||isNewJourney?'Cadastrar indicação':'Salvar alterações'}</button></div></div></form>`;modalOpen(body);setTimeout(()=>{syncDynamicFields();const city=document.getElementById('f-city');if(city)city.setAttribute('list','cities-datalist');},0)}
+function syncDynamicFields(){const form=document.getElementById('patient-form');if(!form)return;const type=form.elements.indicatorType?.value;const payer=form.elements.payerType?.value;const ph=form.querySelector('#indicator-physician');const other=form.querySelector('#indicator-other');const ins=form.querySelector('#insurer-box');const insOther=form.querySelector('#insurer-other');if(ph){ph.style.display=type==='Médico'?'':'none';const s=ph.querySelector('select');if(s)s.required=type==='Médico'}if(other)other.style.display=type==='Outros'?'':'none';if(ins){ins.style.display=payer==='Convênio'?'':'none';const s=ins.querySelector('select');if(s)s.required=payer==='Convênio'}const closureBox=form.querySelector('#closure-reason-box');if(closureBox)closureBox.style.display=form.elements.closure?.value==='encerrado'?'':'none';if(insOther){const on=payer==='Convênio'&&form.elements.insurer?.value==='Outro convênio';insOther.style.display=on?'':'none';const inp=insOther.querySelector('input');if(inp)inp.required=on}}
+function captureForm(){const form=document.getElementById('patient-form');if(!form)return;new FormData(form).forEach((v,k)=>editingDraft[k]=String(v).trim());}
+async function formSubmit(e){e.preventDefault();captureForm();const p=editingDraft;p.name=p.name.trim();p.city=p.city.trim();if(!p.name||!p.city||!p.indicationDate){toast('Preencha nome, cidade e data da indicação.');return}if(p.indicationDate>nowDate){toast('A data de indicação não pode estar no futuro.');return}if(p.indicatorType==='Médico'&&!p.indicatorId){toast('Selecione o médico que indicou.');return}if(p.indicatorType!=='Médico')p.indicatorId='';if(p.payerType==='Convênio'&&!p.insurer){toast('Selecione o plano de saúde.');return}if(p.payerType!=='Convênio')p.insurer='';if(p.insurer!=='Outro convênio')p.insurerOther='';if(p.insurer==='Outro convênio'&&!p.insurerOther?.trim()){toast('Informe o nome do convênio.');return}if(p.indicatorType!=='Outros')p.indicatorOther='';if(p.consultDone&&p.consultDone<p.indicationDate){toast('A consulta não pode ser anterior à indicação.');return}if(p.consultDone&&p.consultDone>nowDate){toast('Uma consulta futura não pode ser marcada como realizada.');return}if(p.treatmentStarted&&p.treatmentStarted>nowDate){toast('O tratamento só pode ser registrado após começar.');return}if(p.consultScheduled&&p.consultScheduled<p.indicationDate){toast('O agendamento não pode ser anterior à indicação.');return}if(p.consultScheduled&&p.consultDone&&p.consultDone<p.consultScheduled){toast('A consulta realizada está anterior à data agendada. Revise as datas.');return}if(p.treatmentStarted&&(!p.consultDone||p.indicationDecision!=='sim')){toast('Para registrar tratamento iniciado, confirme consulta realizada e indicação médica.');return}if(p.treatmentStarted&&p.treatmentStarted<p.consultDone){toast('O tratamento não pode iniciar antes da consulta registrada.');return}if(p.treatmentStarted&&!p.treatmentType){toast('Informe a modalidade de tratamento.');return}if(p.treatmentStarted&&p.closure){toast('O tratamento iniciado não pode ter situação encerrada ou de acompanhamento sem tratamento.');return}if(p.consultDone)p.consultStatus='agendada';if(p.consultStatus!=='agendada'&&(!p.consultScheduled||p.consultScheduled>nowDate)){toast('Falta ou cancelamento exige agendamento realizado e consulta ainda não concluída.');return}if(p.closure!=='encerrado')p.closureReason='';if(p.indicationDecision!=='pendente'&&!p.consultDone){toast('Registre a primeira consulta realizada antes da decisão de tratamento.');return}if(p.closure==='acompanhamento'&&p.indicationDecision==='pendente'){toast('Defina a decisão médica antes de marcar acompanhamento clínico.');return}
+if(!p.id&&!API_MODE&&!p.confirmDuplicate){const found=database.patients.find(x=>norm(x.name)===norm(p.name)&&norm(x.city)===norm(p.city)&&(!p.phone||!x.phone||p.phone.replace(/\D/g,'')===x.phone.replace(/\D/g,'')));if(found){showDuplicateWarning(found);return}}
+if(p.consultDone)p.consultStatus='agendada';if(p.treatmentStarted||!String(p.nextAction||'').trim()){p.nextAction='';p.nextActionDue='';p.actionOwner=''}if(API_MODE){
+ const submit=e.currentTarget;
+ if(apiSaving){toast('Há um salvamento em andamento.');return}
+ apiSaving=true;
+ const btn=document.querySelector('#patient-form button[type=submit]');if(btn)btn.disabled=true;
+ try{
+  const url=state.newJourney?`/api/v1/patients/${encodeURIComponent(p.id)}/journeys`:p.id?`/api/v1/patients/${encodeURIComponent(p.id)}`:'/api/v1/patients';
+  const response=await apiRequest(url,{method:state.newJourney?'POST':p.id?'PUT':'POST',headers:p.id?{'If-Match':String(p.version)}:{},body:JSON.stringify(p)});
+  await reloadServerState();
+  modalClose();state.newJourney=false;render();toast('Registro salvo.');
+ }catch(err){if(err.payload?.code==='POSSIBLE_DUPLICATE'){showDuplicateWarning({id:err.payload.existingPatientId,name:err.payload.existingPatientName});}else{toast(err.message);if(err.code===409)await reloadServerState();}}
+ finally{apiSaving=false;if(btn)btn.disabled=false}
+ return;
+}
+if(!p.id){p.id='demo-'+cryptoRandom();p.createdAt=new Date().toISOString();database.patients.unshift({...p})}else{const i=database.patients.findIndex(x=>x.id===p.id);if(i<0){toast('Registro não encontrado.');return}p.updatedAt=new Date().toISOString();database.patients[i]={...p}}
+save();modalClose();render();toast('Registro salvo na demonstração.');}
+function cryptoRandom(){try{return crypto.randomUUID()}catch(e){return 'x'+Date.now()+'-'+Math.random().toString(36).slice(2)}}
+function doctorOpen(id=null){const d=id?dr(id):null;state.editingDoctorId=id;modalOpen(`<div class="modal-top"><div><div class="eyebrow">CADASTRO ÚNICO</div><div class="modal-title">${id?'Editar médico indicador':'Novo médico indicador'}</div><div class="modal-desc">Nome, CRM/UF e especialidade. Somente o essencial.</div></div><button class="modal-close" data-close aria-label="Fechar">${ico('x')}</button></div><form id="doctor-form"><div class="modal-scroll"><div class="form-grid">${field('docname','Nome do médico', d?.name||'', 'text',{required:true,wide:true,placeholder:'Dr./Dra. Nome Sobrenome'})}${field('crm','CRM', d?.crm||'', 'text',{placeholder:'Ex.: 12345'})}${selectField('uf','UF',d?.uf||'GO',[['GO','GO'],['DF','DF'],['MT','MT'],['TO','TO'],['MG','MG'],['Outro','Outro']])}${field('specialty','Especialidade',d?.specialty||'', 'text',{wide:true,placeholder:'Ex.: Clínica Médica'})}</div><p class="form-helper" style="margin-top:20px">O CRM/UF ajuda a distinguir profissionais e evitar duplicidade.</p></div><div class="modal-foot"><span class="tagline">${API_MODE?'Ação registrada para auditoria':'Dados fictícios'}</span><div class="btns-inline"><button class="btn" type="button" data-close>Cancelar</button><button class="btn primary" type="submit">${ico('check')} ${id?'Salvar alterações':'Cadastrar médico'}</button></div></div></form>`,true)}
+async function doctorSubmit(e){e.preventDefault();const f=e.target,id=state.editingDoctorId,existing=id?dr(id):null,doc={name:f.elements.docname.value.trim(),crm:f.elements.crm.value.trim(),uf:f.elements.uf.value,specialty:f.elements.specialty.value.trim()};if(doc.name.length<2){toast('Informe o nome do médico.');return}const digits=v=>String(v||'').replace(/\D/g,'');if(doc.crm&&database.doctors.some(d=>d.id!==id&&d.crm&&d.uf===doc.uf&&digits(d.crm)===digits(doc.crm))){toast('Já existe um médico com este CRM/UF.');return}if(database.doctors.some(d=>d.id!==id&&d.active!==false&&norm(d.name)===norm(doc.name)&&(!doc.crm||!d.crm))){toast('Já existe médico com este nome. Verifique antes de duplicar.');return}if(apiSaving){toast('Um cadastro ainda está sendo salvo.');return}apiSaving=true;const btn=f.querySelector('button[type=submit]');if(btn)btn.disabled=true;try{if(API_MODE){const updated=await apiRequest(id?`/api/v1/doctors/${encodeURIComponent(id)}`:'/api/v1/doctors',{method:id?'PUT':'POST',headers:id?{'If-Match':String(existing.version)}:{},body:JSON.stringify(doc)});await reloadServerState();if(!id&&state.resumePatient){const r=state.resumePatient;state.resumePatient=null;editingDraft.indicatorId=updated.id;editingDraft.indicatorType='Médico';state.editingId=r.editingId;state.modalTab=r.tab;renderEditor();}else{modalClose();render();}}else{if(id){Object.assign(existing,doc,{version:(existing.version||1)+1})}else{doc.id='med-'+cryptoRandom();doc.active=true;doc.version=1;database.doctors.push(doc)}save();if(!id&&state.resumePatient){const r=state.resumePatient;state.resumePatient=null;editingDraft.indicatorId=doc.id;editingDraft.indicatorType='Médico';state.editingId=r.editingId;state.modalTab=r.tab;renderEditor()}else{modalClose();render()}}toast(id?'Médico atualizado.':'Médico incluído na lista de indicadores.')}catch(err){toast(err.message);if(API_MODE&&err.code===409){await reloadServerState();render()}}finally{apiSaving=false;if(btn)btn.disabled=false}}
+
+function csvDownload(name,rows){if(!rows.length){toast('Não há dados para exportar.');return}const csv='\ufeff'+rows.map(r=>r.map(safeCSV).join(';')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);toast('Arquivo CSV exportado.')}
+function exportType(type){
+ if(type==='report'){
+  const s=reportSnapshot();
+  const period=state.period==='all'?'Todo o período':state.period;
+  const doc=state.reportDoctor==='all'?'Todos':state.reportDoctor==='other'?'Outras origens':(dr(state.reportDoctor)?.name||'Não identificado');
+  const rows=[['RELATÓRIO GERENCIAL IMEC ONCOLOGIA — DADOS DE TESTE'],['Período das indicações',period],['Indicador',doc],['Cidade',state.reportCity==='all'?'Todas':state.reportCity],['Plano',state.reportPlan==='all'?'Todos':state.reportPlan],[],
+   ['Indicador','Valor','Observação'],['Indicações',s.total,'Encaminhamentos da coorte'],['Pacientes únicos',s.unique,'Pessoas distintas'],['Primeiras consultas',s.consulted,'Consultas realizadas'],['Taxa de consulta',s.consultRate,'Consultas / indicações'],
+   ['Tratamentos indicados',s.indicated,'Decisão médica confirmada'],['Sem indicação clínica',s.noIndication,'Não confundir com perda'],['Tratamentos iniciados',s.started,'Inícios confirmados'],['Taxa de início',s.startRate,'Inícios / tratamentos indicados'],
+   ['Mediana indicação → consulta',formatDays(s.medianConsult),'Apenas realizadas'],['Mediana consulta → início',formatDays(s.medianTreatment),'Apenas iniciados'],[],
+   ...[['Médicos indicadores',s.doctors],['Cidades',s.cities],['Planos',s.plans],['Origens',s.sources]].flatMap(([name,items])=>[[name,'Indicações'],...items.map(x=>[x.label,x.total]),[]]),
+   ['Método','Coorte pela data da indicação; eventos posteriores seguem vinculados à origem'],['Privacidade','Exportação agregada; sem identificação de pacientes']];
+  csvDownload('imec_relatorios_'+(state.period==='all'?'historico':state.period)+'.csv',rows);return;
+ }
+ const p=patientSource().filter(patientFilter).sort(byDateDesc);if(type==='patients'){csvDownload('imec_crm_pacientes_demo.csv',[['Paciente','Cidade','UF','Origem','Médico indicador','Plano','Data indicação','Primeira consulta agendada','Consulta realizada','Tratamento indicado','Tratamento iniciado','Etapa','Próxima ação','Prazo'],...p.map(x=>[x.name,x.city,x.uf,x.indicatorType,drName(x),planName(x),x.indicationDate,x.consultScheduled,x.consultDone,x.indicationDecision,x.treatmentStarted,stageLabels[getStage(x)],x.nextAction,x.nextActionDue])]);return}const r=ranks();csvDownload('imec_ranking_indicadores_demo.csv',[['Médico indicador','CRM','UF','Especialidade','Indicações','Pacientes únicos','Consultas da coorte','Tratamentos iniciados da coorte','Taxa consulta'],...r.map(x=>[x.name,x.crm,x.uf,x.specialty,x.total,x.uniquePatients,x.consulted,x.started,pct(x.consulted,x.total)])])}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-view],[data-goto],[data-new],[data-open],[data-close],[data-tab-switch],[data-physician],[data-export],[data-remove-indicator],[data-inline-doctor],[data-open-existing],[data-confirm-duplicate],[data-fast-consult],[data-fast-treatment],[data-new-journey],[data-journey-history],[data-back-editor],[data-open-history],[data-task-new],[data-task-complete],[data-task-filter],[data-task-history-toggle],[data-doctor-profile],[data-doctor-referrals],[data-doctor-edit],[data-doctor-status],[data-doctor-merge],[data-report-clear]');if(!b)return;
+ if(b.hasAttribute('data-doctor-profile')){doctorProfile(b.dataset.doctorProfile);return}
+ if(b.hasAttribute('data-doctor-referrals')){state.indicator=b.dataset.doctorReferrals;modalClose();state.listMode='journeys';state.view='pacientes';state.stage='all';state.listDateMode='indicacao';state.query='';state.payer='all';render();window.scrollTo({top:0,behavior:'smooth'});return}
+ if(b.hasAttribute('data-doctor-edit')){doctorOpen(b.dataset.doctorEdit);return}
+ if(b.hasAttribute('data-doctor-status')){doctorStatus(b.dataset.doctorStatus,b.dataset.doctorAction);return}
+ if(b.hasAttribute('data-doctor-merge')){doctorMergeOpen(b.dataset.doctorMerge);return}
+ if(b.hasAttribute('data-report-clear')){state.reportDoctor='all';state.reportCity='all';state.reportPlan='all';render();return}
+ if(b.hasAttribute('data-task-new')){openTaskQuick();return}
+ if(b.hasAttribute('data-task-complete')){quickCompleteTask(b.dataset.taskComplete,b.dataset.taskPatient,Number(b.dataset.taskVersion));return}
+ if(b.hasAttribute('data-task-filter')){state.taskFilter=b.dataset.taskFilter;render();return}
+ if(b.hasAttribute('data-task-history-toggle')){state.historyExpanded=!state.historyExpanded;render();return}
+ if(b.hasAttribute('data-open-history')){editOpen(b.dataset.openHistory);showJourneyHistory();return}
+ if(b.hasAttribute('data-fast-consult')){captureForm();editingDraft.consultDone=nowDate;editingDraft.consultStatus='agendada';if(editingDraft.consultScheduled>nowDate){toast('O agendamento está no futuro. Corrija a data antes de confirmar.');return}renderEditor();toast('Data preenchida. Confira e salve.');return}
+ if(b.hasAttribute('data-fast-treatment')){captureForm();if(!editingDraft.consultDone||editingDraft.indicationDecision!=='sim'){toast('Confirme antes a consulta realizada e a indicação médica.');return}editingDraft.treatmentStarted=nowDate;renderEditor();toast('Data preenchida. Confira modalidade e salve.');return}
+ if(b.hasAttribute('data-new-journey')){captureForm();startNewJourney();return}
+ if(b.hasAttribute('data-journey-history')){showJourneyHistory();return}
+ if(b.hasAttribute('data-back-editor')){renderEditor();return}
+ if(b.hasAttribute('data-open-existing')){const id=b.dataset.openExisting;modalClose();editOpen(id);return}
+ if(b.hasAttribute('data-confirm-duplicate')){editingDraft.confirmDuplicate=true;const warning=document.getElementById('duplicate-warning');if(warning)warning.hidden=true;document.getElementById('patient-form')?.requestSubmit();return}
+ if(b.dataset.view){goto(b.dataset.view);return}
+ if(b.dataset.goto){goto(b.dataset.goto,b.dataset.filter);return}
+ if(b.dataset.new==='patient'){editOpen();return}
+ if(b.dataset.new==='doctor'){doctorOpen();return}
+ if(b.hasAttribute('data-inline-doctor')){captureForm();state.resumePatient={editingId:state.editingId,tab:state.modalTab};doctorOpen();return}
+ if(b.dataset.open){editOpen(b.dataset.open,b.dataset.tab||'origem');return}
+ if(b.hasAttribute('data-close')){closeActiveModal();return}
+ if(b.dataset.tabSwitch){captureForm();state.modalTab=b.dataset.tabSwitch;renderEditor();return}
+ if(b.dataset.physician){state.indicator=b.dataset.physician;state.listMode='journeys';state.view='pacientes';state.stage='all';state.listDateMode='indicacao';state.query='';state.payer='all';render();window.scrollTo({top:0,behavior:'smooth'});return}
+ if(b.dataset.export){exportType(b.dataset.export);return}
+ if(b.hasAttribute('data-remove-indicator')){state.indicator='all';render()}
+});
+document.addEventListener('change',e=>{const x=e.target;if(x.id.startsWith('period-select-')){state.period=x.value;render()}if(x.id==='report-doctor'){state.reportDoctor=x.value;render()}if(x.id==='report-city'){state.reportCity=x.value;render()}if(x.id==='report-plan'){state.reportPlan=x.value;render()}if(x.id==='doctor-show-inactive'){state.doctorShowInactive=x.checked;document.getElementById('doctor-directory-rows').innerHTML=doctorDirectoryRows()}if(x.id==='stage-select'){state.stage=x.value;state.listDateMode='indicacao';render()}if(x.id==='payer-select'){state.payer=x.value;render()}if(x.id==='f-indicatorType'||x.id==='f-payerType'||x.id==='f-insurer'||x.id==='f-closure')syncDynamicFields()});
+document.addEventListener('input',e=>{if(e.target.id==='doctor-search'){filterDoctors();return}if(e.target.id==='doctor-directory-search'){state.doctorQuery=e.target.value;const body=document.getElementById('doctor-directory-rows');if(body)body.innerHTML=doctorDirectoryRows();return}if(e.target.closest('#patient-form')&&['f-name','f-city','f-phone'].includes(e.target.id)){editingDraft.confirmDuplicate=false;const warning=document.getElementById('duplicate-warning');if(warning)warning.hidden=true;}if(e.target.id==='patient-search'){state.query=e.target.value;const tb=document.querySelector('#patient-rows');if(tb){const matches=patientSource().filter(patientFilter).sort(byDateDesc);tb.innerHTML=patientRows(matches);const c=document.querySelector('.panel-count b');if(c)c.textContent=matches.length}}});
+document.addEventListener('submit',e=>{if(e.target.id==='patient-form')formSubmit(e);if(e.target.id==='doctor-form')doctorSubmit(e);if(e.target.id==='doctor-merge-form')doctorMergeSubmit(e);if(e.target.id==='task-quick-form')quickTaskSubmit(e)});
+document.getElementById('top-new').addEventListener('click',()=>editOpen());
+document.getElementById('modal-shade').addEventListener('click',e=>{if(e.target.id==='modal-shade')closeActiveModal()});
+document.addEventListener('keydown',e=>{
+ const shade=document.getElementById('modal-shade');const modalActive=shade.classList.contains('open');
+ if(modalActive){
+  if(e.key==='Escape'){e.preventDefault();closeActiveModal();return}
+  if(e.key==='Tab'){
+    const root=document.getElementById('modal-root');
+    const choices=[...root.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(el=>el.getClientRects().length && !el.closest('[hidden],.hidden,[style*="display: none"]'));
+    if(!choices.length)return;
+    const first=choices[0],last=choices[choices.length-1];
+    if(e.shiftKey && (document.activeElement===first || !root.contains(document.activeElement))){e.preventDefault();last.focus();return}
+    if(!e.shiftKey && (document.activeElement===last || !root.contains(document.activeElement))){e.preventDefault();first.focus();return}
+  }
+  return;
+ }
+ const writing=e.target.matches('input,textarea,select,[contenteditable="true"]');
+ if(!writing && !e.ctrlKey && !e.metaKey && !e.altKey && e.key==='/'){
+   e.preventDefault();if(state.view!=='pacientes'&&state.view!=='indicadores')goto('pacientes');
+   document.getElementById(state.view==='indicadores'?'doctor-directory-search':'patient-search')?.focus();return;
+ }
+ if((e.key==='Enter'||e.key===' ')&&e.target.hasAttribute('data-goto')){e.preventDefault();goto(e.target.dataset.goto,e.target.dataset.filter)}
+ if((e.key==='Enter'||e.key===' ')&&e.target.tagName!=='BUTTON'&&e.target.hasAttribute('data-open')){e.preventDefault();editOpen(e.target.dataset.open,e.target.dataset.tab||'origem')}
+ if((e.key==='Enter'||e.key===' ')&&e.target.tagName!=='BUTTON'&&e.target.hasAttribute('data-physician')){e.preventDefault();e.target.click()}
+});
+let apiSaving=false;
+let signedUser=null;
+let csrfToken='';
+async function apiRequest(path,options={}){
+ const headers={'Content-Type':'application/json',...(options.headers||{})};
+ if(API_MODE && ['POST','PUT','PATCH','DELETE'].includes((options.method||'GET').toUpperCase()) && !path.endsWith('/auth/login'))headers['X-CSRF-Token']=csrfToken;
+ const res=await fetch(path,{...options,headers,credentials:'same-origin',cache:'no-store'});
+ let data;try{data=await res.json()}catch(_){data={detail:'Resposta inválida do servidor.'}}
+ if(!res.ok){const message=Array.isArray(data.detail)?String(data.detail[0]?.msg||'Revise os campos.').replace(/^Value error,\s*/i,''):(typeof data.detail==='string'?data.detail:(data.detail?.message||'Não foi possível salvar. Verifique os dados.'));const error=new Error(message);error.code=res.status;error.payload=typeof data.detail==='object'?data.detail:null;if(API_MODE && res.status===401 && !path.endsWith('/auth/login'))showLogin();throw error}
+ return data;
+}
+async function reloadServerState(){database=await apiRequest('/api/v1/state');const taskState=await apiRequest('/api/v1/tasks');database.tasks=taskState.tasks;return database}
+function showLogin(){
+ document.documentElement.classList.remove('auth-ready');
+ document.getElementById('signout-mobile').hidden=true;
+ signedUser=null;csrfToken='';database={doctors:[],patients:[]};
+ document.getElementById('modal-shade').classList.remove('open');
+ document.getElementById('login-gate').hidden=false;
+ document.getElementById('top-new').disabled=true;
+ const identity=document.getElementById('active-username');if(identity)identity.textContent='Equipe Oncologia';
+}
+function showWorkspace(){
+ document.documentElement.classList.add('auth-ready');
+ document.getElementById('login-gate').hidden=true;
+ document.getElementById('signout-mobile').hidden=false;
+ document.getElementById('top-new').disabled=false;
+ document.getElementById('active-username').textContent=signedUser.displayName;
+ document.getElementById('signout-btn').hidden=false;
+ document.getElementById('demo-account-label').hidden=true;
+ const mini=document.querySelector('.demo-mini');if(mini)mini.innerHTML='<strong>Ambiente protegido para testes</strong>Login individual ativo. Utilize somente dados fictícios.';
+ const notice=document.querySelector('.notice div');if(notice)notice.innerHTML='<b>Ambiente protegido para testes.</b> Use somente dados fictícios. Acesso individual e registros de alterações estão ativos.';
+}
+async function startApi(){
+ document.body.classList.add('loading-db');
+ showLogin();
+ try{
+   signedUser=await apiRequest('/api/v1/auth/me');
+   const csrf=await apiRequest('/api/v1/auth/csrf');csrfToken=csrf.csrfToken;
+   await reloadServerState();showWorkspace();render();
+ }catch(err){if(err.code && err.code!==401)document.getElementById('login-error').textContent='Servidor temporariamente indisponível.'}
+ finally{document.body.classList.remove('loading-db')}
+}
+document.getElementById('auth-login-form').addEventListener('submit',async e=>{
+ e.preventDefault();const f=e.currentTarget,button=f.querySelector('button[type=submit]');
+ button.disabled=true;document.getElementById('login-error').textContent='';
+ try{
+   signedUser=await apiRequest('/api/v1/auth/login',{method:'POST',body:JSON.stringify({username:f.elements.username.value,password:f.elements.password.value})});
+   csrfToken=signedUser.csrfToken;f.elements.password.value='';
+   await reloadServerState();showWorkspace();render();
+ }catch(err){document.getElementById('login-error').textContent=err.message||'Falha ao autenticar.'}
+ finally{button.disabled=false}
+});
+async function signOut(){
+ try{await apiRequest('/api/v1/auth/logout',{method:'POST',body:'{}'})}catch(e){}showLogin();render();
+}
+document.getElementById('signout-btn').addEventListener('click',signOut);
+document.getElementById('signout-mobile').addEventListener('click',signOut);
+render();if(API_MODE)startApi();
+
+</script>
+</body>
+</html>
