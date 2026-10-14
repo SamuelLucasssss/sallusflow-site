@@ -178,7 +178,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 42) fail(`Esperadas 42 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 43) fail(`Esperadas 43 migrations versionadas; encontradas ${migrations.length}.`);
 const scheduledFile=migrations.find(name=>name.endsWith('_scheduled_receipts.sql'));
 if(!scheduledFile)fail('Migration de recebimentos previstos ausente.');
 else for(const required of ['enable row level security','private.has_permission','for update','confirm_uti_receipt','schedule_uti_receipt','cancel_uti_receipt']){
