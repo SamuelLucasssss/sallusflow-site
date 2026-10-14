@@ -160,6 +160,7 @@ try{
     await reviewDialog('[data-action="payment"]','pagamento-'+width);
     await reviewDialog('[data-action="extra"]','extra-'+width);
     await reviewDialog('[data-action="rate"]','diaria-'+width);
+    await reviewDialog('[data-action="edit-admission"]','editar-internacao-'+width);
     await reviewDialog('[data-action="discharge"]','alta-'+width);
   }
   await page.setViewportSize({width:1365,height:950});
@@ -296,6 +297,25 @@ try{
   await page.keyboard.press('Escape');await page.setViewportSize({width:1365,height:950});await click('[data-nav="settings"]');await wait('#logoutBtn');
   // Monthly humanized report: net receipts, refund, suite and private exclusion.
   await fixture.asUser('admin');
+  const initialEditId=await createSyntheticAdmission(fixture.db,{name:'Entrada — Correção sintética',bed:15,entry:'2026-10-08T23:40:00-03:00',half:false});
+  await click('[data-nav="settings"]');await click('#manualRefresh');await click('[data-nav="patients"]');await click('[data-filter="all"]');await fill('#searchPatients','Entrada');await click('.table-row[data-open]');
+  await page.setViewportSize({width:360,height:950});
+  const beforeEdit=(await fixture.db.query('select sum(amount)::float8 n from public.charges where admission_id=$1 and cancelled_at is null',[initialEditId])).rows[0].n;
+  await click('[data-action="edit-admission"]');await wait('#editAdmissionForm');
+  assert.equal(await page.locator('#editEntryAt').inputValue(),'2026-10-08T23:40');
+  await page.selectOption('#editInitialDaily','half');assert.match(await page.locator('#editInitialValue').textContent(),/200,00/);
+  await fill('#editAdmissionReason','Primeira diária corrigida no teste');await surface('editar-primeira-diaria-360');
+  // A stale open dialog must never overwrite a newer account.
+  await fixture.db.query('select public.add_uti_extra($1,$2::timestamptz,$3,$4,10,$5)',[initialEditId,'2026-10-09T08:00:00-03:00','Outro serviço','Extra sintético concorrente','admission-edit-browser-extra']);
+  await click('#editAdmissionForm button[type="submit"]');await wait('#editAdmissionError .form-error');assert.match(await page.locator('#editAdmissionError').textContent(),/conta foi alterada/);
+  await page.keyboard.press('Escape');await page.setViewportSize({width:1365,height:950});await click('[data-nav="settings"]');await click('#manualRefresh');await click('[data-nav="patients"]');await fill('#searchPatients','Entrada');await click('.table-row[data-open]');await page.setViewportSize({width:360,height:950});
+  await click('[data-action="edit-admission"]');await page.selectOption('#editInitialDaily','half');await fill('#editAdmissionReason','Primeira diária deveria ser meia');await click('#editAdmissionForm button[type="submit"]');await page.locator('#editAdmissionForm').waitFor({state:'detached'});
+  assert.equal((await fixture.db.query('select sum(amount)::float8 n from public.charges where admission_id=$1 and cancelled_at is null',[initialEditId])).rows[0].n,beforeEdit-200+10);
+  await click('[data-action="edit-admission"]');await fill('#editEntryAt','2026-10-07T23:40');await fill('#editAdmissionReason','Entrada corrigida para o dia anterior');await click('#editAdmissionForm button[type="submit"]');await page.locator('#editAdmissionForm').waitFor({state:'detached'});assert.match(await page.locator('.detail-meta-grid').textContent(),/07\/10\/2026/);
+  await click('[data-action="edit-admission"]');await fill('#editEntryAt','2026-10-08T23:40');await page.selectOption('#editInitialDaily','full');await fill('#editAdmissionReason','Restaurar integral e entrada original');await click('#editAdmissionForm button[type="submit"]');await page.locator('#editAdmissionForm').waitFor({state:'detached'});
+  assert.equal((await fixture.db.query('select sum(amount)::float8 n from public.charges where admission_id=$1 and cancelled_at is null',[initialEditId])).rows[0].n,beforeEdit+10);
+  assert.equal((await fixture.db.query('select count(*)::int n from public.admission_initial_edits where admission_id=$1',[initialEditId])).rows[0].n,3);
+  await surface('internacao-corrigida-360');
   await fixture.db.query('select public.add_uti_refund($1,$2::timestamptz,100,$3,null,$4)',[refundId,new Date(Date.now()-60000).toISOString(),'PIX','monthly-report-realistic-refund']);
   const suiteId=await createSyntheticAdmission(fixture.db,{name:'Suíte — Sintética',bed:18,entry:'2026-10-01T12:00:00-03:00',rate:500});
   await fixture.db.query("select public.add_uti_payment($1,'2026-10-05T14:00:00-03:00',100,'PIX',null,'monthly-suite-receipt')",[suiteId]);

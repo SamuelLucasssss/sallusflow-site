@@ -52,7 +52,7 @@ const ICON_PATHS={
 function icon(name){return `<svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name]||ICON_PATHS.document}</svg>`}
 function polishIcons(root){
  if(!root?.querySelectorAll)return;
- const actions={new:'plus',payment:'credit',extra:'plus',discount:'minus',rate:'refresh',refund:'up',discharge:'arrowRight',print:'printer',back:'arrowLeft',export:'down',corrections:'history','settlement-sheet':'document','settlement-pdf':'down'};
+ const actions={new:'plus',payment:'credit',extra:'plus',discount:'minus',rate:'refresh','edit-admission':'edit',refund:'up',discharge:'arrowRight',print:'printer',back:'arrowLeft',export:'down',corrections:'history','settlement-sheet':'document','settlement-pdf':'down'};
  const controls={manualRefresh:'refresh',inviteUserBtn:'plus',changePasswordBtn:'lock',logoutBtn:'logout',dCalc:'refresh',dConfirm:'check',dPrint:'printer',dPdf:'down',dDone:'check',settlePayBtn:'check',settleRefundBtn:'up'};
  root.querySelectorAll('button').forEach(button=>{
    const name=button.hasAttribute('data-close')?'close':actions[button.dataset.action]||controls[button.id]||(button.type==='submit'&&button.closest('form')?(button.closest('#loginForm')?'arrowRight':'check'):null);
@@ -974,6 +974,31 @@ function editPaymentModal(p,returnWhen=null){
    }catch(ex){er.innerHTML=`<div class="form-error">${esc(ex.message)}</div>`}finally{setLoading(false)}
  };
 }
+function editAdmissionInitialModal(a){
+ if(!a||data.currentRole!=='admin'||a.status==='cancelled')return;
+ const version=a.accountVersion,ref=crypto.randomUUID(),epoch=authEpoch;
+ const initial=a.rateHistory.slice().sort((x,y)=>new Date(x.effectiveAt)-new Date(y.effectiveAt))[0];
+ openModal('Editar entrada e primeira diária',patient(a.patientId)?.name||'Paciente',
+ `<form id="editAdmissionForm" class="form"><div class="form-grid two">${field('Data e hora da entrada',`<input id="editEntryAt" type="datetime-local" value="${toLocalInput(new Date(a.entryAt))}" required>`)}${field('Primeira diária',`<select id="editInitialDaily"><option value="full" ${!a.halfInitial?'selected':''}>Diária integral</option><option value="half" ${a.halfInitial?'selected':''}>Meia diária</option></select>`)}</div><div class="summary-box"><div><span>Valor da primeira diária</span><strong id="editInitialValue"></strong></div></div><p class="receipt-timing-note">A conta será recalculada conforme a entrada informada. Pagamentos e extras são mantidos; as diárias substituídas ficam no histórico.</p>${field('Motivo da correção','<textarea id="editAdmissionReason" rows="2" minlength="8" maxlength="220" placeholder="Ex.: primeira diária registrada incorretamente" required></textarea>')}<div id="editAdmissionError" role="alert"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button type="submit" class="btn btn-primary">Salvar correção</button></div></form>`);
+ document.querySelector('[data-close2]').onclick=closeModal;
+ const form=document.getElementById('editAdmissionForm'),er=document.getElementById('editAdmissionError'),choice=document.getElementById('editInitialDaily');
+ const update=()=>{document.getElementById('editInitialValue').textContent=money(Number(initial?.negotiatedRate||0)*(choice.value==='half'?.5:1));er.innerHTML=''};
+ choice.onchange=update;form.addEventListener('input',()=>er.innerHTML='');update();
+ form.onsubmit=async e=>{
+   e.preventDefault();if(remoteBusy)return;er.innerHTML='';
+   try{
+     const raw=document.getElementById('editEntryAt').value,when=raw===toLocalInput(new Date(a.entryAt))?a.entryAt:parseLocal(raw),reason=document.getElementById('editAdmissionReason').value.trim();
+     if(!when||!Number.isFinite(new Date(when).getTime())||new Date(when).getTime()>Date.now())throw new Error('Informe uma entrada válida, sem data futura.');
+     if(a.dischargeAt&&new Date(when)>new Date(a.dischargeAt))throw new Error('A entrada não pode ser posterior à alta.');
+     if(reason.length<8)throw new Error('Descreva o motivo da correção em pelo menos 8 caracteres.');
+     setLoading(true,'Recalculando a conta…');
+     await rpc('edit_uti_admission_initial',{p_admission_id:a.id,p_expected_version:Number(version),p_entry_at:when,p_half_initial:choice.value==='half',p_reason:reason,p_client_ref:ref});
+     if(epoch!==authEpoch)return;
+     await loadRemote({quiet:true});if(epoch!==authEpoch)return;
+     closeModal();render();toast('Entrada e primeira diária corrigidas. Conta recalculada e alteração registrada no histórico.');
+   }catch(ex){if(epoch===authEpoch)er.innerHTML=`<div class="form-error">${esc(ex.message)}</div>`}finally{setLoading(false)}
+ };
+}
 function extraModal(a){
   const cats=['Cardiologia','Outra especialidade','Hemodiálise','Torgena','Ecalta','Medicamento de alto custo','Outro medicamento','Outro serviço'],extraRef=crypto.randomUUID();
   openModal('Adicionar extra','Especialidades, hemodiálise, medicamentos e outros serviços.',`<form class="form" id="extraForm">${field('Categoria',`<select id="eCat">${cats.map(x=>`<option>${x}</option>`).join('')}</select>`)}${field('Descrição','<input id="eDesc" placeholder="Descrição do serviço ou medicamento">','Para medicamentos de alto custo, utilize a cotação do dia')}<div class="form-grid three">${field('Quantidade','<input id="eQty" value="1" inputmode="decimal">')}${field('Valor unitário','<div class="currency-input"><span>R$</span><input id="eUnit" inputmode="decimal" placeholder="0,00"></div>')}${field('Data e hora',`<input id="eWhen" type="datetime-local" value="${nowLocalInput()}">`)}</div><div class="summary-box"><div><span>Total do extra</span><strong id="eTotal">R$ 0,00</strong></div></div><div id="extraError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">＋ Adicionar cobrança</button></div></form>`);
@@ -1495,6 +1520,9 @@ function bindDetail(a){
   document.querySelectorAll('[data-action="discharge"]').forEach(b=>{const sp=b.querySelector('span');if(sp)sp.textContent=a.dischargeAt?'Acerto / saída':'Alta e acerto';b.onclick=()=>dischargeModal(a)});
   document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=async()=>{try{setLoading(true,'Registrando impressão…');await logDocumentOutput(a.id,'print_requested','admission_statement');setLoading(false);window.print()}catch(ex){alert('Não foi possível registrar a impressão: '+ex.message)}finally{setLoading(false)}});
   const actions=document.querySelector('.detail-actions');
+  if(actions&&data.currentRole==='admin'&&a.status!=='cancelled'){
+    const edit=document.createElement('button');edit.className='btn btn-secondary';edit.dataset.action='edit-admission';edit.innerHTML=icon('edit')+'Editar internação';edit.onclick=()=>editAdmissionInitialModal(a);actions.insertBefore(edit,actions.firstChild);
+  }
   const hasCorrectable=data.payments.some(x=>x.admissionId===a.id)||data.charges.some(x=>x.admissionId===a.id&&x.kind!=='daily')||(data.refunds||[]).some(x=>x.admissionId===a.id);
   if(actions&&data.currentRole==='admin'&&hasCorrectable&&!actions.querySelector('[data-action="corrections"]')){
     const cb=document.createElement('button');cb.className='btn btn-secondary';cb.dataset.action='corrections';cb.innerHTML='↺ Estornar lançamento';cb.onclick=()=>correctionsModal(a);actions.insertBefore(cb,actions.firstChild);
