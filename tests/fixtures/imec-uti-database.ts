@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 
 const read=(file:string)=>fs.readFileSync(`supabase/migrations/${file}`,'utf8');
-export const auditUsers={admin:'00000000-0000-0000-0000-000000000001',commercial:'00000000-0000-0000-0000-000000000002',operator:'00000000-0000-0000-0000-000000000003',inactive:'00000000-0000-0000-0000-000000000004'};
+export const auditUsers={admin:'00000000-0000-0000-0000-000000000001',commercial:'00000000-0000-0000-0000-000000000002',operator:'00000000-0000-0000-0000-000000000003',inactive:'00000000-0000-0000-0000-000000000004',referral:'00000000-0000-0000-0000-000000000005'};
 export async function isolatedDatabase({hardened=true}={}){
   const db=await PGlite.create();
   await db.exec(`create role anon;create role authenticated;create schema auth;
@@ -61,6 +61,9 @@ export async function isolatedDatabase({hardened=true}={}){
   if(monthlyReports)await db.exec(read(monthlyReports));
   const admissionEdit=fs.readdirSync('supabase/migrations').find(file=>file.endsWith('_audited_admission_initial_edit.sql'));
   if(admissionEdit)await db.exec(read(admissionEdit));
+  const accessRoles=fs.readdirSync('supabase/migrations').find(file=>file.endsWith('_simple_team_access_roles.sql'));
+  if(accessRoles)await db.exec(read(accessRoles));
+  await db.exec(read('20261007125134_package3_edge_admin_session_guard.sql'));
   for(const [role,id] of Object.entries(auditUsers)){
     await db.query('insert into auth.users(id,email) values($1,$2)',[id,`${role}@audit.invalid`]);
     await db.query('update public.profiles set display_name=$2,role=$3,active=$4 where id=$1',[id,`Synthetic ${role}`,role==='inactive'?'operator':role,role!=='inactive']);

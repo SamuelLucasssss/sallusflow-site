@@ -70,8 +70,9 @@ function polishIcons(root){
  root.querySelectorAll('[data-save-member]').forEach(el=>el.setAttribute('aria-label','Salvar acesso de '+el.closest('.member-row').querySelector('.member-ident strong').textContent));
 }
 const ROLE_PERMISSIONS={
-  commercial:new Set(['create_admission','add_extra','add_payment','adjust_rate','discharge','update_on_duty']),
-  operator:new Set(['create_admission','add_extra','discharge'])
+  commercial:new Set(['create_admission','add_extra','add_payment','adjust_rate','update_on_duty']),
+  operator:new Set(['create_admission','add_extra']),
+  referral:new Set(['create_admission'])
 };
 let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:'',reportMonth:previousReportMonth(),reportCommission:false};
 let monthlyReportState={report:null,loading:false,error:'',revision:0};
@@ -108,8 +109,14 @@ function shell(){
  </aside>
  <div class="app-main"><header class="topbar"><div class="mobile-brand"><div class="brand-mark">${icon('activity')}</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div><div class="top-context"><span>IMEC UTI</span>${icon('chevron')}<strong>${pageName}</strong></div><div class="top-actions"><span class="top-date">${new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'long',timeZone:'America/Sao_Paulo'}).format(new Date())}</span><button class="top-user" data-nav="settings" aria-label="Abrir configurações do usuário"><div class="avatar small">${esc(data.currentUser[0])}</div><span>${esc(data.currentUser)}</span></button><button class="icon-btn mobile-only" data-action="new" aria-label="Nova internação">${icon('plus')}</button></div></header><main class="content" id="content" tabindex="-1"></main></div>
  <nav class="bottom-nav" aria-label="Navegação principal móvel"><button data-nav="home" class="${state.page==='home'?'active':''}" aria-current="${state.page==='home'?'page':'false'}">${icon('home')}<span>Início</span></button><button data-nav="patients" class="${state.page==='patients'?'active':''}" aria-current="${state.page==='patients'?'page':'false'}">${icon('patients')}<span>Pacientes</span></button><button data-nav="finance" class="${state.page==='finance'?'active':''}" aria-current="${state.page==='finance'?'page':'false'}">${icon('wallet')}<span>Financeiro</span></button><button data-nav="reports" class="${state.page==='reports'?'active':''}" aria-current="${state.page==='reports'?'page':'false'}">${icon('document')}<span>Relatórios</span></button><button data-nav="settings" class="${state.page==='settings'?'active':''}" aria-current="${state.page==='settings'?'page':'false'}">${icon('settings')}<span>Ajustes</span></button></nav>`;
+ if(data.currentRole==='referral'){
+   const root=document.getElementById('app');
+   root.querySelectorAll('.bottom-nav [data-nav="finance"]').forEach(b=>b.remove());
+   const bottom=root.querySelector('.bottom-nav');if(bottom)bottom.style.gridTemplateColumns='repeat(4,minmax(0,1fr))';
+   root.querySelectorAll('[data-action="new"]').forEach(b=>{b.innerHTML=icon('plus')+(b.classList.contains('icon-btn')?'':'Nova indicação');b.setAttribute('aria-label','Nova indicação')});
+ }
 }
-function navItem(p,i,l){return `<button class="side-item ${state.page===p?'active':''}" data-nav="${p}" aria-current="${state.page===p?'page':'false'}">${icon(i)}<span>${l}</span>${state.page===p?'<span class="nav-active-dot" aria-hidden="true"></span>':''}</button>`}
+function navItem(p,i,l){return data.currentRole==='referral'&&p==='finance'?'':`<button class="side-item ${state.page===p?'active':''}" data-nav="${p}" aria-current="${state.page===p?'page':'false'}">${icon(i)}<span>${l}</span>${state.page===p?'<span class="nav-active-dot" aria-hidden="true"></span>':''}</button>`}
 function unresolvedSystemAlerts(){return (data.alerts||[]).filter(a=>a.status!=='resolved')}
 function systemAlertBanner(){
   if(data.currentRole!=='admin')return '';
@@ -297,7 +304,7 @@ function newAdmissionModal(){
   if(!can('create_admission')){toast('Seu perfil não pode criar internações.');return}
   const beds=Array.from({length:19},(_,i)=>i+1).map(n=>`<option value="${n}">Leito ${String(n).padStart(2,'0')}${n<=9?' — Salão':n<=16?' — Individual':' — Suíte'}</option>`).join('');
   const closerNames=teamClosers.length?teamClosers.filter(x=>x.active!==false).map(x=>x.display_name):USERS;
-  openModal('Nova internação','Cadastre apenas o essencial. O financeiro começa a partir daqui.',`<form class="form" id="newForm"><div class="form-section"><h3>Paciente</h3><div class="form-grid two">${field('Nome completo','<input id="nName" required autofocus autocomplete="off" placeholder="Nome do paciente">')}${field('CPF','<input id="nCpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00">','Opcional, recomendado para evitar duplicidade')}</div></div><div class="form-section"><h3>Internação</h3><div class="form-grid three">${field('Leito',`<select id="nBed"><option value="">Selecionar</option>${beds}</select>`)}${field('Modalidade','<select id="nMode"><option value="private">Particular</option><option value="hotel">Hotelaria</option></select>')}${field('Entrada',`<input id="nEntry" type="datetime-local" value="${nowLocalInput()}">`)}</div></div><div class="form-section"><h3>Condição comercial</h3><div class="form-grid three">${field('Ventilação mecânica','<select id="nVent"><option value="0">Não</option><option value="1">Sim</option></select>')}${field('Valor padrão','<div class="read-value" id="nStandard">R$ 7.000,00</div>')}${field('Valor negociado','<div class="currency-input"><span>R$</span><input id="nValue" inputmode="decimal" placeholder="7000,00"></div>')}</div><div class="form-grid two">${field('Responsável pelo fechamento',`<select id="nCloser">${closerNames.map(u=>`<option ${u===data.onDuty?'selected':''}>${esc(u)}</option>`).join('')}</select>`)}${field('Primeira cobrança','<select id="nHalf"><option value="0">Diária inteira</option><option value="1">½ diária</option></select><small id="lateHint"></small>')}</div>${field('Observação','<textarea id="nNote" rows="2" placeholder="Opcional"></textarea>')}</div><div class="summary-box"><div><span>Diária aplicada</span><strong id="nApplied">R$ 7.000,00</strong></div><div><span>Primeiro lançamento</span><strong id="nFirst">R$ 7.000,00</strong></div><div><span>Desconto por diária</span><strong id="nDiscount">R$ 0,00</strong></div></div><div id="nRetroPreview"></div><div id="nError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button type="submit" class="btn btn-primary">✓ Confirmar internação</button></div></form>`);
+  openModal(data.currentRole==='referral'?'Nova indicação':'Nova internação','Cadastre apenas o essencial. O financeiro começa a partir daqui.',`<form class="form" id="newForm"><div class="form-section"><h3>Paciente</h3><div class="form-grid two">${field('Nome completo','<input id="nName" required autofocus autocomplete="off" placeholder="Nome do paciente">')}${field('CPF','<input id="nCpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00">','Opcional, recomendado para evitar duplicidade')}</div></div><div class="form-section"><h3>Internação</h3><div class="form-grid three">${field('Leito',`<select id="nBed"><option value="">Selecionar</option>${beds}</select>`)}${field('Modalidade','<select id="nMode"><option value="private">Particular</option><option value="hotel">Hotelaria</option></select>')}${field('Entrada',`<input id="nEntry" type="datetime-local" value="${nowLocalInput()}">`)}</div></div><div class="form-section"><h3>Condição comercial</h3><div class="form-grid three">${field('Ventilação mecânica','<select id="nVent"><option value="0">Não</option><option value="1">Sim</option></select>')}${field('Valor padrão','<div class="read-value" id="nStandard">R$ 7.000,00</div>')}${field('Valor negociado','<div class="currency-input"><span>R$</span><input id="nValue" inputmode="decimal" placeholder="7000,00"></div>')}</div><div class="form-grid two">${field('Responsável pelo fechamento',`<select id="nCloser">${closerNames.map(u=>`<option ${u===data.onDuty?'selected':''}>${esc(u)}</option>`).join('')}</select>`)}${field('Primeira cobrança','<select id="nHalf"><option value="0">Diária inteira</option><option value="1">½ diária</option></select><small id="lateHint"></small>')}</div>${field('Observação','<textarea id="nNote" rows="2" placeholder="Opcional"></textarea>')}</div><div class="summary-box"><div><span>Diária aplicada</span><strong id="nApplied">R$ 7.000,00</strong></div><div><span>Primeiro lançamento</span><strong id="nFirst">R$ 7.000,00</strong></div><div><span>Desconto por diária</span><strong id="nDiscount">R$ 0,00</strong></div></div><div id="nRetroPreview"></div><div id="nError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button type="submit" class="btn btn-primary">✓ Confirmar internação</button></div></form>`);
   document.querySelector('[data-close2]').onclick=closeModal;
   const ids=['nBed','nMode','nEntry','nVent','nValue','nHalf'];ids.forEach(id=>document.getElementById(id).addEventListener('input',updateNew));
   document.getElementById('nEntry').addEventListener('change',()=>{document.getElementById('nHalf').value=late(document.getElementById('nEntry').value)?'1':'0';updateNew()});
@@ -417,7 +424,7 @@ async function expireIdleSession(){
 }
 function storeAuth(session,{activity=true,preserveEpoch=false}={}){
   if(!preserveEpoch){authEpoch++;monthlyReportState={report:null,loading:false,error:'',revision:monthlyReportState.revision+1};}
-  if(!session)passwordOnlyMode=false;
+  if(!session){passwordOnlyMode=false;state.page='home';state.selectedId=null;state.search='';state.patientFilter='active';state.financeTab='pending';}
   authState=session?normalizeSession(session):null;
   try{
     if(authState){localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(authState));if(activity)touchActivity()}
@@ -661,20 +668,34 @@ async function loadRemote({quiet=false}={}){
 function authCard(inner){
   document.getElementById('app').innerHTML=`<main class="auth-shell"><div class="auth-layout"><aside class="auth-intro"><div class="auth-intro-mark">${icon('activity')}</div><span class="eyebrow">IMEC UTI</span><h2>Clareza para<br>cada decisão.</h2><p>Internações, recebimentos e acertos.<br>Uma visão organizada da operação.</p><div class="auth-intro-footer">Particular & Hotelaria ${icon('arrowRight')}</div></aside><section class="auth-card"><div class="auth-logo"><div class="brand-mark">${icon('activity')}</div><div><strong>IMEC UTI</strong><span>Particular & Hotelaria</span></div></div>${inner}</section></div><span class="auth-workspace-foot">IMEC UTI · Gestão de internações</span></main>`;
   polishIcons(document.getElementById('app'));
+  bindPasswordVisibility(document.getElementById('app'));
+}
+function passwordInput(id,autocomplete,placeholder,label='Senha'){
+ return `<div class="field"><label class="field-label" for="${id}">${label}</label><div class="password-control"><input id="${id}" type="password" autocomplete="${autocomplete}" required placeholder="${placeholder}"><button type="button" data-password-target="${id}" aria-label="Mostrar senha" aria-pressed="false">Mostrar</button></div></div>`;
+}
+function bindPasswordVisibility(root){
+ if(!root?.querySelectorAll)return;
+ root.querySelectorAll('[data-password-target]').forEach(b=>b.onclick=()=>{
+   const input=document.getElementById(b.dataset.passwordTarget);if(!input)return;
+   const show=input.type==='password';input.type=show?'text':'password';b.textContent=show?'Ocultar':'Mostrar';b.setAttribute('aria-label',show?'Ocultar senha':'Mostrar senha');b.setAttribute('aria-pressed',String(show));
+ });
 }
 function renderAuth(message=''){
   const msg=message?`<div class="auth-message">${esc(message)}</div>`:'';
-  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu acesso individual para visualizar internações, recebimentos e saldos.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="seu@email.com"></label><label class="field"><span class="field-label">Senha</span><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••••"></label><div id="authError"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button><button class="auth-link" id="forgotPasswordBtn" type="button">Esqueci minha senha</button></form><p class="auth-foot">Acesso restrito à equipe autorizada. Login protegido por sessão e inatividade.</p>`);
+  authCard(`${msg}<div class="auth-copy"><span class="eyebrow">ACESSO INTERNO</span><h1>Controle financeiro da UTI</h1><p>Entre com seu e-mail e senha.</p></div><form id="loginForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="loginEmail" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" required placeholder="seu@email.com"></label>${passwordInput('loginPassword','current-password','Sua senha')}<div id="authError" role="alert"></div><button class="btn btn-primary auth-submit" type="submit">Entrar</button><button class="auth-link" id="forgotPasswordBtn" type="button">Esqueci minha senha</button></form><p class="auth-foot">Use seu acesso individual. No primeiro acesso, abra o convite enviado pelo administrador.</p>`);
   document.getElementById('forgotPasswordBtn').onclick=renderForgotPassword;
-  document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();const error=document.getElementById('authError');error.innerHTML='';try{setLoading(true,'Entrando…');const s=await authFetch('token?grant_type=password',{email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});storeAuth(s);await loadRemote()}catch(x){error.innerHTML=`<div class="form-error">⚠ ${esc(x.message)}</div>`}finally{setLoading(false)}};
+  document.getElementById('loginForm').addEventListener('input',()=>document.getElementById('authError').innerHTML='');
+  document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();if(remoteBusy)return;const error=document.getElementById('authError');error.innerHTML='';try{setLoading(true,'Entrando…');const s=await authFetch('token?grant_type=password',{email:document.getElementById('loginEmail').value.trim().toLowerCase(),password:document.getElementById('loginPassword').value});storeAuth(s);await loadRemote()}catch(x){const message=/invalid login credentials/i.test(x.message)?'E-mail ou senha incorretos. Confira os dados e tente novamente.':x.message;error.innerHTML=`<div class="form-error">${esc(message)}</div>`}finally{setLoading(false)}};
 }
 function renderForgotPassword(){
-  authCard(`<div class="auth-copy"><span class="eyebrow">RECUPERAÇÃO SEGURA</span><h1>Recuperar senha</h1><p>Informe seu e-mail. Se ele estiver cadastrado, você receberá um link de recuperação.</p></div><form id="recoverForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="recoverEmail" type="email" autocomplete="email" required></label><div id="recoverMessage"></div><button class="btn btn-primary auth-submit">Enviar link</button><button id="recoverBack" type="button" class="btn btn-secondary auth-submit">Voltar</button></form>`);
+  authCard(`<div class="auth-copy"><span class="eyebrow">RECUPERAÇÃO SEGURA</span><h1>Recuperar senha</h1><p>Informe seu e-mail. Se ele estiver cadastrado, você receberá um link de recuperação.</p></div><form id="recoverForm" class="auth-form"><label class="field"><span class="field-label">E-mail</span><input id="recoverEmail" type="email" autocomplete="email" required></label><div id="recoverMessage"></div><button type="submit" class="btn btn-primary auth-submit">Enviar link</button><button id="recoverBack" type="button" class="btn btn-secondary auth-submit">Voltar</button></form>`);
   document.getElementById('recoverBack').onclick=()=>renderAuth();
   document.getElementById('recoverForm').onsubmit=async e=>{
     e.preventDefault();const box=document.getElementById('recoverMessage');
-    try{setLoading(true,'Enviando recuperação…');await authFetch(`recover?redirect_to=${encodeURIComponent(APP_URL)}`,{email:document.getElementById('recoverEmail').value.trim()})}catch{}
-    finally{setLoading(false);box.innerHTML='<div class="auth-message">Se o e-mail estiver cadastrado, o link de recuperação foi enviado.</div>'}
+    if(remoteBusy)return;
+    try{setLoading(true,'Enviando recuperação…');await authFetch(`recover?redirect_to=${encodeURIComponent(APP_URL)}`,{email:document.getElementById('recoverEmail').value.trim().toLowerCase()});box.innerHTML='<div class="auth-message">Se o e-mail estiver cadastrado, você receberá um link de recuperação. Confira também o spam.</div>'}
+    catch{box.innerHTML='<div class="form-error" role="alert">Não foi possível solicitar a recuperação agora. Tente novamente; se persistir, fale com o administrador.</div>'}
+    finally{setLoading(false)}
   };
 }
 function renderPending(profile){
@@ -691,44 +712,63 @@ async function logoutRemote(){
 
 async function inviteUserModal(){
   if(data.currentRole!=='admin'){toast('Somente administradores podem convidar usuários.');return}
-  openModal('Convidar usuário','O convite será enviado com retorno direto para o IMEC UTI.',`<form class="form" id="inviteForm">${field('Nome','<input id="inviteName" autocomplete="off" required placeholder="Nome do usuário">')}<div class="form-grid two">${field('E-mail','<input id="inviteEmail" type="email" autocomplete="off" required placeholder="usuario@empresa.com">')}${field('Perfil','<select id="inviteRole"><option value="operator">Operacional</option><option value="commercial">Comercial</option><option value="admin">Administrador</option></select>')}</div><div class="security-note"><span>✓</span><div><strong>Convite seguro</strong><span>O usuário define senha própria e permanece pendente até ser liberado. Convites exigem confirmação do segundo fator pelo administrador.</span></div></div><div id="inviteError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Enviar convite</button></div></form>`);
+  const epoch=authEpoch;
+  openModal('Adicionar usuário','Libere o acesso uma vez. Depois, a pessoa entra com e-mail e senha.',`<form class="form" id="inviteForm">${field('Nome','<input id="inviteName" autocomplete="off" maxlength="120" required placeholder="Nome do usuário">')}<div class="form-grid two">${field('E-mail','<input id="inviteEmail" type="email" autocomplete="off" maxlength="254" required placeholder="usuario@empresa.com">')}${field('Perfil','<select id="inviteRole"><option value="referral">Indicação e consulta</option><option value="operator">Operacional</option><option value="commercial">Comercial</option><option value="admin">Administrador</option></select>')}</div><p id="invitePermissionHint" class="receipt-timing-note"></p>${field('Primeiro acesso','<select id="inviteDelivery"><option value="link">Gerar link de primeiro acesso</option><option value="email">Enviar convite por e-mail</option></select>')}<p class="receipt-timing-note">A pessoa define a própria senha. Não é necessário liberar a conta novamente.</p><div id="inviteError" role="alert"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button type="submit" class="btn btn-primary">Criar acesso</button></div></form>`);
   document.querySelector('[data-close2]').onclick=closeModal;
+  const role=document.getElementById('inviteRole'),hint=document.getElementById('invitePermissionHint');
+  const describe=()=>hint.textContent=role.value==='referral'?'Cadastra indicações, acompanha pacientes e consulta relatórios. Não registra pagamentos nem dá altas.':role.value==='admin'?'Gerencia acessos, recebimentos, correções e altas.':'Acesso operacional conforme o perfil. Altas são exclusivas do administrador.';
+  role.onchange=describe;describe();
   document.getElementById('inviteForm').onsubmit=async e=>{
     e.preventDefault();if(remoteBusy)return;
     const er=document.getElementById('inviteError');er.innerHTML='';
     try{
-      setLoading(true,'Enviando convite…');
-      const result=await edge('invite-uti-user',{display_name:document.getElementById('inviteName').value.trim(),email:document.getElementById('inviteEmail').value.trim(),role:document.getElementById('inviteRole').value});
-      if(!result?.ok)throw new Error(result?.error||'Não foi possível enviar o convite.');
-      await loadRemote({quiet:true});closeModal();toast('Convite enviado para '+result.email+'.');render();
-    }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+      setLoading(true,'Criando acesso…');
+      const result=await edge('invite-uti-user',{display_name:document.getElementById('inviteName').value.trim(),email:document.getElementById('inviteEmail').value.trim(),role:role.value,delivery:document.getElementById('inviteDelivery').value});
+      if(epoch!==authEpoch)return;
+      if(!result?.ok||result.activated!==true)throw new Error(result?.error||'A liberação não foi confirmada. Confira o usuário na equipe.');
+      if(result.delivery==='link'){
+        let url;try{url=new URL(result.action_link)}catch{throw new Error('O serviço não retornou um link válido.')}
+        if(url.origin!==new URL(SUPABASE_URL).origin||url.pathname!=='/auth/v1/verify'||url.searchParams.get('type')!=='invite')throw new Error('O serviço não retornou um link válido.');
+        // Credential stays in this dialog only: no storage, app data or audit payload.
+        openModal('Acesso liberado',result.email,`<div class="form"><p>Compartilhe este link somente com a pessoa convidada. Ela define a senha e já pode entrar.</p><label class="field"><span class="field-label">Link de primeiro acesso</span><input id="invitationLink" type="text" readonly autocomplete="off" spellcheck="false" value="${esc(url.href)}"></label><div id="invitationCopyMessage" role="status"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-invite-done>Fechar</button><button type="button" class="btn btn-primary" id="copyInvitationLink">Copiar link</button></div></div>`);
+        document.querySelector('[data-invite-done]').onclick=()=>{closeModal();loadRemote()};
+        document.getElementById('copyInvitationLink').onclick=async()=>{
+          const msg=document.getElementById('invitationCopyMessage');
+          try{await navigator.clipboard.writeText(document.getElementById('invitationLink').value);msg.textContent='Link copiado.'}catch{document.getElementById('invitationLink').select();msg.textContent='Selecione e copie o link acima.'}
+        };
+      }else{await loadRemote({quiet:true});if(epoch!==authEpoch)return;closeModal();toast('Acesso liberado. Convite enviado para '+result.email+'.');render()}
+    }catch(ex){if(epoch===authEpoch)er.innerHTML=`<div class="form-error">${esc(ex.message)}</div>`}finally{setLoading(false)}
   };
 }
 
-async function passwordEditor({title='Definir nova senha',subtitle='Use uma senha exclusiva para este sistema.',afterSave}={}){
-  openModal(title,subtitle,`<form class="form" id="passwordForm">${field('Nova senha','<input id="newPassword" type="password" minlength="12" autocomplete="new-password" placeholder="Mínimo 12 caracteres">','Use maiúsculas, minúsculas, números e símbolos.')}${field('Confirmar nova senha','<input id="confirmPassword" type="password" minlength="12" autocomplete="new-password" placeholder="Repita a nova senha">')}<div id="passwordError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button class="btn btn-primary">Salvar senha</button></div></form>`);
-  document.querySelector('[data-close2]').onclick=closeModal;
+async function passwordEditor({title='Definir nova senha',subtitle='Use uma senha exclusiva para este sistema.',afterSave,inline=false}={}){
+  const epoch=authEpoch;
+  const form=`<form class="${inline?'auth-form':'form'}" id="passwordForm">${passwordInput('newPassword','new-password','Mínimo 12 caracteres','Nova senha')}${passwordInput('confirmPassword','new-password','Repita a nova senha','Confirmar senha')}<p class="receipt-timing-note">Use pelo menos 12 caracteres, com maiúsculas, minúsculas, números e símbolos.</p><div id="passwordError" role="alert"></div><div class="${inline?'auth-password-actions':'modal-actions'}"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button type="submit" class="btn btn-primary">${inline?'Salvar e entrar':'Salvar senha'}</button></div></form>`;
+  if(inline)authCard(`<div class="auth-copy"><span class="eyebrow">SEU ACESSO</span><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>${form}`);
+  else openModal(title,subtitle,form);
+  bindPasswordVisibility(document.getElementById(inline?'app':'modal'));
+  document.querySelector('[data-close2]').onclick=inline?logoutRemote:closeModal;
   document.getElementById('passwordForm').onsubmit=async e=>{
-    e.preventDefault();const a=document.getElementById('newPassword').value,b=document.getElementById('confirmPassword').value,er=document.getElementById('passwordError');er.innerHTML='';
+    e.preventDefault();if(remoteBusy)return;const a=document.getElementById('newPassword').value,b=document.getElementById('confirmPassword').value,er=document.getElementById('passwordError');er.innerHTML='';
     if(a!==b){er.innerHTML='<div class="form-error">⚠ As senhas não coincidem.</div>';return}
     try{
       setLoading(true,'Validando senha…');await checkPasswordSafety(a);
+      if(epoch!==authEpoch||!authState)return;
       const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{method:'PUT',headers:authHeaders(authState.access_token),body:JSON.stringify({password:a})});await parseResponse(res);
-      closeModal();toast('Senha atualizada com segurança.');
+      if(epoch!==authEpoch)return;
+      if(!inline)closeModal();toast('Senha atualizada com segurança.');
       if(afterSave)await afterSave();
-    }catch(ex){er.innerHTML=`<div class="form-error">⚠ ${esc(ex.message)}</div>`}finally{setLoading(false)}
+    }catch(ex){if(epoch===authEpoch)er.innerHTML=`<div class="form-error">${esc(ex.message)}</div>`}finally{setLoading(false)}
   };
 }
 async function changePasswordModal(){return passwordEditor({title:'Alterar senha',subtitle:'A senha nova será validada contra vazamentos conhecidos.'})}
 async function renderCallbackPassword(type){
-  const title=type==='recovery'?'Crie sua nova senha':'Proteja seu novo acesso';
-  authCard(`<div class="security-shield">◈</div><div class="auth-copy center"><span class="eyebrow">${type==='recovery'?'RECUPERAÇÃO':'PRIMEIRO ACESSO'}</span><h1>${title}</h1><p>Antes de continuar, defina uma senha forte e exclusiva.</p></div><button id="callbackPasswordBtn" class="btn btn-primary auth-submit">Definir senha</button><button id="callbackLogoutBtn" class="btn btn-secondary auth-submit">Cancelar</button>`);
-  document.getElementById('callbackLogoutBtn').onclick=logoutRemote;
-  document.getElementById('callbackPasswordBtn').onclick=()=>passwordEditor({title,afterSave:async()=>{await loadRemote()}});
+  return passwordEditor({title:type==='recovery'?'Crie sua nova senha':'Crie sua senha',subtitle:'Defina sua senha uma vez. Depois, entre com e-mail e senha.',inline:true,afterSave:async()=>{await loadRemote()}});
 }
 async function boot(){
   startIdleGuard();
   const callback=parseAuthRedirect(window.location.href);
+  if(callback.error){storeAuth(null);history.replaceState({},document.title,cleanAuthRedirectUrl(window.location.href));renderAuth(callback.error);return}
   if(callback.session){
     storeAuth(callback.session);
     try{
@@ -788,8 +828,8 @@ function operationalHealthPanel(){
   </section>`;
 }
 function settingsPage(){
-  const members=teamProfiles.map(p=>`<div class="member-row"><div class="member-ident"><div class="avatar small">${esc((p.display_name||'?')[0])}</div><div><strong>${esc(p.display_name)}</strong><span>${esc(p.email||'Sem e-mail')}</span></div></div><div class="member-controls">${data.currentRole==='admin'?`<select data-member-role="${p.id}"><option value="operator" ${p.role==='operator'?'selected':''}>Operacional</option><option value="commercial" ${p.role==='commercial'?'selected':''}>Comercial</option><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option></select><label class="switch-label"><input type="checkbox" data-member-active="${p.id}" ${p.active?'checked':''}> <span>${p.active?'Ativo':'Pendente'}</span></label><button class="btn btn-secondary" data-save-member="${p.id}">Salvar</button>`:`<span class="badge ${p.active?'badge-good':'badge-warn'}">${p.active?'Ativo':'Pendente'}</span><span class="badge badge-neutral">${roleLabel(p.role)}</span>`}</div></div>`).join('');
-  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section>${data.currentRole==='admin'?`<details class="settings-diagnostics"><summary>Saúde e histórico do sistema${unresolvedSystemAlerts().length?` · ${unresolvedSystemAlerts().length} alerta(s)`:''}</summary><div class="settings-diagnostics-content">${observabilityPanel()}${operationalHealthPanel()}</div></details>`:''}<section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Convidar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-status"><div><strong>${passwordOnlyMode?'Acesso por e-mail e senha':'Acesso com segundo fator'}</strong><span>Expiração automática após 20 minutos sem atividade.</span></div><span class="badge badge-good">${passwordOnlyMode?'Sessão ativa':data.securityAal==='aal2'?'Protegido':'Verificar'}</span></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, senha verificada contra vazamentos, trava de leito duplicado e diárias reconciliadas no servidor.</span></div></div></section></div>`
+  const members=teamProfiles.map(p=>`<div class="member-row"><div class="member-ident"><div class="avatar small">${esc((p.display_name||'?')[0])}</div><div><strong>${esc(p.display_name)}</strong><span>${esc(p.email||'Sem e-mail')}</span></div></div><div class="member-controls">${data.currentRole==='admin'?`<select data-member-role="${p.id}"><option value="referral" ${p.role==='referral'?'selected':''}>Indicação e consulta</option><option value="operator" ${p.role==='operator'?'selected':''}>Operacional</option><option value="commercial" ${p.role==='commercial'?'selected':''}>Comercial</option><option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option></select><label class="switch-label"><input type="checkbox" data-member-active="${p.id}" ${p.active?'checked':''}> <span>${p.active?'Ativo':'Pendente'}</span></label><button class="btn btn-secondary" data-save-member="${p.id}">Salvar</button>`:`<span class="badge ${p.active?'badge-good':'badge-warn'}">${p.active?'Ativo':'Pendente'}</span><span class="badge badge-neutral">${roleLabel(p.role)}</span>`}</div></div>`).join('');
+  return `<section class="page-head"><div><span class="eyebrow">CONFIGURAÇÕES</span><h1>Operação e acessos</h1><p>Banco central da UTI, usuários individuais e auditoria compartilhada.</p></div><button class="btn btn-secondary" id="manualRefresh">↻ Atualizar</button></section><div class="settings-grid"><section class="panel"><div class="panel-head"><div><h2>Operação</h2><p>Escala comercial e identificação do usuário conectado.</p></div></div><div class="settings-fields"><label class="field"><span class="field-label">Usuário conectado</span><div class="read-value">${esc(data.currentUser)} • ${roleLabel(data.currentRole)}</div></label><label class="field"><span class="field-label">Plantão comercial atual</span><select id="onDuty">${['Samuel','Roberto'].map(u=>`<option ${u===data.onDuty?'selected':''}>${u}</option>`).join('')}</select></label></div></section><section class="panel"><div class="panel-head"><div><h2>Acessos da equipe</h2><p>${data.currentRole==='admin'?'Libere usuários e defina o perfil de acesso.':'Consulte quem possui acesso ao sistema.'}</p></div></div><div class="member-list">${members||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section>${data.currentRole==='admin'?`<details class="settings-diagnostics"><summary>Saúde e histórico do sistema${unresolvedSystemAlerts().length?` · ${unresolvedSystemAlerts().length} alerta(s)`:''}</summary><div class="settings-diagnostics-content">${observabilityPanel()}${operationalHealthPanel()}</div></details>`:''}<section class="panel"><div class="panel-head"><div><h2>Dados e segurança</h2><p>Os dados estão no banco exclusivo IMEC UTI e sincronizam entre aparelhos.</p></div></div><div class="backup-actions">${data.currentRole==='admin'?'<button class="btn btn-secondary" id="inviteUserBtn">＋ Adicionar usuário</button><button class="btn btn-secondary" data-action="export">⇩ Exportar dados</button>':''}<button class="btn btn-secondary" id="changePasswordBtn">⌘ Alterar senha</button><button class="btn btn-secondary" id="logoutBtn">⇥ Sair da conta</button></div><div class="security-status"><div><strong>${passwordOnlyMode?'Acesso por e-mail e senha':'Acesso com segundo fator'}</strong><span>Expiração automática após 20 minutos sem atividade.</span></div><span class="badge badge-good">${passwordOnlyMode?'Sessão ativa':data.securityAal==='aal2'?'Protegido':'Verificar'}</span></div><div class="security-note"><span>◈</span><div><strong>Produção centralizada</strong><span>RLS ativo, auditoria por usuário, senha verificada contra vazamentos, trava de leito duplicado e diárias reconciliadas no servidor.</span></div></div></section></div>`
 }
 
 async function submitNew(e){
@@ -1509,6 +1549,7 @@ function dischargeModal(a,proposedAt=null){
 }
 
 function bindDetail(a){
+  if(data.currentRole==='referral')document.querySelector('.quick-actions')?.remove();
   bindScheduledReceipts();
   bindReceiptEdits();
   document.querySelectorAll('[data-action="back"]').forEach(b=>b.onclick=()=>{state.selectedId=null;if(state.page==='reports')loadMonthlyReport();else render()});
@@ -1557,7 +1598,7 @@ function bindPage(){
   };
   document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.patientFilter=b.dataset.filter;render()});
   document.querySelectorAll('[data-ftab]').forEach(b=>b.onclick=()=>{state.financeTab=b.dataset.ftab;render()});
-  const od=document.getElementById('onDuty');if(od)od.onchange=async e=>{const next=e.target.value;try{setLoading(true);await rpc('update_uti_on_duty',{p_name:next});await loadRemote({quiet:true});toast('Plantão comercial atualizado.');render()}catch(ex){alert(ex.message);render()}finally{setLoading(false)}};
+  const od=document.getElementById('onDuty');if(od)od.disabled=!can('update_on_duty');if(od)od.onchange=async e=>{const next=e.target.value;try{setLoading(true);await rpc('update_uti_on_duty',{p_name:next});await loadRemote({quiet:true});toast('Plantão comercial atualizado.');render()}catch(ex){alert(ex.message);render()}finally{setLoading(false)}};
   const mr=document.getElementById('manualRefresh');if(mr)mr.onclick=()=>withRemote(async()=>{const ok=await loadRemote({quiet:true});if(!ok)throw new Error('Não foi possível atualizar os dados.');render()},'Dados atualizados.');
   const iu=document.getElementById('inviteUserBtn');if(iu)iu.onclick=inviteUserModal;const cp=document.getElementById('changePasswordBtn');if(cp)cp.onclick=changePasswordModal;const lo=document.getElementById('logoutBtn');if(lo)lo.onclick=logoutRemote;
   document.querySelectorAll('[data-ack-alert]').forEach(btn=>btn.onclick=async()=>{if(remoteBusy)return;try{setLoading(true,'Reconhecendo alerta…');await rpc('acknowledge_uti_alert',{p_alert_id:Number(btn.dataset.ackAlert)});await loadRemote({quiet:true});toast('Alerta reconhecido.');render()}catch(ex){alert(ex.message||'Não foi possível reconhecer o alerta.')}finally{setLoading(false)}});

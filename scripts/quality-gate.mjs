@@ -169,7 +169,7 @@ for (const edgePath of ['supabase/functions/invite-uti-user/index.ts','supabase/
   const edge = read(edgePath);
   if (!edge.includes('@supabase/supabase-js@2.117.2')) fail(`Dependência Supabase não fixada em ${edgePath}`);
 }
-if (!read('supabase/functions/invite-uti-user/index.ts').includes('aal !== "aal2"')) fail('Convite administrativo não exige AAL2.');
+if (!read('supabase/functions/invite-uti-user/index.ts').includes('admin_update_uti_member')) fail('Convite deve liberar e auditar o acesso usando a sessão real do administrador.');
 if (!read('supabase/functions/invite-uti-user/index.ts').includes('is_uti_admin_secure_session')) fail('Convite administrativo não valida sessão ativa no banco.');
 
 const config = read('src/imec-uti/config.ts');
@@ -178,7 +178,7 @@ if (/service[_-]?role|sb_secret_/i.test(config)) fail('Segredo de Supabase encon
 
 const migrationDir = path.join(root, 'supabase/migrations');
 const migrations = fs.readdirSync(migrationDir).filter((name) => name.endsWith('.sql')).sort();
-if (migrations.length !== 43) fail(`Esperadas 43 migrations versionadas; encontradas ${migrations.length}.`);
+if (migrations.length !== 44) fail(`Esperadas 44 migrations versionadas; encontradas ${migrations.length}.`);
 const scheduledFile=migrations.find(name=>name.endsWith('_scheduled_receipts.sql'));
 if(!scheduledFile)fail('Migration de recebimentos previstos ausente.');
 else for(const required of ['enable row level security','private.has_permission','for update','confirm_uti_receipt','schedule_uti_receipt','cancel_uti_receipt']){

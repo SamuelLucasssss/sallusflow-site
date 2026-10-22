@@ -110,7 +110,7 @@ export function newAdmissionEstimate(entryValue: string, input: AdmissionEstimat
 }
 
 export function roleLabel(role: string | null | undefined): string {
-  return role === 'admin' ? 'Administrador' : role === 'commercial' ? 'Comercial' : 'Operacional';
+  return role === 'admin' ? 'Administrador' : role === 'commercial' ? 'Comercial' : role === 'referral' ? 'Indicação e consulta' : 'Operacional';
 }
 
 export function balanceMeta(value: unknown): BalanceMeta {

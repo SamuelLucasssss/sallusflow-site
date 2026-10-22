@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { isolatedDatabase,createSyntheticAdmission,auditUsers } from '../tests/fixtures/imec-uti-database.ts';
 import {toLocalInput} from '../src/imec-uti/domain.ts';
+import {invitationEdge} from '../tests/fixtures/imec-uti-invitation-edge.ts';
 
 const output=path.resolve(process.env.IMEC_AUDIT_OUTPUT||'tmp/imec-audit');
 fs.mkdirSync(output,{recursive:true});
@@ -24,8 +25,9 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch({headless:true,...(process.env.IMEC_CHROME_PATH?{executablePath:process.env.IMEC_CHROME_PATH}:{})});
 const context=await browser.newContext({viewport:{width:1365,height:950},serviceWorkers:'block',acceptDownloads:true});
-const api=[],errors=[],steps=[],visualChecks=[];let queue=Promise.resolve();let failNetwork=false;let previewDelay=0;
-const session=()=>({access_token:'synthetic.'+Buffer.from(JSON.stringify({sub:auditUsers.admin,aal:'aal1',session_id:auditUsers.admin,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')+'.signature',refresh_token:'synthetic-refresh',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:auditUsers.admin,email:'admin@audit.invalid',factors:[]}});
+const api=[],errors=[],steps=[],visualChecks=[];let queue=Promise.resolve();let failNetwork=false;let previewDelay=0;let signedInRole='admin';
+const session=()=>({access_token:'synthetic.'+Buffer.from(JSON.stringify({sub:auditUsers[signedInRole],aal:'aal1',session_id:auditUsers[signedInRole],exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')+'.signature',refresh_token:'synthetic-refresh',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:auditUsers[signedInRole],email:signedInRole+'@audit.invalid',factors:[]}});
+const handleInvitation=invitationEdge(fixture,()=>signedInRole);
 const tables=new Set(['profiles','patients','admissions','rate_periods','charges','payments','scheduled_receipts','refunds','audits','app_settings','commercial_closers']);
 const identifier=value=>{if(!/^[a-z_][a-z_0-9]*$/i.test(value))throw new Error('Invalid test identifier');return '"'+value+'"';};
 await context.route('https://nxaxkczyeythvzdxqwyu.supabase.co/**',async route=>{
@@ -36,12 +38,15 @@ await context.route('https://nxaxkczyeythvzdxqwyu.supabase.co/**',async route=>{
     try{
       const args=request.postDataJSON()||{};
       if(url.pathname.startsWith('/auth/v1/')){
-        if(url.pathname.endsWith('/token')){if(args.password==='wrong')throw new Error('Invalid login credentials');body=session();}
+        if(url.pathname.endsWith('/token')){if(args.password==='wrong')throw new Error('Invalid login credentials');if(args.email)signedInRole=args.email.startsWith('referral@')?'referral':'admin';body=session();}
         else if(url.pathname.endsWith('/user'))body=session().user;
         else if(url.pathname.endsWith('/logout'))body={};
         else throw new Error('Hosted Auth flow is not simulated');
+      }else if(url.pathname.endsWith('/invite-uti-user')){
+        const result=await handleInvitation(new Request(request.url(),{method:'POST',headers:request.headers(),body:JSON.stringify(args)}));status=result.status;body=await result.json();
+      }else if(url.pathname.endsWith('/password-pwned-range')){body={ok:true,range:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA:0'};
       }else{
-        await fixture.asUser('admin');
+        await fixture.asUser(signedInRole);
         if(url.pathname.startsWith('/rest/v1/rpc/')){
           const name=url.pathname.split('/').at(-1);const keys=Object.keys(args);
           if(name==='preview_uti_settlement'&&previewDelay){const delay=previewDelay;previewDelay=0;await new Promise(resolve=>setTimeout(resolve,delay));}
@@ -141,6 +146,8 @@ try{
     await click('#forgotPasswordBtn');await wait('#recoverForm');await surface('recuperacao-'+width);
     await click('#recoverBack');await wait('#loginForm');
   }
+  await click('[data-password-target="loginPassword"]');assert.equal(await page.locator('#loginPassword').getAttribute('type'),'text');await click('[data-password-target="loginPassword"]');assert.equal(await page.locator('#loginPassword').getAttribute('type'),'password');
+  await click('#forgotPasswordBtn');failNetwork=true;await fill('#recoverEmail','referral@audit.invalid');await click('#recoverForm button[type=submit]');await wait('#recoverMessage .form-error');failNetwork=false;await click('#recoverBack');
   await page.setViewportSize({width:1365,height:950});
   await fill('#loginEmail','admin@audit.invalid');await fill('#loginPassword','wrong');await click('#loginForm button[type=submit]');await wait('#authError .form-error');
   await fill('#loginPassword','SyntheticAuditPassword!1');await click('#loginForm button[type=submit]');await wait('.metric-grid');
@@ -335,9 +342,26 @@ try{
   await fill('#reportMonth','2026-09');await fill('#reportMonth','2026-10');await page.waitForFunction(()=>document.querySelector('.report-sheet h2')?.textContent.includes('10/2026'));
   assert.match(await page.locator('#reportNet').textContent(),/2\.500,00/);
   await click('[data-nav="settings"]');await wait('#logoutBtn');
+  await click('#inviteUserBtn');await fill('#inviteName','Convidada — Sintética');await fill('#inviteEmail','convidada@audit.invalid');await select('#inviteRole','referral');await select('#inviteDelivery','link');await click('#inviteForm button[type=submit]');await wait('#invitationLink');
+  assert.match(await page.locator('#invitationLink').inputValue(),/type=invite/);
+  const invited=(await fixture.db.query("select id,active,role from public.profiles where email='convidada@audit.invalid'")).rows[0];assert.equal(invited.active,true);assert.equal(invited.role,'referral');
+  assert.equal(await page.evaluate(()=>JSON.stringify(localStorage).includes('synthetic-browser-invitation')),false);
+  assert.equal((await fixture.db.query("select count(*)::int n from public.audits where detail like '%synthetic-browser-invitation%'")).rows[0].n,0);
+  await surface('acesso-liberado-link');await click('[data-invite-done]');await wait('#logoutBtn');
   const [exported]=await Promise.all([page.waitForEvent('download'),click('[data-action="export"]')]);await exported.saveAs(path.join(output,'exportacao-sintetica.json'));
   await context.setOffline(true);await wait('#networkStatus.show');assert.match(await page.locator('#networkStatus').textContent(),/Sem conexão/);await context.setOffline(false);
   await click('#logoutBtn');await wait('#loginForm');assert.equal(await page.locator('.detail-hero').count(),0);
+  await fill('#loginEmail','referral@audit.invalid');await fill('#loginPassword','SyntheticReferralPassword!1');await click('#loginForm button[type=submit]');await wait('.metric-grid');
+  await click('[data-nav="patients"]');await click('[data-filter="all"]');await fill('#searchPatients','Joao');await click('.table-row[data-open]');assert.equal(await page.locator('[data-action="discharge"]').count(),0);assert.equal(await page.locator('[data-action="payment"]').count(),0);assert.equal(await page.locator('[data-action="edit-admission"]').count(),0);await surface('indicacao-status-sem-alta');
+  await click('[data-action="new"]');await fill('#nName','Indicação da equipe — Sintética');await select('#nBed','16');await select('#nMode','hotel');await fill('#nEntry','2026-10-10T10:00');await fill('#nValue','400');await click('#newForm button[type=submit]');await page.locator('#newForm').waitFor({state:'detached'});
+  await click('[data-nav="reports"]');await fill('#reportMonth','2026-10');await wait('#reportNet');await surface('indicacao-relatorios');
+  await click('[data-nav="settings"]');assert.equal(await page.locator('#inviteUserBtn').count(),0);assert.equal(await page.locator('#onDuty').isDisabled(),true);await click('#logoutBtn');await wait('#loginForm');
+  // A consumed/expired invitation is explained without keeping tokens in the URL.
+  await page.goto(origin+'/imec-uti/?error=access_denied&error_description=synthetic-expired&type=invite');await wait('#loginForm');assert.match(await page.locator('.auth-message').textContent(),/expirou/);assert.ok(!page.url().includes('error_description'));
+  const callback=session();await page.goto(origin+'/imec-uti/#access_token='+callback.access_token+'&refresh_token=synthetic-refresh&type=invite');await wait('#passwordForm');assert.equal(await page.locator('[role="dialog"]').count(),0);
+  await page.setViewportSize({width:360,height:950});await surface('primeiro-acesso-senha-360');await fill('#newPassword','SyntheticReferralPassword!1');await fill('#confirmPassword','DifferentSyntheticPassword!1');await click('#passwordForm button[type=submit]');await wait('#passwordError .form-error');
+  await fill('#confirmPassword','SyntheticReferralPassword!1');await click('#passwordForm button[type=submit]');await wait('.metric-grid');assert.equal(await page.locator('#passwordForm').count(),0);assert.equal(await page.locator('#mfaEnrollForm').count(),0);assert.equal(await page.locator('#retryPending').count(),0);
+  await click('[data-nav="settings"]');await click('#logoutBtn');await wait('#loginForm');
   assert.equal(errors.length,0,errors.join('\n'));
   fs.rmSync(path.join(output,'browser-failure.json'),{force:true});
   fs.rmSync(path.join(output,'failure.png'),{force:true});

@@ -38,6 +38,12 @@ test('política de senha exige 12 caracteres e diversidade', () => {
   assert.equal(passwordPolicy('SenhaMuitoForte123!').ok, true);
 });
 
+test('link expirado apresenta erro claro e remove os parâmetros sensíveis da URL',()=>{
+ const url='https://www.sallusflow.com.br/imec-uti/?error=access_denied&error_description=token-secret&type=invite';
+ const parsed=parseAuthRedirect(url);assert.equal(parsed.session,null);assert.match(parsed.error||'',/expirou/);assert.doesNotMatch(parsed.error||'',/token-secret/);
+ assert.equal(cleanAuthRedirectUrl(url),'/imec-uti/');
+});
+
 test('parser de HaveIBeenPwned encontra apenas o sufixo SHA1 exato', () => {
   const full = 'ABCDE' + 'F'.repeat(35);
   const range = `${'A'.repeat(35)}:12\n${'F'.repeat(35)}:987\n`;
