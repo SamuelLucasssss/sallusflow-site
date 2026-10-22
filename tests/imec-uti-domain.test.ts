@@ -55,6 +55,7 @@ test('formatação de CPF e papéis permanece estável', () => {
   assert.equal(roleLabel('admin'), 'Administrador');
   assert.equal(roleLabel('commercial'), 'Comercial');
   assert.equal(roleLabel('operator'), 'Operacional');
+  assert.equal(roleLabel('referral'), 'Indicação e consulta');
 });
 
 

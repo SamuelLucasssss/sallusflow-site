@@ -18,15 +18,6 @@ function corsHeaders(req: Request) {
   };
 }
 
-function jwtPayload(token: string) {
-  try {
-    const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(part));
-  } catch {
-    return {};
-  }
-}
-
 Deno.serve(async (req) => {
   const cors = corsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -47,12 +38,8 @@ Deno.serve(async (req) => {
     });
     const { data: userData, error: userError } = await userClient.auth.getUser(token);
     if (userError || !userData.user) throw new Error("Sessão inválida.");
-    if (jwtPayload(token)?.aal !== "aal2") {
-      return new Response(JSON.stringify({ error: "Confirme o segundo fator antes de convidar usuários." }), { status: 403, headers: cors });
-    }
-
     // Authorization must be decided with the caller's JWT at the database boundary.
-    // This validates the session_id against auth.sessions and re-checks active/admin + AAL2.
+    // This validates session_id, active/admin and the configured MFA policy.
     const { data: secureAdminSession, error: secureAdminError } = await userClient
       .rpc("is_uti_admin_secure_session");
 
@@ -66,32 +53,52 @@ Deno.serve(async (req) => {
     const email = String(body?.email || "").trim().toLowerCase();
     const displayName = String(body?.display_name || "").trim();
     const role = String(body?.role || "operator").trim();
+    const delivery = String(body?.delivery || "email");
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Informe um e-mail válido.");
-    if (displayName.length < 2) throw new Error("Informe o nome do usuário.");
-    if (!["admin", "operator", "commercial"].includes(role)) throw new Error("Perfil inválido.");
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Informe um e-mail válido.");
+    if (displayName.length < 2 || displayName.length > 120) throw new Error("Informe o nome do usuário (2 a 120 caracteres).");
+    if (!["admin", "operator", "commercial", "referral"].includes(role)) throw new Error("Perfil inválido.");
+    if (!["email", "link"].includes(delivery)) throw new Error("Escolha como entregar o primeiro acesso.");
 
-    const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo: SITE_URL,
-      data: { display_name: displayName },
-    });
+    const options = { redirectTo: SITE_URL, data: { display_name: displayName } };
+    const { data: invited, error: inviteError } = delivery === "link"
+      ? await adminClient.auth.admin.generateLink({ type: "invite", email, options })
+      : await adminClient.auth.admin.inviteUserByEmail(email, options);
     if (inviteError) {
-      const message = inviteError.message?.includes("already") ? "Já existe um usuário com este e-mail." : inviteError.message;
+      const message = /already|registered/i.test(inviteError.message || "")
+        ? "Já existe um usuário com este e-mail. Confira o acesso na lista da equipe."
+        : delivery === "email"
+        ? "Não foi possível enviar o e-mail. Tente a opção Link de primeiro acesso."
+        : "Não foi possível criar o primeiro acesso. Tente novamente.";
       throw new Error(message || "Não foi possível enviar o convite.");
     }
 
-    if (invited?.user?.id) {
-      const { error: updateError } = await adminClient
-        .from("profiles")
-        .update({ display_name: displayName, role, active: false })
-        .eq("id", invited.user.id);
-      if (updateError) throw updateError;
+    if (!invited?.user?.id) throw new Error("O serviço não confirmou a criação do usuário.");
+    let actionLink: string | null = null;
+    if (delivery === "link") {
+      const generated = String("properties" in invited ? invited.properties?.action_link || "" : "");
+      let parsed: URL;
+      try { parsed = new URL(generated); } catch { throw new Error("O serviço não retornou um link de primeiro acesso válido."); }
+      if (parsed.origin !== new URL(url).origin || parsed.pathname !== "/auth/v1/verify" || parsed.searchParams.get("type") !== "invite") {
+        throw new Error("O serviço não retornou um link de primeiro acesso válido.");
+      }
+      actionLink = generated;
     }
+
+    // One administrative approval: activate and audit atomically using the REAL caller.
+    // A revoked administrator cannot activate the invitation after the first guard.
+    const { error: activationError } = await userClient.rpc("admin_update_uti_member", {
+      p_user_id: invited.user.id, p_active: true, p_role: role,
+    });
+    if (activationError) throw new Error("O convite foi criado, mas a liberação não foi concluída. Confira a conta na equipe antes de tentar novamente.");
 
     return new Response(JSON.stringify({
       ok: true,
-      user_id: invited?.user?.id ?? null,
+      activated: true,
+      delivery,
+      user_id: invited.user.id,
       email,
+      action_link: actionLink,
       redirect_to: SITE_URL,
     }), { status: 200, headers: cors });
   } catch (error) {

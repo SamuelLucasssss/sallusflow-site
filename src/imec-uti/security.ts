@@ -6,6 +6,7 @@ export const APP_URL = 'https://www.sallusflow.com.br/imec-uti/';
 export type AuthRedirect = {
   type: string | null;
   session: Record<string, unknown> | null;
+  error?: string;
 };
 
 export function decodeJwtPayload(token: string | null | undefined): Record<string, any> {
@@ -75,6 +76,7 @@ export function parseAuthRedirect(urlString: string): AuthRedirect {
   const url = new URL(urlString);
   const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
   const type = hash.get('type') || url.searchParams.get('type');
+  if(hash.get('error')||url.searchParams.get('error'))return {type,session:null,error:'Este link expirou ou já foi utilizado. Solicite um novo link ao administrador ou entre com sua senha.'};
   const accessToken = hash.get('access_token');
   const refreshToken = hash.get('refresh_token');
   if (!accessToken) return { type, session: null };
@@ -95,7 +97,7 @@ export function parseAuthRedirect(urlString: string): AuthRedirect {
 export function cleanAuthRedirectUrl(urlString: string): string {
   const url = new URL(urlString);
   url.hash = '';
-  for (const key of ['type', 'token', 'token_hash']) url.searchParams.delete(key);
+  for (const key of ['type', 'token', 'token_hash','error','error_code','error_description']) url.searchParams.delete(key);
   return url.pathname + (url.search ? url.search : '');
 }
 
