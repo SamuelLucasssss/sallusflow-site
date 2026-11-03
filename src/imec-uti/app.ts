@@ -10,6 +10,7 @@ import {
 import { SUPABASE_URL, SUPABASE_KEY } from './config';
 import { paymentMethodLabel, installmentSummary, validateInstallmentDates } from './payment-details';
 import {previousReportMonth,reportCompetence,reportReference,reportDate,reportLabel,reportColumns,reportRowCells,reportSelectionNote,selectMonthlyReport,monthlyReportFilename,monthlyReportCsv,buildMonthlyReportPdf} from './monthly-report';
+import {parseSettlementTotal} from './settlement-total';
 import {
   AUTH_STORAGE_KEY, ACTIVITY_STORAGE_KEY, IDLE_TIMEOUT_MS, APP_URL,
   jwtAal, normalizeSession, parseAuthRedirect, cleanAuthRedirectUrl,
@@ -52,7 +53,7 @@ const ICON_PATHS={
 function icon(name){return `<svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name]||ICON_PATHS.document}</svg>`}
 function polishIcons(root){
  if(!root?.querySelectorAll)return;
- const actions={new:'plus',payment:'credit',extra:'plus',discount:'minus',rate:'refresh','edit-admission':'edit',refund:'up',discharge:'arrowRight',print:'printer',back:'arrowLeft',export:'down',corrections:'history','settlement-sheet':'document','settlement-pdf':'down'};
+ const actions={new:'plus',payment:'credit',extra:'plus',discount:'minus','settlement-total':'edit',rate:'refresh','edit-admission':'edit',refund:'up',discharge:'arrowRight',print:'printer',back:'arrowLeft',export:'down',corrections:'history','settlement-sheet':'document','settlement-pdf':'down'};
  const controls={manualRefresh:'refresh',inviteUserBtn:'plus',changePasswordBtn:'lock',logoutBtn:'logout',dCalc:'refresh',dConfirm:'check',dPrint:'printer',dPdf:'down',dDone:'check',settlePayBtn:'check',settleRefundBtn:'up'};
  root.querySelectorAll('button').forEach(button=>{
    const name=button.hasAttribute('data-close')?'close':actions[button.dataset.action]||controls[button.id]||(button.type==='submit'&&button.closest('form')?(button.closest('#loginForm')?'arrowRight':'check'):null);
@@ -236,7 +237,7 @@ function patientDetail(a){
   return `<div class="detail-top no-print"><button class="back-btn" data-action="back">← Voltar</button><div class="detail-actions"><button class="btn btn-secondary" data-action="print">▤ Imprimir ficha</button>${canPay?'<button class="btn btn-primary" data-action="payment">＋ Pagamento</button>':''}${canRefund?'<button class="btn btn-primary" data-action="refund">↗ Reembolso</button>':''}</div></div>
   <section class="detail-hero print-area"><div class="detail-identity"><div class="bed-large">${String(a.bed).padStart(2,'0')}</div><div><div class="detail-badges">${statusBadge(a.status)}<span class="badge ${a.mode==='private'?'badge-brand':'badge-neutral'}">${a.mode==='private'?'Particular':'Hotelaria'}</span></div><h1>${esc(p?.name)}</h1><p>CPF ${cpfMask(p?.cpf)} • Responsável pelo fechamento: <strong>${esc(a.closer)}</strong></p></div></div><div class="detail-meta-grid"><div><span>Entrada</span><strong>${fmtDT(a.entryAt)}</strong></div><div><span>Saída</span><strong>${a.dischargeAt?fmtDT(a.dischargeAt):'Em andamento'}</strong></div><div><span>Tempo de internação</span><strong>${hospitalDays(a)} dia${hospitalDays(a)>1?'s':''}</strong></div><div><span>Condição atual</span><strong>${esc(r.label)}</strong></div><div><span>Diária atual</span><strong>${money(r.negotiatedRate)}</strong></div></div></section>
   <div class="money-hero print-area"><div><span>Cobrado</span><strong>${money(t.billed)}</strong></div><div><span>Recebido líquido</span><strong>${money(t.netReceived)}</strong>${t.refunded>0?`<small>Reembolsado: ${money(t.refunded)}</small>`:''}</div><div class="balance ${Math.abs(t.balance)<=0.009?'paid':'open'}"><span>${m.label}</span><strong>${money(m.amount)}</strong></div></div>
-  <div class="quick-actions no-print"><button data-action="payment" ${!canPay?'disabled':''}><div>R$</div><span>Registrar pagamento</span></button><button data-action="extra" ${!can('add_extra')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>＋</div><span>Adicionar extra</span></button>${canDiscount?'<button data-action="discount"><div>−</div><span>Conceder desconto</span></button>':''}<button data-action="rate" ${!can('adjust_rate')||a.status!=='active'?'disabled':''}><div>↻</div><span>Ajustar diária</span></button>${canRefund?'<button data-action="refund"><div>↗</div><span>Reembolsar crédito</span></button>':''}<button data-action="discharge" ${!can('discharge')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>→</div><span>${a.status==='discharge_pending'?'Acerto / saída':'Registrar alta'}</span></button></div>
+  <div class="quick-actions no-print"><button data-action="payment" ${!canPay?'disabled':''}><div>R$</div><span>Registrar pagamento</span></button><button data-action="extra" ${!can('add_extra')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>＋</div><span>Adicionar extra</span></button>${data.currentRole==='admin'&&a.dischargeAt&&['discharge_pending','finalized'].includes(a.status)?'<button data-action="settlement-total"><div>✎</div><span>Ajustar total do acerto</span></button>':''}${canDiscount?'<button data-action="discount"><div>−</div><span>Conceder desconto</span></button>':''}<button data-action="rate" ${!can('adjust_rate')||a.status!=='active'?'disabled':''}><div>↻</div><span>Ajustar diária</span></button>${canRefund?'<button data-action="refund"><div>↗</div><span>Reembolsar crédito</span></button>':''}<button data-action="discharge" ${!can('discharge')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>→</div><span>${a.status==='discharge_pending'?'Acerto / saída':'Registrar alta'}</span></button></div>
   ${scheduledReceiptPanel(a)}<div class="detail-columns print-area"><section class="panel"><div class="panel-head"><div><h2>Movimentação financeira</h2><p>Resumo da conta; as diárias são agrupadas para evitar repetição visual.</p></div></div>${timeline.length?`<div class="timeline">${timeline.map(row=>row.kind==='p'?`<div class="timeline-row payment"><div class="timeline-dot">↙</div><div><strong>Pagamento recebido</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}${editReceiptButton(row.item)}</div><strong class="good-text">+ ${money(row.item.amount)}</strong></div>`:row.kind==='r'?`<div class="timeline-row payment"><div class="timeline-dot">↗</div><div><strong>Reembolso ao paciente</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}</div><strong>- ${money(row.item.amount)}</strong></div>`:row.kind==='d'?`<div class="timeline-row charge"><div class="timeline-dot">▤</div><div><strong>Diárias da internação — ${Number(row.item.units).toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong><span>${fmtDM(row.item.first)} a ${fmtDM(row.item.last)} • ${row.item.count} lançamento(s)</span></div><strong>${money(row.item.amount)}</strong></div>`:`<div class="timeline-row charge"><div class="timeline-dot">${row.item.amount<0?'−':'＋'}</div><div><strong>${esc(row.item.description)}</strong><span>${fmtDT(row.at)} • ${esc(row.item.category)}</span></div><strong>${row.item.amount<0?'− ':''}${money(Math.abs(row.item.amount))}</strong></div>`).join('')}</div>`:empty('Sem movimentações','As diárias, extras, pagamentos e reembolsos aparecerão aqui.')}</section>
   <div class="side-stack"><section class="panel"><div class="panel-head"><div><h2>Diárias geradas</h2><p>${daily.length?Number(dailyUnits).toLocaleString('pt-BR',{maximumFractionDigits:1})+' diária(s) • '+money(dailyTotal):'Nenhuma diária gerada'}</p></div></div>${daily.length?`<details><summary style="cursor:pointer;font-weight:700;padding:10px 0">Ver detalhamento por dia (${daily.length})</summary><div class="coverage-list">${cov.map(({c,paid,status})=>`<div class="coverage-row"><div><strong>${fmtDM(c.occurredAt)}</strong><span>${esc(c.description)}</span></div><div class="coverage-right"><span>${money(c.amount)}</span><span class="badge ${status==='paid'?'badge-good':status==='partial'?'badge-warn':'badge-bad'}">${status==='paid'?'Pago':status==='partial'?`Parcial ${money(paid)}`:'Em aberto'}</span></div></div>`).join('')}</div></details>`:''}</section>
   <section class="panel no-print"><div class="panel-head"><div><h2>Auditoria</h2><p>Últimas alterações relevantes.</p></div></div><div class="audit-list">${audits.slice(0,6).map(x=>`<div><span>${esc(x.action)}</span><strong>${esc(x.detail)}</strong><small>${fmtDT(x.occurredAt)} • ${esc(x.user)}</small></div>`).join('')}</div></section></div></div>
@@ -1022,6 +1023,43 @@ function extraModal(a){
     finally{setLoading(false)}
   };
 }
+function settlementTotalModal(a,returnToAcerto=false){
+ if(data.currentRole!=='admin'||!a.dischargeAt||!['discharge_pending','finalized'].includes(a.status)){toast('O ajuste do total está disponível ao administrador após a alta.');return}
+ const t=totals(a.id),epoch=authEpoch;let requestSignature='',clientRef='';
+ openModal('Ajustar total do acerto','Informe o valor total combinado. A diferença ficará registrada na cobrança.',`<form class="form" id="settlementTotalForm">
+   <div class="summary-box"><div><span>Cobrado atualmente</span><strong>${money(t.billed)}</strong></div><div><span>Recebido líquido</span><strong>${money(t.netReceived)}</strong></div></div>
+   ${field('Valor total acordado',`<div class="currency-input large"><span>R$</span><input id="agreedTotal" inputmode="decimal" value="${t.billed.toFixed(2).replace('.',',')}" required autofocus></div>`)}
+   ${field('Motivo','<textarea id="agreedReason" rows="2" minlength="8" maxlength="220" required placeholder="Ex.: valor total combinado com a família"></textarea>')}
+   <div class="summary-box"><div><span>Ajuste na cobrança</span><strong id="agreedDelta">—</strong></div><div><span id="agreedBalanceLabel">Saldo após ajuste</span><strong id="agreedBalance">—</strong></div></div>
+   <p class="form-hint" id="agreedImpact">Pagamentos e reembolsos já registrados serão preservados.</p>
+   <div id="agreedError" class="form-error" role="status"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" id="agreedCancel">Cancelar</button><button type="submit" class="btn btn-primary" id="agreedSave" disabled>Salvar total</button></div>
+ </form>`);
+ const input=document.getElementById('agreedTotal'),reason=document.getElementById('agreedReason'),error=document.getElementById('agreedError');
+ document.getElementById('agreedCancel').onclick=()=>{closeModal();if(returnToAcerto)dischargeModal(admission(a.id)||a)};
+ const update=()=>{
+   const total=parseSettlementTotal(input.value),valid=total!==null,delta=valid?(Math.round(total*100)-Math.round(t.billed*100))/100:0,balance=valid?(Math.round(total*100)-Math.round(t.netReceived*100))/100:0,meta=balanceMeta(balance);
+   document.getElementById('agreedDelta').textContent=valid?(delta>0?'+ ':'')+money(delta):'—';
+   document.getElementById('agreedBalanceLabel').textContent=valid?(meta.kind==='paid'?'Conta quitada':meta.label):'Saldo após ajuste';
+   document.getElementById('agreedBalance').textContent=valid?money(meta.amount):'—';
+   document.getElementById('agreedImpact').textContent=valid&&balance<-.009?'O novo total ficará abaixo do recebido e manterá um crédito a devolver.':'Pagamentos e reembolsos já registrados serão preservados.';
+   document.getElementById('agreedSave').disabled=!valid||delta===0;
+   error.textContent=!valid?'Informe um total válido, com até duas casas decimais.':'';
+ };
+ input.oninput=update;reason.oninput=update;update();
+ document.getElementById('settlementTotalForm').onsubmit=async e=>{
+   e.preventDefault();if(remoteBusy)return;const total=parseSettlementTotal(input.value),why=reason.value.trim();
+   if(total===null||Math.round(total*100)===Math.round(t.billed*100)){update();return}
+   if(why.length<8||why.length>220){error.textContent='Descreva o motivo do ajuste (8 a 220 caracteres).';reason.focus();return}
+   const signature=JSON.stringify([a.accountVersion,total,why]);if(signature!==requestSignature){requestSignature=signature;clientRef=crypto.randomUUID()}
+   try{
+     setLoading(true,'Salvando o total do acerto…');
+     await rpc('set_uti_settlement_total',{p_admission_id:a.id,p_expected_version:Number(a.accountVersion),p_total:total,p_reason:why,p_client_ref:clientRef});
+     if(epoch!==authEpoch||!authState)return;
+     const loaded=await loadRemote({quiet:true});if(epoch!==authEpoch||!authState)return;
+     closeModal();if(loaded)render();toast(loaded?'Total do acerto atualizado.':'Total salvo. Atualize a página para conferir.');
+   }catch(ex){if(error.isConnected)error.textContent=ex.message||'Não foi possível ajustar o total.'}finally{setLoading(false)}
+ };
+}
 function discountModal(a){
   if(data.currentRole!=='admin'||a.status!=='discharge_pending'){toast('Desconto indisponível nesta conta.');return}
   const t=totals(a.id);
@@ -1093,6 +1131,7 @@ function settlementPreviewMarkup(a,s){
       <div class="settle-kpi"><span>Recebido líquido</span><strong>${money(net)}</strong>${Number(s.refunded||0)>0?`<small>Reembolsado: ${money(Number(s.refunded||0))}</small>`:''}</div>
       <div class="settle-kpi balance ${Math.abs(bal)<=0.009?'paid':'open'}"><span>${m.label}</span><strong>${money(m.amount)}</strong></div>
     </div>
+    ${data.currentRole==='admin'&&a.dischargeAt&&['discharge_pending','finalized'].includes(a.status)?'<div class="settle-total-action"><button type="button" class="btn btn-secondary" id="settleTotalBtn">Ajustar total do acerto</button></div>':''}
     <div class="settle-section-title">Composição da conta</div>
     <div class="settle-table-wrap"><table class="settle-table"><thead><tr><th>Data/hora</th><th>Descrição</th><th>Tipo</th><th>Valor</th></tr></thead><tbody>
       ${items.map(x=>`<tr><td>${fmtDT(x.occurredAt)}</td><td>${esc(x.description||'Lançamento')}</td><td>${x.kind==='daily'?'Diária':esc(x.category||'Extra')}</td><td>${money(Number(x.amount||0))}</td></tr>`).join('')}
@@ -1408,6 +1447,7 @@ function dischargeModal(a,proposedAt=null){
 
   const bindPreviewActions=()=>{
     submitSettlementReceipt=null;
+    const totalButton=document.getElementById('settleTotalBtn');if(totalButton)totalButton.onclick=()=>settlementTotalModal(admission(a.id)||a,true);
     bindScheduledReceipts();
     bindReceiptEdits(getDis);
     const payBtn=document.getElementById('settlePayBtn');
@@ -1517,6 +1557,7 @@ function bindDetail(a){
   document.querySelectorAll('[data-action="refund"]').forEach(b=>b.onclick=()=>refundModal(a));
   document.querySelectorAll('[data-action="extra"]').forEach(b=>b.onclick=()=>extraModal(a));
   document.querySelectorAll('[data-action="discount"]').forEach(b=>b.onclick=()=>discountModal(a));
+  document.querySelectorAll('[data-action="settlement-total"]').forEach(b=>b.onclick=()=>settlementTotalModal(a));
   document.querySelectorAll('[data-action="rate"]').forEach(b=>b.onclick=()=>rateModal(a));
   document.querySelectorAll('[data-action="discharge"]').forEach(b=>{const sp=b.querySelector('span');if(sp)sp.textContent=a.dischargeAt?'Acerto / saída':'Alta e acerto';b.onclick=()=>dischargeModal(a)});
   document.querySelectorAll('[data-action="print"]').forEach(b=>b.onclick=async()=>{try{setLoading(true,'Registrando impressão…');await logDocumentOutput(a.id,'print_requested','admission_statement');setLoading(false);window.print()}catch(ex){alert('Não foi possível registrar a impressão: '+ex.message)}finally{setLoading(false)}});

@@ -63,6 +63,8 @@ export async function isolatedDatabase({hardened=true}={}){
   if(reviewedReports)await db.exec(read(reviewedReports));
   const admissionEdit=fs.readdirSync('supabase/migrations').find(file=>file.endsWith('_audited_admission_initial_edit.sql'));
   if(admissionEdit)await db.exec(read(admissionEdit));
+  const settlementTotal=fs.readdirSync('supabase/migrations').find(file=>file.endsWith('_audited_settlement_total.sql'));
+  if(settlementTotal)await db.exec(read(settlementTotal));
   for(const [role,id] of Object.entries(auditUsers)){
     await db.query('insert into auth.users(id,email) values($1,$2)',[id,`${role}@audit.invalid`]);
     await db.query('update public.profiles set display_name=$2,role=$3,active=$4 where id=$1',[id,`Synthetic ${role}`,role==='inactive'?'operator':role,role!=='inactive']);
