@@ -366,9 +366,19 @@ try{
   const lateKey='payment:'+(await fixture.db.query("select id from public.payments where client_ref='monthly-late-receipt'")).rows[0].id;
   await page.locator(`[data-report-movement="${lateKey}"]`).uncheck();
   assert.equal(await page.locator('#reportNet').textContent(),money(expected.net-500));assert.match(await page.locator('.report-sheet').textContent(),/Seleção manual/);
+  await select('#reportOrder','receipt_desc');assert.equal(await page.locator(`[data-report-movement="${lateKey}"]`).isChecked(),false);assert.equal(await page.locator('#reportNet').textContent(),money(expected.net-500));
   const [selectedPdf]=await Promise.all([page.waitForEvent('download'),click('#reportPdf')]);await selectedPdf.saveAs(path.join(output,'relatorio-humanizado-selecao.pdf'));
   await page.setViewportSize({width:360,height:950});await surface('relatorio-conferencia-360');await click('#reportClear');assert.equal(await page.locator('#reportPdf').isDisabled(),true);await click('#reportSelectAll');assert.equal(await page.locator('#reportNet').textContent(),money(expected.net));
+  await select('#reportOrder','receipt_asc');
+  const ascending=await page.locator('[data-report-open]').evaluateAll(nodes=>nodes.map(n=>n.dataset.reportOpen));
+  const [orderedPdf]=await Promise.all([page.waitForEvent('download'),click('#reportPdf')]);await orderedPdf.saveAs(path.join(output,'relatorio-ordem-recebimento.pdf'));
+  const [orderedCsv]=await Promise.all([page.waitForEvent('download'),click('#reportCsv')]);await orderedCsv.saveAs(path.join(output,'relatorio-ordem-recebimento.csv'));
+  const [orderedPopup]=await Promise.all([context.waitForEvent('page'),click('#reportPrint')]);await orderedPopup.locator('#printMonthly').waitFor();assert.match(await orderedPopup.locator('body').textContent(),/mais antigo primeiro/);await orderedPopup.close();
+  await select('#reportOrder','receipt_desc');const descending=await page.locator('[data-report-open]').evaluateAll(nodes=>nodes.map(n=>n.dataset.reportOpen));
+  const anchors=new Map((await fixture.db.query("select admission_id,min(occurred_at) first_received from public.payments where cancelled_at is null and occurred_at>='2026-10-01T03:00:00Z' and occurred_at<'2026-11-01T03:00:00Z' group by admission_id")).rows.map(r=>[r.admission_id,new Date(r.first_received).getTime()]));
+  const ascendingDates=ascending.map(id=>anchors.get(id));assert.deepEqual(ascendingDates,[...ascendingDates].sort((a,b)=>a-b));assert.deepEqual(descending.map(id=>anchors.get(id)),[...ascendingDates].reverse());assert.equal(await page.locator('#reportNet').textContent(),money(expected.net));
   await page.setViewportSize({width:1365,height:950});await select('#reportMode','private');await page.waitForFunction(()=>document.querySelector('.report-sheet h2')?.textContent.includes('Particular'));
+  assert.equal(await page.locator('#reportOrder').inputValue(),'receipt_desc');
   assert.equal(await page.locator('#reportFee').count(),0);assert.equal(await page.locator('#reportCommission').count(),0);assert.match(await page.locator('.report-table').textContent(),/Responsável.*Particular.*Roberto/);assert.doesNotMatch(await page.locator('.report-table').textContent(),/Rodapé/);
   for(const width of [1365,820,390,360]){await page.setViewportSize({width,height:950});await surface('relatorio-particular-'+width);}
   const [privatePdf]=await Promise.all([page.waitForEvent('download'),click('#reportPdf')]);await privatePdf.saveAs(path.join(output,'relatorio-particular.pdf'));

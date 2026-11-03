@@ -2,10 +2,28 @@ import {businessParts,monthKey,money} from './domain.ts';
 import {helveticaWidth} from './pdf-font-metrics.ts';
 
 export type ReportMode='hotel'|'private';
+export type ReportOrder='name'|'receipt_asc'|'receipt_desc';
 export type MonthlyReportRow={admissionId:string;patientName:string;entryAt:string;dischargeAt:string|null;bedType:string;responsible?:string;netCents:number;receiptCount:number;refundCount:number;receiptDates?:string[];refundDates?:string[]};
 export type MonthlyReportMovement=Omit<MonthlyReportRow,'netCents'|'receiptCount'|'refundCount'> & {key:string;occurredAt:string;amountCents:number;kind:'receipt'|'refund';method:string;cardType?:string|null;included:boolean};
-export type MonthlyReport={month:string;mode?:ReportMode;generatedAt:string;receivedCents:number;refundedCents:number;netCents:number;receiptCount:number;refundCount:number;admissionCount:number;commissionPercent:number;commissionCents:number;rows:MonthlyReportRow[];movements?:MonthlyReportMovement[];sourceSnapshot?:string;candidateCount?:number;selectedCount?:number;manualSelection?:boolean};
+export type MonthlyReport={month:string;mode?:ReportMode;order?:ReportOrder;generatedAt:string;receivedCents:number;refundedCents:number;netCents:number;receiptCount:number;refundCount:number;admissionCount:number;commissionPercent:number;commissionCents:number;rows:MonthlyReportRow[];movements?:MonthlyReportMovement[];sourceSnapshot?:string;candidateCount?:number;selectedCount?:number;manualSelection?:boolean};
 export const reportLabel=(mode:ReportMode='hotel')=>mode==='private'?'Particular':'Leito humanizado';
+export const reportOrderLabel=(order:ReportOrder='name')=>order==='receipt_asc'?'Recebimento: mais antigo primeiro':order==='receipt_desc'?'Recebimento: mais recente primeiro':'Nome do paciente';
+export const reportOrderNote=(r:MonthlyReport)=>r.order&&r.order!=='name'?`${reportOrderLabel(r.order)}. Cada internação usa seu primeiro recebimento selecionado; reembolso isolado usa sua data.`:'Ordem alfabética por paciente.';
+export function orderMonthlyReport(report:MonthlyReport,order:ReportOrder=report.order||'name'):MonthlyReport{
+ if(!['name','receipt_asc','receipt_desc'].includes(order))throw new Error('Escolha uma ordenação válida.');
+ const time=(value:string)=>{const n=Date.parse(value);return Number.isFinite(n)?n:null};
+ const dates=(items:string[]|undefined)=>items?[...items].sort((a,b)=>(time(a)??Infinity)-(time(b)??Infinity)):items;
+ const first=(row:MonthlyReportRow)=>{
+   const receipt=(row.receiptDates||[]).map(time).filter((n):n is number=>n!==null);
+   const refund=(row.refundDates||[]).map(time).filter((n):n is number=>n!==null);
+   return receipt.length?Math.min(...receipt):refund.length?Math.min(...refund):null;
+ };
+ const names=(a:Pick<MonthlyReportRow,'patientName'|'entryAt'|'admissionId'>,b:Pick<MonthlyReportRow,'patientName'|'entryAt'|'admissionId'>)=>a.patientName.localeCompare(b.patientName,'pt-BR')||a.entryAt.localeCompare(b.entryAt)||a.admissionId.localeCompare(b.admissionId);
+ const chronological=(a:number|null,b:number|null)=>a===null?(b===null?0:1):b===null?-1:(a-b)*(order==='receipt_desc'?-1:1);
+ const rows=report.rows.map(r=>({...r,receiptDates:dates(r.receiptDates),refundDates:dates(r.refundDates)})).sort((a,b)=>(order==='name'?0:chronological(first(a),first(b)))||names(a,b));
+ const movements=report.movements?[...report.movements].sort((a,b)=>(order==='name'?names(a,b):chronological(time(a.occurredAt),time(b.occurredAt)))||a.occurredAt.localeCompare(b.occurredAt)||a.key.localeCompare(b.key)):undefined;
+ return {...report,order,rows,...(movements?{movements}:{})};
+}
 export function selectMonthlyReport(report:MonthlyReport,selected:Iterable<string>|null=null):MonthlyReport{
  if(!report.movements)return report;
  const keys=selected===null?new Set(report.movements.map(m=>m.key)):new Set(selected);
@@ -44,9 +62,10 @@ export function reportDate(value:string|null):string{
  const p=businessParts(value);return `${String(p.day).padStart(2,'0')}/${String(p.month).padStart(2,'0')}/${p.year}`;
 }
 export function monthlyReportFilename(report:MonthlyReport,commission=false,extension='pdf'):string{
- return `IMEC_${report.mode==='private'?'Particular':'Leito_Humanizado'}_${report.month}${report.manualSelection?'_Selecao':''}${commission&&report.mode!=='private'?'_Comissao_Aline_Gloria':''}.${extension}`;
+ return `IMEC_${report.mode==='private'?'Particular':'Leito_Humanizado'}_${report.month}${report.order==='receipt_asc'?'_Recebimento_Crescente':report.order==='receipt_desc'?'_Recebimento_Decrescente':''}${report.manualSelection?'_Selecao':''}${commission&&report.mode!=='private'?'_Comissao_Aline_Gloria':''}.${extension}`;
 }
 export function monthlyReportCsv(report:MonthlyReport,commission=false):string{
+ report=orderMonthlyReport(report);
  const cell=(value:unknown)=>{
    if(typeof value==='number')return '"'+value.toFixed(2).replace('.',',')+'"';
    let s=String(value??'');if(/^[\s]*[=+\-@\t\r]/.test(s))s="'"+s;
@@ -55,7 +74,7 @@ export function monthlyReportCsv(report:MonthlyReport,commission=false):string{
  const mode=report.mode||'hotel';
  const rows:unknown[][]=[reportColumns(mode).map(c=>c.label),
    ...report.rows.map(r=>{const cells:unknown[]=reportRowCells(r,mode);cells[4]=r.netCents/100;return cells}),
-   ['TOTAL','','','',report.netCents/100],[],[reportReference(report.month,mode)],[reportSelectionNote(report)]];
+   ['TOTAL','','','',report.netCents/100],[],[reportReference(report.month,mode)],[reportSelectionNote(report)],[reportOrderNote(report)]];
  if(commission&&mode==='hotel')rows.push(['Comissão Aline Glória - 3%','','','',report.commissionCents/100]);
  return '\ufeff'+rows.map(row=>row.map(cell).join(';')).join('\r\n');
 }
@@ -74,6 +93,7 @@ function wrap(value:string,width:number,size:number,bold=false):string[]{
  if(line.trim())lines.push(line.trim());return lines.length?lines:[''];
 }
 export function buildMonthlyReportPdf(report:MonthlyReport,includeCommission=false):Uint8Array{
+ report=orderMonthlyReport(report);
  const mode=report.mode||'hotel',columns=documentColumns(mode),left=40,rightEdge=555,width=515,bottom=103;
  includeCommission=includeCommission&&mode==='hotel';
  const ink=[0.12,0.16,0.17],muted=[0.39,0.44,0.44],brand=[0.07,0.36,0.34],line=[0.86,0.89,0.88],paper=[0.965,0.974,0.970];
@@ -135,13 +155,14 @@ export function buildMonthlyReportPdf(report:MonthlyReport,includeCommission=fal
      });x+=columns[i].width});offset+=take;y-=height;rule(y+9);
    }
  }
- const closingHeight=116+(includeCommission?29:0)+(report.refundCount?20:0);
+ const orderLines=wrap(reportOrderNote(report),width,7.2),closingHeight=116+orderLines.length*11+(includeCommission?29:0)+(report.refundCount?20:0);
  if(y-closingHeight<bottom)startPage(false,false);
  y-=18;text(left,y,9,report.manualSelection?'Total líquido selecionado':'Total líquido recebido',true);right(rightEdge,y-1,16,money(report.netCents/100),true);y-=29;
  if(report.refundCount){text(left,y,7.5,`Recebido: ${money(report.receivedCents/100)}  |  Reembolsado: ${money(report.refundedCents/100)}`,false,muted);y-=20}
  if(includeCommission){text(left,y,8.5,'Comissão Aline Glória - 3%',false,muted);right(rightEdge,y,10,money(report.commissionCents/100),true);y-=29}
  rule(y+6);y-=15;text(left,y,8.5,reportReference(report.month,mode),true);y-=17;
  for(const value of wrap(reportSelectionNote(report),width,7.2)){text(left,y,7.2,value,false,muted);y-=11}
+ for(const value of orderLines){text(left,y,7.2,value,false,muted);y-=11}
  text(left,y-2,7.2,'Competência pela data do recebimento; valores líquidos de reembolsos.',false,muted);
  pages.forEach((page,i)=>{commands=page;rule(63);text(left,47,7,'Emitido em '+reportDate(report.generatedAt),false,muted);right(rightEdge,47,7,`Página ${i+1} de ${pages.length}`,false,muted)});
  const objects=['<< /Type /Catalog /Pages 2 0 R >>',`<< /Type /Pages /Kids [${pages.map((_,i)=>`${5+i*2} 0 R`).join(' ')}] /Count ${pages.length} >>`,
@@ -156,11 +177,12 @@ export function buildMonthlyReportPdf(report:MonthlyReport,includeCommission=fal
 }
 
 export function buildMonthlyReportPrintHtml(report:MonthlyReport,includeCommission=false):string{
+ report=orderMonthlyReport(report);
  const mode=report.mode||'hotel',columns=documentColumns(mode);includeCommission=includeCommission&&mode==='hotel';
  const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]!));
  const rowHtml=report.rows.map(row=>`<tr>${reportRowCells(row,mode).map((value,i)=>`<td class="${i===0?'patient':i===4?'money':''}">${esc(value).replace(/\n/g,'<br>')}</td>`).join('')}</tr>`).join('');
  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(reportReference(report.month,mode))}</title><style>
  @page{size:A4;margin:14mm 14mm 18mm;@bottom-left{content:'IMEC UTI - ${reportLabel(mode)} - ${reportCompetence(report.month)}${report.manualSelection?' - Seleção manual':''}';font:7pt Arial;color:#66716e}@bottom-right{content:'Página ' counter(page) ' de ' counter(pages);font:7pt Arial;color:#66716e}}
  *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#20292b;font-size:9pt;margin:0}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}.identity{display:flex;align-items:center;gap:10px}.mark{width:28px;height:28px;background:#125c57;display:grid;place-items:center;color:white;font-weight:bold;font-size:19px}.identity strong{display:block;font-size:11pt}.identity small{display:block;margin-top:4px;font-size:6.4pt;letter-spacing:.08em;color:#65706e}.period{text-align:right}.period small{display:block;font-size:6.5pt;letter-spacing:.09em;color:#65706e}.period strong{display:block;margin-top:6px;font-size:11pt}h1{font-size:24pt;line-height:1.15;margin:0 0 8px;font-weight:700;letter-spacing:-.035em}.subtitle{font-size:8.5pt;color:#65706e;margin:0 0 14px}.accent{width:32px;border-top:1px solid #125c57;margin-bottom:18px}.summary{display:grid;grid-template-columns:minmax(0,1fr) 110px 90px;gap:14px;padding:16px;background:#f6f8f7;border:1px solid #e6ebe8;break-inside:avoid}.summary small{display:block;font-size:6.8pt;font-weight:bold;letter-spacing:.04em;color:#65706e}.summary strong{display:block;margin-top:9px;font-size:17pt;line-height:1.2}.summary .primary strong{font-size:22pt;letter-spacing:-.025em}.scope{font-size:7pt;letter-spacing:.04em;color:#65706e;margin:16px 0 19px}.scope.manual{color:#125c57;font-weight:bold}table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0 0 16px}thead{display:table-header-group}th{text-align:left;padding:9px 5px;font-size:6.7pt;color:#65706e;background:#f6f8f7;font-weight:bold}td{text-align:left;vertical-align:top;padding:12px 5px;border-bottom:1px solid #e3e8e5;font-size:8pt;line-height:1.5;color:#65706e;overflow-wrap:anywhere}.patient{font-size:8.5pt;color:#20292b;font-weight:bold}th:first-child,td:first-child{padding-left:8px}.money{text-align:right;color:#20292b;font-weight:bold;font-variant-numeric:tabular-nums}tr{break-inside:avoid}.closing{break-inside:avoid;padding-top:12px}.total,.commission{display:flex;justify-content:space-between;align-items:baseline;gap:15px}.total{font-size:9pt;font-weight:bold}.total strong{font-size:16pt;letter-spacing:-.02em}.cash{font-size:7.5pt;color:#65706e;margin:12px 0}.commission{font-size:8.5pt;color:#65706e;margin-top:16px}.commission strong{font-size:10pt;color:#20292b}.reference{font-size:8.5pt;font-weight:bold;border-top:1px solid #dce4df;padding-top:17px;margin:19px 0 8px}.note{font-size:7.2pt;color:#65706e;line-height:1.6;margin:3px 0}.issued{font-size:7pt;color:#65706e;border-top:1px solid #dce4df;padding-top:10px;margin-top:25px}.empty{padding:18px 8px;color:#65706e}.tools{display:flex;justify-content:flex-end;gap:8px;border-bottom:1px solid #e3e8e5;padding-bottom:16px;margin-bottom:24px}.tools button{font:12px Arial;padding:10px 15px;border:1px solid #dce4df;border-radius:8px;background:white;color:#125c57;cursor:pointer}@media screen{body{max-width:820px;padding:30px 25px;margin:auto}}@media print{.tools{display:none}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@media screen and (max-width:580px){body{padding:20px 12px}.summary{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.primary{grid-column:1/-1}table{min-width:650px}.table-wrap{overflow-x:auto}}
- </style></head><body><div class="tools"><button id="printMonthly">Imprimir / salvar PDF</button><button id="closeMonthly">Fechar</button></div><header><div class="identity"><span class="mark"><svg viewBox="0 0 22 22" width="22" height="22" aria-hidden="true"><path d="M3 11h4l2-5 3 10 2-5h5" fill="none" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><strong>IMEC UTI</strong><small>PARTICULAR &amp; HOTELARIA</small></div></div><div class="period"><small>RELATÓRIO MENSAL</small><strong>${reportCompetence(report.month)}</strong></div></header><h1>${reportLabel(mode)}</h1><p class="subtitle">Relatório de recebimentos</p><div class="accent"></div><section class="summary"><div class="primary"><small>${report.manualSelection?'TOTAL LÍQUIDO DA SELEÇÃO':'TOTAL LÍQUIDO RECEBIDO'}</small><strong>${esc(money(report.netCents/100))}</strong></div><div><small>RECEBIMENTOS</small><strong>${report.receiptCount}</strong></div><div><small>INTERNAÇÕES</small><strong>${report.admissionCount}</strong></div></section><p class="scope ${report.manualSelection?'manual':''}">${esc(documentScope(report))}</p>${report.rows.length?`<div class="table-wrap"><table><colgroup>${columns.map(c=>`<col style="width:${c.width/515*100}%">`).join('')}</colgroup><thead><tr>${columns.map((c,i)=>`<th class="${i===4?'money':''}">${c.label}</th>`).join('')}</tr></thead><tbody>${rowHtml}</tbody></table></div>`:'<p class="empty">Nenhum recebimento ou reembolso nesta seleção.</p>'}<section class="closing"><div class="total"><span>${report.manualSelection?'Total líquido selecionado':'Total líquido recebido'}</span><strong>${esc(money(report.netCents/100))}</strong></div>${report.refundCount?`<p class="cash">Recebido: ${esc(money(report.receivedCents/100))} &nbsp;|&nbsp; Reembolsado: ${esc(money(report.refundedCents/100))}</p>`:''}${includeCommission?`<div class="commission"><span>Comissão Aline Glória - 3%</span><strong>${esc(money(report.commissionCents/100))}</strong></div>`:''}<p class="reference">${esc(reportReference(report.month,mode))}</p><p class="note">${esc(reportSelectionNote(report))}</p><p class="note">Competência pela data do recebimento; valores líquidos de reembolsos.</p></section><p class="issued">Emitido em ${reportDate(report.generatedAt)}</p></body></html>`;
+ </style></head><body><div class="tools"><button id="printMonthly">Imprimir / salvar PDF</button><button id="closeMonthly">Fechar</button></div><header><div class="identity"><span class="mark"><svg viewBox="0 0 22 22" width="22" height="22" aria-hidden="true"><path d="M3 11h4l2-5 3 10 2-5h5" fill="none" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><strong>IMEC UTI</strong><small>PARTICULAR &amp; HOTELARIA</small></div></div><div class="period"><small>RELATÓRIO MENSAL</small><strong>${reportCompetence(report.month)}</strong></div></header><h1>${reportLabel(mode)}</h1><p class="subtitle">Relatório de recebimentos</p><div class="accent"></div><section class="summary"><div class="primary"><small>${report.manualSelection?'TOTAL LÍQUIDO DA SELEÇÃO':'TOTAL LÍQUIDO RECEBIDO'}</small><strong>${esc(money(report.netCents/100))}</strong></div><div><small>RECEBIMENTOS</small><strong>${report.receiptCount}</strong></div><div><small>INTERNAÇÕES</small><strong>${report.admissionCount}</strong></div></section><p class="scope ${report.manualSelection?'manual':''}">${esc(documentScope(report))}</p>${report.rows.length?`<div class="table-wrap"><table><colgroup>${columns.map(c=>`<col style="width:${c.width/515*100}%">`).join('')}</colgroup><thead><tr>${columns.map((c,i)=>`<th class="${i===4?'money':''}">${c.label}</th>`).join('')}</tr></thead><tbody>${rowHtml}</tbody></table></div>`:'<p class="empty">Nenhum recebimento ou reembolso nesta seleção.</p>'}<section class="closing"><div class="total"><span>${report.manualSelection?'Total líquido selecionado':'Total líquido recebido'}</span><strong>${esc(money(report.netCents/100))}</strong></div>${report.refundCount?`<p class="cash">Recebido: ${esc(money(report.receivedCents/100))} &nbsp;|&nbsp; Reembolsado: ${esc(money(report.refundedCents/100))}</p>`:''}${includeCommission?`<div class="commission"><span>Comissão Aline Glória - 3%</span><strong>${esc(money(report.commissionCents/100))}</strong></div>`:''}<p class="reference">${esc(reportReference(report.month,mode))}</p><p class="note">${esc(reportSelectionNote(report))}</p><p class="note">${esc(reportOrderNote(report))}</p><p class="note">Competência pela data do recebimento; valores líquidos de reembolsos.</p></section><p class="issued">Emitido em ${reportDate(report.generatedAt)}</p></body></html>`;
 }
