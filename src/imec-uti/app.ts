@@ -9,7 +9,7 @@ import {
 } from './domain';
 import { SUPABASE_URL, SUPABASE_KEY } from './config';
 import { paymentMethodLabel, installmentSummary, validateInstallmentDates } from './payment-details';
-import {previousReportMonth,reportCompetence,reportReference,reportDate,monthlyReportFilename,monthlyReportCsv,buildMonthlyReportPdf} from './monthly-report';
+import {previousReportMonth,reportCompetence,reportReference,reportDate,reportLabel,reportColumns,reportRowCells,reportSelectionNote,selectMonthlyReport,monthlyReportFilename,monthlyReportCsv,buildMonthlyReportPdf} from './monthly-report';
 import {
   AUTH_STORAGE_KEY, ACTIVITY_STORAGE_KEY, IDLE_TIMEOUT_MS, APP_URL,
   jwtAal, normalizeSession, parseAuthRedirect, cleanAuthRedirectUrl,
@@ -73,8 +73,8 @@ const ROLE_PERMISSIONS={
   commercial:new Set(['create_admission','add_extra','add_payment','adjust_rate','discharge','update_on_duty']),
   operator:new Set(['create_admission','add_extra','discharge'])
 };
-let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:'',reportMonth:previousReportMonth(),reportCommission:false};
-let monthlyReportState={report:null,loading:false,error:'',revision:0};
+let state={page:'home', selectedId:null, patientFilter:'active', financeTab:'pending', search:'',reportMonth:previousReportMonth(),reportMode:'hotel',reportCommission:false,reportReviewOpen:false};
+let monthlyReportState={report:null,selectedKeys:null,loading:false,error:'',revision:0};
 let data=blankData();
 let authState=null;
 let authEpoch=0;
@@ -149,38 +149,39 @@ function dashboard(){
   <section class="panel"><div class="panel-head"><div><h2>Pacientes ativos</h2><p>Internações em andamento.</p></div><span class="badge badge-brand">${active.length}</span></div>${active.length?`<div class="patient-card-grid">${active.sort((a,b)=>new Date(b.entryAt)-new Date(a.entryAt)).slice(0,6).map(patientCard).join('')}</div>`:empty('Nenhuma internação ativa','Use “Nova internação” para começar o controle.')}</section>`;
 }
 function monthlyReportsPage(){
- const s=monthlyReportState,r=s.report?.month===state.reportMonth?s.report:null,ready=!!r&&!s.loading&&!s.error;
- return `<section class="page-head"><div><span class="eyebrow">RELATÓRIOS</span><h1>Leito humanizado</h1><p>Recebimentos do mês e comissão da Aline Glória.</p></div></section>
- <section class="report-toolbar panel"><div class="report-period">${field('Competência',`<input id="reportMonth" type="month" value="${state.reportMonth}" aria-label="Competência do relatório">`)}<button id="reportRefresh" class="icon-btn" aria-label="Atualizar relatório" ${s.loading?'disabled':''}>${icon('refresh')}</button></div><div class="report-export"><label class="report-option"><input type="checkbox" id="reportCommission" ${state.reportCommission?'checked':''}>Incluir comissão na exportação</label><div class="report-buttons"><button id="reportPdf" class="btn btn-primary" ${!ready?'disabled':''}>${icon('down')}Baixar PDF</button><button id="reportPrint" class="btn btn-secondary" ${!ready?'disabled':''}>${icon('printer')}Imprimir</button><button id="reportCsv" class="btn btn-secondary" ${!ready?'disabled':''}>${icon('document')}Planilha CSV</button></div></div></section>
+ const s=monthlyReportState,mode=state.reportMode,r=s.report?.month===state.reportMonth&&s.report?.mode===mode?selectMonthlyReport(s.report,s.selectedKeys):null,ready=!!r&&!s.loading&&!s.error&&(!r.candidateCount||r.selectedCount>0),columns=reportColumns(mode);
+ return `<section class="page-head"><div><span class="eyebrow">RELATÓRIOS</span><h1>Recebimentos</h1><p>Por data de recebimento, separados por modalidade.</p></div></section>
+ <section class="report-toolbar panel"><div class="report-period">${field('Modalidade',`<select id="reportMode" aria-label="Modalidade do relatório"><option value="hotel" ${mode==='hotel'?'selected':''}>Leito humanizado</option><option value="private" ${mode==='private'?'selected':''}>Particular</option></select>`)}${field('Competência',`<input id="reportMonth" type="month" value="${state.reportMonth}" aria-label="Competência do relatório">`)}<button id="reportRefresh" class="icon-btn" aria-label="Atualizar relatório" ${s.loading?'disabled':''}>${icon('refresh')}</button></div><div class="report-export">${mode==='hotel'?`<label class="report-option"><input type="checkbox" id="reportCommission" ${state.reportCommission?'checked':''}>Incluir comissão na exportação</label>`:''}<div class="report-buttons"><button id="reportPdf" class="btn btn-primary" ${!ready?'disabled':''}>${icon('down')}Baixar PDF</button><button id="reportPrint" class="btn btn-secondary" ${!ready?'disabled':''}>${icon('printer')}Imprimir</button><button id="reportCsv" class="btn btn-secondary" ${!ready?'disabled':''}>${icon('document')}Planilha CSV</button></div></div></section>
  <div class="report-body" aria-live="polite">${s.loading?'<div class="panel report-loading">Carregando os recebimentos da competência…</div>':s.error?`<div class="panel"><div class="form-error">${esc(s.error)}</div><p>Use atualizar para tentar novamente.</p></div>`:r?`
- <div class="report-metrics"><div class="metric-card"><div class="metric-copy"><span>Total líquido recebido</span><strong id="reportNet">${money(r.netCents/100)}</strong><small>Recebido: ${money(r.receivedCents/100)} · Reembolsado: ${money(r.refundedCents/100)}</small></div></div><div class="metric-card"><div class="metric-copy"><span>Recebimentos confirmados</span><strong id="reportCount">${r.receiptCount}</strong><small>${r.admissionCount} internação(ões)${r.refundCount?' · '+r.refundCount+' reembolso(s)':''}</small></div></div><div class="metric-card"><div class="metric-copy"><span>Aline Glória · 3%</span><strong id="reportFee">${money(r.commissionCents/100)}</strong><small>Comissão sobre o recebido líquido</small></div></div></div>
- <section class="panel report-sheet"><div class="panel-head"><div><h2>Recebimentos · ${reportCompetence(r.month)}</h2><p>Valores líquidos recebidos na competência, agrupados por internação.</p></div></div>${r.rows.length?`<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Nome do paciente</th><th>Entrada</th><th>Alta</th><th>Valor total</th><th>Tipo de leito</th></tr></thead><tbody>${r.rows.map(row=>`<tr><td><button class="report-patient" data-report-open="${row.admissionId}">${esc(row.patientName)}</button></td><td>${reportDate(row.entryAt)}</td><td>${reportDate(row.dischargeAt)}</td><td>${money(row.netCents/100)}</td><td><span class="badge badge-neutral">${esc(row.bedType)}</span></td></tr>`).join('')}</tbody><tfoot><tr><th colspan="3">Total líquido</th><td>${money(r.netCents/100)}</td><td></td></tr></tfoot></table></div>`:empty('Sem movimentações nesta competência','Nenhum recebimento confirmado ou reembolso de leito humanizado foi encontrado.')}<div class="report-reference">${esc(reportReference(r.month))}</div><p class="report-note">O mês considera a data do recebimento ou reembolso. Crédito parcelado entra integralmente no mês do recebimento confirmado; previsões não entram.</p></section>`:''}</div>`;
+ <div class="report-metrics ${mode==='private'?'is-private':''}"><div class="metric-card"><div class="metric-copy"><span>${r.manualSelection?'Total líquido selecionado':'Total líquido recebido'}</span><strong id="reportNet">${money(r.netCents/100)}</strong><small>Recebido: ${money(r.receivedCents/100)} · Reembolsado: ${money(r.refundedCents/100)}</small></div></div><div class="metric-card"><div class="metric-copy"><span>Recebimentos confirmados</span><strong id="reportCount">${r.receiptCount}</strong><small>${r.admissionCount} internação(ões)${r.refundCount?' · '+r.refundCount+' reembolso(s)':''}</small></div></div>${mode==='hotel'?`<div class="metric-card"><div class="metric-copy"><span>Aline Glória · 3%</span><strong id="reportFee">${money(r.commissionCents/100)}</strong><small>Comissão sobre o recebido líquido${r.manualSelection?' selecionado':''}</small></div></div>`:''}</div>
+ ${r.movements?.length?`<details id="reportReview" class="panel report-review" ${state.reportReviewOpen?'open':''}><summary>Conferir e selecionar recebimentos <span>${r.selectedCount} de ${r.candidateCount}</span></summary><p class="report-note">Selecione o que deseja incluir neste relatório. Isso não altera pagamentos nem saldos.</p><div class="report-review-actions"><button id="reportSelectAll" class="btn btn-secondary">Selecionar todos</button><button id="reportClear" class="btn btn-secondary">Limpar seleção</button></div><div class="report-movements">${r.movements.map(m=>`<label class="report-movement"><input type="checkbox" data-report-movement="${esc(m.key)}" aria-label="Incluir ${esc(m.patientName)} · ${esc(fmtDT(m.occurredAt))} · ${m.kind==='refund'?'reembolso':'recebimento'} · ${esc(money(m.amountCents/100))}" ${m.included?'checked':''}><span><strong>${esc(m.patientName)}</strong><small>${esc(fmtDT(m.occurredAt))} · ${esc(paymentMethodLabel(m))}${m.kind==='refund'?' · Reembolso':''}</small></span><b>${m.kind==='refund'?'−':''}${money(m.amountCents/100)}</b></label>`).join('')}</div></details>`:''}
+ <section class="panel report-sheet"><div class="panel-head"><div><h2>${reportLabel(mode)} · ${reportCompetence(r.month)}</h2><p>${esc(reportSelectionNote(r))} Valores agrupados por internação.</p></div></div>${r.rows.length?`<div class="report-table-wrap"><table class="report-table"><thead><tr>${columns.map((c,i)=>`<th ${i===4?'class="report-value"':''}>${c.label}</th>`).join('')}</tr></thead><tbody>${r.rows.map(row=>`<tr>${reportRowCells(row,mode).map((value,i)=>`<td data-label="${columns[i].label}" ${i===4?'class="report-value"':''}>${i===0?`<button class="report-patient" data-report-open="${row.admissionId}">${esc(value)}</button>`:esc(value).replace(/\n/g,'<br>')}</td>`).join('')}</tr>`).join('')}</tbody><tfoot><tr><th colspan="4">Total líquido${r.manualSelection?' selecionado':''}</th><td>${money(r.netCents/100)}</td><td colspan="${columns.length-5}"></td></tr></tfoot></table></div>`:empty(r.candidateCount?'Nenhum lançamento selecionado':'Sem movimentações nesta competência',r.candidateCount?'Marque os recebimentos que deseja incluir no relatório.':'Nenhum recebimento confirmado ou reembolso desta modalidade foi encontrado.')}<div class="report-reference">${esc(reportReference(r.month,mode))}</div><p class="report-note">O mês considera a data do recebimento ou reembolso, independentemente da entrada e da alta. Crédito parcelado entra integralmente no recebimento confirmado; previsões não entram.</p></section>`:''}</div>`;
 }
 async function loadMonthlyReport(){
- const month=state.reportMonth,revision=++monthlyReportState.revision,epoch=authEpoch;
- monthlyReportState.loading=true;monthlyReportState.error='';render();
+ const month=state.reportMonth,mode=state.reportMode,revision=++monthlyReportState.revision,epoch=authEpoch;
+ monthlyReportState.loading=true;monthlyReportState.error='';monthlyReportState.selectedKeys=null;render();
  try{
-   reportCompetence(month);const report=await rpc('get_uti_humanized_monthly_report',{p_month:month+'-01'});
+   reportCompetence(month);const report=await rpc('get_uti_monthly_receipts_report',{p_month:month+'-01',p_mode:mode});
    if(revision!==monthlyReportState.revision||epoch!==authEpoch)return;
    monthlyReportState.report=report;
  }catch(ex){if(revision===monthlyReportState.revision&&epoch===authEpoch)monthlyReportState.error=ex.message||'Não foi possível carregar o relatório.'}
  finally{if(revision===monthlyReportState.revision&&epoch===authEpoch){monthlyReportState.loading=false;if(state.page==='reports'&&!state.selectedId)render()}}
 }
 function monthlyReportPrintHtml(r,commission){
- return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(reportReference(r.month))}</title><style>@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#202629;font-size:10pt;margin:0}.tools{padding:14px 0;display:flex;gap:10px}button{padding:10px 16px;border:1px solid #dce4df;border-radius:8px;background:white;color:#12635e;cursor:pointer}.head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #dce4df;padding-bottom:14px}h1{font-size:18pt;margin:0 0 8px}h2{font-size:14pt;margin:18px 0 6px}p{color:#667275;font-size:9pt;line-height:1.5}table{border-collapse:collapse;width:100%;table-layout:fixed;margin:20px 0}thead{display:table-header-group}th,td{text-align:left;border-bottom:1px solid #e4e8e7;padding:10px 5px;vertical-align:top;overflow-wrap:anywhere}th{font-size:8pt;color:#667275}th:first-child,td:first-child{padding-left:0;width:40%}th:nth-child(2),th:nth-child(3){width:14%}th:nth-child(4){width:20%}th:nth-child(5){width:12%}td:nth-child(4),th:nth-child(4){text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}.totals{margin:20px 0;break-inside:avoid}.totals div{display:flex;justify-content:space-between;padding:8px 0}.total{font-size:13pt;font-weight:bold}.reference{border-top:1px solid #dce4df;padding-top:16px;font-weight:bold;break-inside:avoid}.empty{padding:24px 0}.issued{font-size:8pt;color:#667275}@media print{.tools{display:none}}@media screen{body{max-width:800px;margin:30px auto;padding:0 20px}}</style></head><body><div class="tools"><button id="printMonthly">Imprimir / salvar PDF</button><button id="closeMonthly">Fechar</button></div><div class="head"><h1>IMEC UTI</h1><strong>Competência ${reportCompetence(r.month)}</strong></div><h2>Leito humanizado</h2><p>${r.receiptCount} recebimento(s) · ${r.admissionCount} internação(ões)<br>Valores líquidos recebidos na competência, descontados os reembolsos.</p>${r.rows.length?`<table><thead><tr><th>Nome do paciente</th><th>Entrada</th><th>Alta</th><th>Valor total</th><th>Leito</th></tr></thead><tbody>${r.rows.map(x=>`<tr><td>${esc(x.patientName)}</td><td>${reportDate(x.entryAt)}</td><td>${reportDate(x.dischargeAt)}</td><td>${money(x.netCents/100)}</td><td>${esc(x.bedType)}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">Nenhuma movimentação nesta competência.</p>'}<div class="totals"><div class="total"><span>Total líquido recebido</span><span>${money(r.netCents/100)}</span></div>${r.refundCount?`<div><span>Recebido: ${money(r.receivedCents/100)}</span><span>Reembolsado: ${money(r.refundedCents/100)}</span></div>`:''}${commission?`<div><strong>Comissão Aline Glória · 3%</strong><strong>${money(r.commissionCents/100)}</strong></div>`:''}</div><div class="reference">${esc(reportReference(r.month))}</div><p class="issued">Emitido em ${reportDate(r.generatedAt)}</p></body></html>`;
+ const mode=r.mode||'hotel',columns=reportColumns(mode);commission=commission&&mode==='hotel';
+ return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(reportReference(r.month,mode))}</title><style>@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#202629;font-size:9pt;margin:0}.tools{padding:14px 0;display:flex;gap:10px}button{padding:10px 16px;border:1px solid #dce4df;border-radius:8px;background:white;color:#12635e;cursor:pointer}.head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #dce4df;padding-bottom:14px}h1{font-size:18pt;margin:0 0 8px}h2{font-size:14pt;margin:18px 0 6px}p{color:#667275;font-size:9pt;line-height:1.5}table{border-collapse:collapse;width:100%;table-layout:fixed;margin:20px 0}thead{display:table-header-group}th,td{text-align:left;border-bottom:1px solid #e4e8e7;padding:10px 4px;vertical-align:top;overflow-wrap:anywhere}th{font-size:7pt;color:#667275}th:first-child,td:first-child{padding-left:0}.money{text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}.totals{margin:20px 0;break-inside:avoid}.totals div{display:flex;justify-content:space-between;padding:8px 0}.total{font-size:13pt;font-weight:bold}.reference{border-top:1px solid #dce4df;padding-top:16px;font-weight:bold;break-inside:avoid}.empty{padding:24px 0}.issued{font-size:8pt;color:#667275}@media print{.tools{display:none}}@media screen{body{max-width:800px;margin:30px auto;padding:0 20px}}</style></head><body><div class="tools"><button id="printMonthly">Imprimir / salvar PDF</button><button id="closeMonthly">Fechar</button></div><div class="head"><h1>IMEC UTI</h1><strong>Competência ${reportCompetence(r.month)}</strong></div><h2>${reportLabel(mode)}</h2><p>${r.receiptCount} recebimento(s) · ${r.admissionCount} internação(ões)<br>Valores líquidos recebidos na competência, descontados os reembolsos.</p>${r.rows.length?`<table><colgroup>${columns.map(c=>`<col style="width:${c.width/515*100}%">`).join('')}</colgroup><thead><tr>${columns.map((c,i)=>`<th ${i===4?'class="money"':''}>${c.label}</th>`).join('')}</tr></thead><tbody>${r.rows.map(row=>`<tr>${reportRowCells(row,mode).map((v,i)=>`<td ${i===4?'class="money"':''}>${esc(v).replace(/\n/g,'<br>')}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<p class="empty">Nenhuma movimentação nesta seleção.</p>'}<div class="totals"><div class="total"><span>Total líquido${r.manualSelection?' selecionado':' recebido'}</span><span>${money(r.netCents/100)}</span></div>${r.refundCount?`<div><span>Recebido: ${money(r.receivedCents/100)}</span><span>Reembolsado: ${money(r.refundedCents/100)}</span></div>`:''}${commission?`<div><strong>Comissão Aline Glória · 3%</strong><strong>${money(r.commissionCents/100)}</strong></div>`:''}</div><div class="reference">${esc(reportReference(r.month,mode))}</div><p>${esc(reportSelectionNote(r))}</p><p class="issued">Emitido em ${reportDate(r.generatedAt)}</p></body></html>`;
 }
 async function exportMonthlyReport(kind){
  if(remoteBusy||monthlyReportState.loading)return;
- const month=state.reportMonth,commission=state.reportCommission,epoch=authEpoch;
+ const month=state.reportMonth,mode=state.reportMode,commission=mode==='hotel'&&state.reportCommission,epoch=authEpoch,base=monthlyReportState.report,selectedKeys=monthlyReportState.selectedKeys===null?null:[...monthlyReportState.selectedKeys];
+ if(!base||base.month!==month||base.mode!==mode||(base.candidateCount&&selectedKeys?.length===0))return;
  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
  const popup=kind==='print'||(kind==='pdf'&&ios)?window.open('','_blank'):null;
  if(kind==='print'&&!popup){toast('Permita a janela de impressão ou use Baixar PDF.');return}
  if(popup){popup.document.write('<!doctype html><html lang="pt-BR"><title>Preparando relatório</title><body style="font-family:Arial;padding:32px">Preparando relatório…</body></html>');popup.document.close();}
  try{
    setLoading(true,'Preparando relatório…');
-   const r=await rpc('get_uti_humanized_monthly_report',{p_month:month+'-01'});
-   if(epoch!==authEpoch||!authState)throw new Error('Sua sessão mudou. Entre novamente para gerar o relatório.');
-   await rpc('log_uti_report_event',{p_month:month+'-01',p_event:kind==='print'?'print_requested':kind==='csv'?'csv_downloaded':'pdf_downloaded',p_include_commission:commission});
+   const r=await rpc('export_uti_monthly_receipts_report',{p_month:month+'-01',p_mode:mode,p_event:kind==='print'?'print_requested':kind==='csv'?'csv_downloaded':'pdf_downloaded',p_include_commission:commission,p_selected_keys:selectedKeys,p_expected_snapshot:base.sourceSnapshot});
    if(epoch!==authEpoch||!authState)throw new Error('Sua sessão mudou. Entre novamente para gerar o relatório.');
    if(kind==='print'){
      popup.document.open();popup.document.write(monthlyReportPrintHtml(r,commission));popup.document.close();
@@ -193,8 +194,8 @@ async function exportMonthlyReport(kind){
      else{const link=document.createElement('a');link.href=url;link.download=monthlyReportFilename(r,commission,kind==='csv'?'csv':'pdf');document.body.appendChild(link);link.click();link.remove();}
      setTimeout(()=>URL.revokeObjectURL(url),60000);toast(kind==='csv'?'Planilha CSV gerada.':'PDF pronto para imprimir.');
    }
-   if(state.reportMonth===month)monthlyReportState.report=r;if(state.page==='reports'&&!state.selectedId)render();
- }catch(ex){if(popup)popup.close();toast('Não foi possível gerar o relatório: '+ex.message)}finally{setLoading(false)}
+   if(state.page==='reports'&&!state.selectedId)render();
+ }catch(ex){if(popup)popup.close();toast('Não foi possível gerar o relatório: '+ex.message);if(epoch===authEpoch&&/recebimentos mudaram/.test(ex.message)&&state.page==='reports'&&!state.selectedId)await loadMonthlyReport()}finally{setLoading(false)}
 }
 function patientCard(a){
   const p=patient(a.patientId),t=totals(a.id),r=currentRate(a),m=balanceMeta(t.balance);
@@ -416,7 +417,7 @@ async function expireIdleSession(){
   try{await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:authHeaders(token)})}catch{}
 }
 function storeAuth(session,{activity=true,preserveEpoch=false}={}){
-  if(!preserveEpoch){authEpoch++;monthlyReportState={report:null,loading:false,error:'',revision:monthlyReportState.revision+1};}
+  if(!preserveEpoch){authEpoch++;monthlyReportState={report:null,selectedKeys:null,loading:false,error:'',revision:monthlyReportState.revision+1};}
   if(!session)passwordOnlyMode=false;
   authState=session?normalizeSession(session):null;
   try{
@@ -1537,7 +1538,17 @@ function bindDetail(a){
 function bindPage(){
   if(state.page==='reports'&&!state.selectedId){
     document.getElementById('reportMonth').onchange=e=>{if(!e.target.value)return;state.reportMonth=e.target.value;loadMonthlyReport()};
-    document.getElementById('reportCommission').onchange=e=>state.reportCommission=e.target.checked;
+    document.getElementById('reportMode').onchange=e=>{state.reportMode=e.target.value;state.reportCommission=false;state.reportReviewOpen=false;loadMonthlyReport()};
+    const fee=document.getElementById('reportCommission');if(fee)fee.onchange=e=>state.reportCommission=e.target.checked;
+    const review=document.getElementById('reportReview');if(review)review.ontoggle=()=>state.reportReviewOpen=review.open;
+    const all=document.getElementById('reportSelectAll'),clear=document.getElementById('reportClear');
+    if(all)all.onclick=()=>{monthlyReportState.selectedKeys=null;render()};
+    if(clear)clear.onclick=()=>{monthlyReportState.selectedKeys=new Set();render()};
+    document.querySelectorAll('[data-report-movement]').forEach(input=>input.onchange=()=>{
+      const keys=new Set(monthlyReportState.selectedKeys??monthlyReportState.report.movements.map(m=>m.key)),key=input.dataset.reportMovement;
+      if(input.checked)keys.add(key);else keys.delete(key);monthlyReportState.selectedKeys=keys;state.reportReviewOpen=true;render();
+      document.querySelector(`[data-report-movement="${CSS.escape(key)}"]`)?.focus();
+    });
     document.getElementById('reportRefresh').onclick=()=>loadMonthlyReport();
     document.getElementById('reportPdf').onclick=()=>exportMonthlyReport('pdf');document.getElementById('reportPrint').onclick=()=>exportMonthlyReport('print');document.getElementById('reportCsv').onclick=()=>exportMonthlyReport('csv');
     document.querySelectorAll('[data-report-open]').forEach(b=>b.onclick=async()=>{
@@ -1546,7 +1557,7 @@ function bindPage(){
       if(!admission(id)){toast('Esta internação não está mais disponível. Atualize o relatório.');return}
       state.selectedId=id;render();
     });
-    if(!monthlyReportState.loading&&!monthlyReportState.error&&monthlyReportState.report?.month!==state.reportMonth)loadMonthlyReport();
+    if(!monthlyReportState.loading&&!monthlyReportState.error&&(monthlyReportState.report?.month!==state.reportMonth||monthlyReportState.report?.mode!==state.reportMode))loadMonthlyReport();
   }
   bindScheduledReceipts();
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{state.selectedId=b.dataset.open;render()});

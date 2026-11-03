@@ -59,6 +59,8 @@ export async function isolatedDatabase({hardened=true}={}){
   if(receiptEdit)await db.exec(read(receiptEdit));
   const monthlyReports=fs.readdirSync('supabase/migrations').find(file=>file.endsWith('_humanized_monthly_reports.sql'));
   if(monthlyReports)await db.exec(read(monthlyReports));
+  const reviewedReports=fs.readdirSync('supabase/migrations').find(file=>file.endsWith('_monthly_receipts_modes_and_review.sql'));
+  if(reviewedReports)await db.exec(read(reviewedReports));
   const admissionEdit=fs.readdirSync('supabase/migrations').find(file=>file.endsWith('_audited_admission_initial_edit.sql'));
   if(admissionEdit)await db.exec(read(admissionEdit));
   for(const [role,id] of Object.entries(auditUsers)){
