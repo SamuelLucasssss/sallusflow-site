@@ -145,7 +145,7 @@ try{
   await fill('#loginEmail','admin@audit.invalid');await fill('#loginPassword','wrong');await click('#loginForm button[type=submit]');await wait('#authError .form-error');
   await fill('#loginPassword','SyntheticAuditPassword!1');await click('#loginForm button[type=submit]');await wait('.metric-grid');
   steps.push({name:'login com provedor simulado',ms:Math.round(performance.now()-start)});await shot('desktop-dashboard');
-  await click('[data-action="new"]');await fill('#nName','João da Silva — Sintético');await select('#nBed','10');await select('#nMode','hotel');await fill('#nValue','400');await fill('#nEntry','2026-10-08T18:52');await select('#nHalf','0');await click('#newForm button[type=submit]');await wait('.patient-card');
+  await click('[data-action="new"]');assert.equal(await page.locator('#nCloser').inputValue(),'');assert.deepEqual(await page.locator('#nCloser option').allTextContents(),['Selecionar responsável','Roberto','Samuel']);assert.match(await page.locator('#nResponsibleHint').textContent(),/80,00/);await fill('#nName','João da Silva — Sintético');await select('#nBed','10');await select('#nMode','hotel');await fill('#nValue','400');await fill('#nEntry','2026-10-08T18:52');await select('#nHalf','0');await click('#newForm button[type=submit]');await wait('.patient-card');
   await click('[data-nav="patients"]');await page.locator('#searchPatients').focus();
   // oninput replaces the rendered node. Type through the active keyboard target,
   // rather than retaining the locator's old element for the remaining characters.
@@ -345,7 +345,8 @@ try{
   await fixture.db.query("select public.add_uti_payment($1,'2026-10-05T14:00:00-03:00',500,'PIX',null,'monthly-late-receipt')",[lateId]);
   const privateReportId=await createSyntheticAdmission(fixture.db,{name:'Particular — Competência sintética',bed:1,mode:'private',entry:'2026-09-29T12:00:00-03:00',rate:7000});
   await fixture.db.query("select public.add_uti_payment($1,'2026-10-05T14:00:00-03:00',7000,'PIX',null,'monthly-private-october')",[privateReportId]);
-  await fixture.db.exec('reset role');await fixture.db.query("update public.admissions set closer_name='Roberto' where id=$1",[privateReportId]);await fixture.asUser('admin');
+  const privateSettlement=(await fixture.db.query("select public.preview_uti_settlement($1,'2026-09-30T15:00:00Z') r",[privateReportId])).rows[0].r;await fixture.db.query('select public.discharge_uti($1,$2::timestamptz,$3::bigint)',[privateReportId,privateSettlement.dischargeAt,privateSettlement.accountVersion]);
+  await fixture.db.query("select public.set_uti_private_responsible($1,(select account_version from public.admissions where id=$1),'roberto','Responsável confirmado no teste','browser-private-responsible-01')",[privateReportId]);
   // Independent raw ledger expectation remains stable when the audit runs in another month.
   const expected=(await fixture.db.query(`with cash as (
     select p.admission_id,p.amount amount,1 receipt from public.payments p join public.admissions a on a.id=p.admission_id where a.mode='hotel' and p.cancelled_at is null and p.occurred_at>='2026-10-01T03:00:00Z' and p.occurred_at<'2026-11-01T03:00:00Z'
@@ -379,10 +380,16 @@ try{
   const ascendingDates=ascending.map(id=>anchors.get(id));assert.deepEqual(ascendingDates,[...ascendingDates].sort((a,b)=>a-b));assert.deepEqual(descending.map(id=>anchors.get(id)),[...ascendingDates].reverse());assert.equal(await page.locator('#reportNet').textContent(),money(expected.net));
   await page.setViewportSize({width:1365,height:950});await select('#reportMode','private');await page.waitForFunction(()=>document.querySelector('.report-sheet h2')?.textContent.includes('Particular'));
   assert.equal(await page.locator('#reportOrder').inputValue(),'receipt_desc');
-  assert.equal(await page.locator('#reportFee').count(),0);assert.equal(await page.locator('#reportCommission').count(),0);assert.match(await page.locator('.report-table').textContent(),/Responsável.*Particular.*Roberto/);assert.doesNotMatch(await page.locator('.report-table').textContent(),/Rodapé/);
+  assert.equal(await page.locator('#reportFee').count(),0);assert.equal(await page.locator('#reportCommission').count(),1);assert.equal(await page.locator('#reportPrivateFee').textContent(),money(80));await page.locator('#reportCommission').check();assert.match(await page.locator('.report-table').textContent(),/Responsável.*Particular.*Roberto/);assert.doesNotMatch(await page.locator('.report-table').textContent(),/Rodapé/);
   for(const width of [1365,820,390,360]){await page.setViewportSize({width,height:950});await surface('relatorio-particular-'+width);}
   const [privatePdf]=await Promise.all([page.waitForEvent('download'),click('#reportPdf')]);await privatePdf.saveAs(path.join(output,'relatorio-particular.pdf'));
-  const [privatePopup]=await Promise.all([context.waitForEvent('page'),click('#reportPrint')]);await privatePopup.locator('#printMonthly').waitFor();assert.doesNotMatch(await privatePopup.locator('body').textContent(),/Aline Glória/);assert.match(await privatePopup.locator('body').textContent(),/Responsável/i);await privatePopup.screenshot({path:path.join(output,'relatorio-particular-impressao.png'),fullPage:true});await privatePopup.close();
+  const [privatePopup]=await Promise.all([context.waitForEvent('page'),click('#reportPrint')]);await privatePopup.locator('#printMonthly').waitFor();assert.doesNotMatch(await privatePopup.locator('body').textContent(),/Aline Glória/);assert.match(await privatePopup.locator('body').textContent(),/Responsável/i);assert.match(await privatePopup.locator('body').textContent(),/Repasse particular por quitação/);await privatePopup.screenshot({path:path.join(output,'relatorio-particular-impressao.png'),fullPage:true});await privatePopup.close();
+  await click(`[data-report-open="${privateReportId}"]`);await wait('[data-action="private-responsible"]');
+  for(const width of [1365,360]){await page.setViewportSize({width,height:950});await reviewDialog('[data-action="private-responsible"]','responsavel-particular-'+width);}
+  await click('[data-action="private-responsible"]');await select('#privateResponsible','samuel');assert.match(await page.locator('#privateResponsibleFee').textContent(),/80,00/);await fill('#privateResponsibleReason','Responsabilidade corrigida para Samuel');await click('#privateResponsibleForm button[type=submit]');await page.locator('#privateResponsibleForm').waitFor({state:'detached'});assert.match(await page.locator('.detail-identity').textContent(),/fechamento: Samuel/);
+  await click('[data-action="private-responsible"]');await select('#privateResponsible','roberto');await fill('#privateResponsibleReason','Responsabilidade restaurada para Roberto');await click('#privateResponsibleForm button[type=submit]');await page.locator('#privateResponsibleForm').waitFor({state:'detached'});
+  assert.equal((await fixture.db.query('select count(*)::int n from public.private_responsible_edits where admission_id=$1',[privateReportId])).rows[0].n,3);
+  await click('[data-action="back"]');await wait('#reportNet');assert.match(await page.locator('.report-table').textContent(),/Roberto/);
   await select('#reportMode','hotel');await wait('#reportFee');await page.setViewportSize({width:1365,height:950});
   // Another user's new receipt must require renewed conference, never silently change the PDF.
   await fixture.db.query("select public.add_uti_payment($1,'2026-10-06T14:00:00-03:00',10,'PIX',null,'monthly-concurrent-receipt')",[suiteId]);

@@ -52,12 +52,12 @@ describe('relatórios por recebimento, modalidade e conferência',()=>{
    const all=await exportReport(full);assert.equal(all.netCents,29950);assert.equal(all.manualSelection,false);
    const old=(await f.db.query<{r:MonthlyReport}>("select public.get_uti_humanized_monthly_report('2026-10-01') r")).rows[0].r;assert.equal(all.netCents,old.netCents);
  });
- it('rejeita seleção inválida, outra modalidade, outro mês e comissão do particular',async()=>{
+ it('rejeita seleção inválida, outra modalidade e outro mês',async()=>{
    const h=await report(),p=await report('private');const key=h.movements![0].key;
    await rejects(()=>exportReport(h,[p.movements![0].key]),/fora da modalidade/);
    await rejects(()=>exportReport(h,[key,key]),/inválida/);
    await rejects(()=>exportReport(h,[null as unknown as string]),/inválida/);
-   await rejects(()=>exportReport(p,null,true),/exclusiva/);
+   assert.equal((await exportReport(p,null,true)).commissionPercent,0);
    await rejects(()=>report('invalid'),/Escolha/);await rejects(()=>report('hotel','2026-10-05'),/primeiro dia/);
    const sep=await report('hotel','2026-09-01');await rejects(()=>exportReport(h,[sep.movements![0].key]),/fora da modalidade/);
  });
