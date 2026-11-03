@@ -7,7 +7,7 @@ import http from 'node:http';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { isolatedDatabase,createSyntheticAdmission,auditUsers } from '../tests/fixtures/imec-uti-database.ts';
-import {toLocalInput} from '../src/imec-uti/domain.ts';
+import {toLocalInput,money} from '../src/imec-uti/domain.ts';
 
 const output=path.resolve(process.env.IMEC_AUDIT_OUTPUT||'tmp/imec-audit');
 fs.mkdirSync(output,{recursive:true});
@@ -319,9 +319,20 @@ try{
   await fixture.db.query('select public.add_uti_refund($1,$2::timestamptz,100,$3,null,$4)',[refundId,new Date(Date.now()-60000).toISOString(),'PIX','monthly-report-realistic-refund']);
   const suiteId=await createSyntheticAdmission(fixture.db,{name:'Suíte — Sintética',bed:18,entry:'2026-10-01T12:00:00-03:00',rate:500});
   await fixture.db.query("select public.add_uti_payment($1,'2026-10-05T14:00:00-03:00',100,'PIX',null,'monthly-suite-receipt')",[suiteId]);
+  const lateId=await createSyntheticAdmission(fixture.db,{name:'Competência — Setembro para outubro sintético',bed:19,entry:'2026-09-29T12:00:00-03:00',rate:500});
+  await fixture.db.query("select public.add_uti_payment($1,'2026-10-05T14:00:00-03:00',500,'PIX',null,'monthly-late-receipt')",[lateId]);
+  const privateReportId=await createSyntheticAdmission(fixture.db,{name:'Particular — Competência sintética',bed:1,mode:'private',entry:'2026-09-29T12:00:00-03:00',rate:7000});
+  await fixture.db.query("select public.add_uti_payment($1,'2026-10-05T14:00:00-03:00',7000,'PIX',null,'monthly-private-october')",[privateReportId]);
+  await fixture.db.exec('reset role');await fixture.db.query("update public.admissions set closer_name='Roberto' where id=$1",[privateReportId]);await fixture.asUser('admin');
+  // Independent raw ledger expectation remains stable when the audit runs in another month.
+  const expected=(await fixture.db.query(`with cash as (
+    select p.admission_id,p.amount amount,1 receipt from public.payments p join public.admissions a on a.id=p.admission_id where a.mode='hotel' and p.cancelled_at is null and p.occurred_at>='2026-10-01T03:00:00Z' and p.occurred_at<'2026-11-01T03:00:00Z'
+    union all select p.admission_id,-p.amount,0 from public.refunds p join public.admissions a on a.id=p.admission_id where a.mode='hotel' and p.cancelled_at is null and p.occurred_at>='2026-10-01T03:00:00Z' and p.occurred_at<'2026-11-01T03:00:00Z'
+  ) select sum(amount)::float8 net,sum(receipt)::int receipts,count(distinct admission_id)::int admissions from cash`)).rows[0];
   await click('[data-nav="reports"]');await fill('#reportMonth','2026-10');await wait('#reportNet');
-  assert.match(await page.locator('#reportNet').textContent(),/2\.500,00/);assert.match(await page.locator('#reportFee').textContent(),/75,00/);assert.equal(await page.locator('#reportCount').textContent(),'6');
-  assert.equal(await page.locator('.report-table tbody tr').count(),4);assert.doesNotMatch(await page.locator('.report-table').textContent(),/Rodapé/);
+  assert.equal(await page.locator('#reportNet').textContent(),money(expected.net));assert.equal(await page.locator('#reportFee').textContent(),money(Math.round(expected.net*3)/100));assert.equal(await page.locator('#reportCount').textContent(),String(expected.receipts));
+  assert.equal(await page.locator('.report-table tbody tr').count(),expected.admissions);assert.doesNotMatch(await page.locator('.report-table').textContent(),/Rodapé/);
+  assert.match(await page.locator(`.report-table tr:has([data-report-open="${lateId}"])`).textContent(),/29\/09\/2026.*05\/10\/2026/);
   for(const width of [1365,820,390,360]){await page.setViewportSize({width,height:950});await surface('relatorio-humanizado-'+width);}
   await page.setViewportSize({width:1365,height:950});
   const [reportPdf]=await Promise.all([page.waitForEvent('download'),click('#reportPdf')]);await reportPdf.saveAs(path.join(output,'relatorio-humanizado.pdf'));
@@ -329,11 +340,28 @@ try{
   const [feePdf]=await Promise.all([page.waitForEvent('download'),click('#reportPdf')]);await feePdf.saveAs(path.join(output,'relatorio-humanizado-comissao.pdf'));
   const [reportCsv]=await Promise.all([page.waitForEvent('download'),click('#reportCsv')]);await reportCsv.saveAs(path.join(output,'relatorio-humanizado.csv'));
   const [monthlyPopup]=await Promise.all([context.waitForEvent('page'),click('#reportPrint')]);await monthlyPopup.locator('#printMonthly').waitFor();assert.match(await monthlyPopup.locator('body').textContent(),/Aline Glória/);await monthlyPopup.screenshot({path:path.join(output,'relatorio-impressao.png'),fullPage:true});await monthlyPopup.close();
+  await click('#reportReview summary');
+  const lateKey='payment:'+(await fixture.db.query("select id from public.payments where client_ref='monthly-late-receipt'")).rows[0].id;
+  await page.locator(`[data-report-movement="${lateKey}"]`).uncheck();
+  assert.equal(await page.locator('#reportNet').textContent(),money(expected.net-500));assert.match(await page.locator('.report-sheet').textContent(),/Seleção manual/);
+  const [selectedPdf]=await Promise.all([page.waitForEvent('download'),click('#reportPdf')]);await selectedPdf.saveAs(path.join(output,'relatorio-humanizado-selecao.pdf'));
+  await page.setViewportSize({width:360,height:950});await surface('relatorio-conferencia-360');await click('#reportClear');assert.equal(await page.locator('#reportPdf').isDisabled(),true);await click('#reportSelectAll');assert.equal(await page.locator('#reportNet').textContent(),money(expected.net));
+  await page.setViewportSize({width:1365,height:950});await select('#reportMode','private');await page.waitForFunction(()=>document.querySelector('.report-sheet h2')?.textContent.includes('Particular'));
+  assert.equal(await page.locator('#reportFee').count(),0);assert.equal(await page.locator('#reportCommission').count(),0);assert.match(await page.locator('.report-table').textContent(),/Responsável.*Particular.*Roberto/);assert.doesNotMatch(await page.locator('.report-table').textContent(),/Rodapé/);
+  for(const width of [1365,820,390,360]){await page.setViewportSize({width,height:950});await surface('relatorio-particular-'+width);}
+  const [privatePdf]=await Promise.all([page.waitForEvent('download'),click('#reportPdf')]);await privatePdf.saveAs(path.join(output,'relatorio-particular.pdf'));
+  const [privatePopup]=await Promise.all([context.waitForEvent('page'),click('#reportPrint')]);await privatePopup.locator('#printMonthly').waitFor();assert.doesNotMatch(await privatePopup.locator('body').textContent(),/Aline Glória/);assert.match(await privatePopup.locator('body').textContent(),/Responsável/);await privatePopup.screenshot({path:path.join(output,'relatorio-particular-impressao.png'),fullPage:true});await privatePopup.close();
+  await select('#reportMode','hotel');await wait('#reportFee');await page.setViewportSize({width:1365,height:950});
+  // Another user's new receipt must require renewed conference, never silently change the PDF.
+  await fixture.db.query("select public.add_uti_payment($1,'2026-10-06T14:00:00-03:00',10,'PIX',null,'monthly-concurrent-receipt')",[suiteId]);
+  let unexpectedDownload=false;const onUnexpected=()=>{unexpectedDownload=true};page.on('download',onUnexpected);
+  await click('#reportPdf');await page.waitForFunction(value=>document.querySelector('#reportNet')?.textContent===value,money(expected.net+10));
+  page.off('download',onUnexpected);assert.equal(unexpectedDownload,false);expected.net+=10;
   await fill('#reportMonth','2026-05');await wait('.report-sheet .empty-state');assert.match(await page.locator('#reportNet').textContent(),/R\$\s0,00/);await surface('relatorio-competencia-vazia');
   failNetwork=true;await click('#reportRefresh');await wait('.report-body .form-error');assert.equal(await page.locator('#reportPdf').isDisabled(),true);failNetwork=false;await click('#reportRefresh');await wait('#reportNet');
   // Fast month changes cannot let an old response overwrite the selected competence.
   await fill('#reportMonth','2026-09');await fill('#reportMonth','2026-10');await page.waitForFunction(()=>document.querySelector('.report-sheet h2')?.textContent.includes('10/2026'));
-  assert.match(await page.locator('#reportNet').textContent(),/2\.500,00/);
+  assert.equal(await page.locator('#reportNet').textContent(),money(expected.net));
   await click('[data-nav="settings"]');await wait('#logoutBtn');
   const [exported]=await Promise.all([page.waitForEvent('download'),click('[data-action="export"]')]);await exported.saveAs(path.join(output,'exportacao-sintetica.json'));
   await context.setOffline(true);await wait('#networkStatus.show');assert.match(await page.locator('#networkStatus').textContent(),/Sem conexão/);await context.setOffline(false);
