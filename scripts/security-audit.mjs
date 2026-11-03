@@ -3,13 +3,24 @@ import { spawnSync } from 'node:child_process';
 const result = spawnSync('npm', ['audit', '--json'], {
   encoding: 'utf8',
   maxBuffer: 20 * 1024 * 1024,
+  shell: process.platform === 'win32',
 });
+
+if (result.error || result.signal || ![0, 1].includes(result.status)) {
+  console.error('Não foi possível executar npm audit. A verificação deve ser repetida.');
+  process.exit(2);
+}
 
 let report;
 try {
   report = JSON.parse(result.stdout || '{}');
 } catch {
   console.error(result.stdout || result.stderr || 'npm audit não retornou JSON válido.');
+  process.exit(2);
+}
+
+if (report.error || !report.metadata?.vulnerabilities || !report.vulnerabilities || typeof report.vulnerabilities !== 'object' || Array.isArray(report.vulnerabilities)) {
+  console.error('npm audit não retornou um relatório completo. A verificação deve ser repetida.');
   process.exit(2);
 }
 
