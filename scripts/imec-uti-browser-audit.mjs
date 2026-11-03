@@ -225,6 +225,7 @@ try{
     await reviewDialog('[data-action="discharge"]','acerto-pendente-'+width);
     await click('[data-nav="patients"]');await fill('#searchPatients','Rafael');await click('.table-row[data-open]');await surface('conta-credito-'+width);
     await reviewDialog('[data-action="refund"]','reembolso-'+width);
+    await reviewDialog('[data-action="settlement-total"]','ajustar-total-'+width);
     await reviewDialog('[data-action="discharge"]','acerto-credito-'+width);
   }
   await click('[data-nav="patients"]');await fill('#searchPatients','Joao');
@@ -297,6 +298,27 @@ try{
   await page.keyboard.press('Escape');await page.setViewportSize({width:1365,height:950});await click('[data-nav="settings"]');await wait('#logoutBtn');
   // Monthly humanized report: net receipts, refund, suite and private exclusion.
   await fixture.asUser('admin');
+  const agreedId=await createSyntheticAdmission(fixture.db,{name:'Acordo — Total sintético',bed:16,entry:'2026-10-16T09:28:00-03:00',rate:400});
+  await fixture.db.query("select public.add_uti_payment($1,'2026-10-28T09:32:00-03:00',3700,'PIX',null,'agreed-browser-original-payment')",[agreedId]);
+  const agreedPreview=(await fixture.db.query("select public.preview_uti_settlement($1,'2026-10-25T09:32:00-03:00') s",[agreedId])).rows[0].s;
+  await fixture.db.query('select public.discharge_uti($1,$2::timestamptz,$3::bigint)',[agreedId,agreedPreview.dischargeAt,agreedPreview.accountVersion]);
+  await click('#manualRefresh');await click('[data-nav="patients"]');await click('[data-filter="all"]');await fill('#searchPatients','Acordo');await click('.table-row[data-open]');
+  await click('[data-action="discharge"]');await wait('#settleTotalBtn');await click('#settleTotalBtn');await wait('#settlementTotalForm');
+  await fill('#agreedTotal','3.700,00');await fill('#agreedReason','Valor total combinado com a família');assert.match(await page.locator('#agreedBalanceLabel').textContent(),/Conta quitada/);assert.match(await page.locator('#agreedDelta').textContent(),/100,00/);
+  await page.setViewportSize({width:360,height:950});await surface('total-acordado-3700-360');
+  // A concurrent charge invalidates the form rather than silently overwriting it.
+  await fixture.db.query("select public.add_uti_extra($1,'2026-10-24T08:00:00-03:00','Outro serviço','Extra concorrente sintético',10,'agreed-browser-stale-extra')",[agreedId]);
+  await click('#agreedSave');await page.waitForFunction(()=>document.querySelector('#agreedError')?.textContent.includes('conta foi alterada'));
+  assert.equal((await fixture.db.query('select count(*)::int n from public.settlement_total_edits where admission_id=$1',[agreedId])).rows[0].n,0);
+  await page.keyboard.press('Escape');await page.setViewportSize({width:1365,height:950});await click('[data-nav="settings"]');await click('#manualRefresh');await click('[data-nav="patients"]');await fill('#searchPatients','Acordo');await click('.table-row[data-open]');
+  await click('[data-action="settlement-total"]');await fill('#agreedTotal','3700,00');await fill('#agreedReason','Valor total combinado com a família');await click('#agreedSave');await page.locator('#settlementTotalForm').waitFor({state:'detached'});
+  assert.match(await page.locator('.money-hero').textContent(),/Saldo.*0,00/);assert.equal(await page.locator('[data-action="refund"]').count(),0);
+  assert.equal((await fixture.db.query('select status from public.admissions where id=$1',[agreedId])).rows[0].status,'finalized');
+  assert.equal((await fixture.db.query('select count(*)::int n from public.payments where admission_id=$1',[agreedId])).rows[0].n,1);
+  assert.equal((await fixture.db.query('select count(*)::int n from public.refunds where admission_id=$1',[agreedId])).rows[0].n,0);
+  // Correcting a settled account remains available and exposes the impact before saving.
+  await click('[data-action="settlement-total"]');await fill('#agreedTotal','3800,00');assert.match(await page.locator('#agreedBalanceLabel').textContent(),/Saldo a receber/);await fill('#agreedTotal','3600,00');assert.match(await page.locator('#agreedBalanceLabel').textContent(),/Crédito a devolver/);await page.keyboard.press('Escape');
+  await click('[data-nav="settings"]');
   const initialEditId=await createSyntheticAdmission(fixture.db,{name:'Entrada — Correção sintética',bed:15,entry:'2026-10-08T23:40:00-03:00',half:false});
   await click('[data-nav="settings"]');await click('#manualRefresh');await click('[data-nav="patients"]');await click('[data-filter="all"]');await fill('#searchPatients','Entrada');await click('.table-row[data-open]');
   await page.setViewportSize({width:360,height:950});

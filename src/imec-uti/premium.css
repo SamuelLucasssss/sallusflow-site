@@ -1,5 +1,8 @@
 /* Presentation only. Printed documents keep their independent, economical layout. */
 @media screen {
+  .settle-total-action { display:flex;justify-content:flex-end;margin:12px 0 18px; }
+  #settlementTotalForm .form-hint { margin:0;font-size:12px;line-height:1.55;color:var(--muted); }
+  #agreedError:empty { display:none; }
   .report-toolbar { display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:18px; }
   .report-period { display:flex;align-items:flex-end;gap:8px;min-width:0;flex-wrap:wrap; }
   .report-period .field { flex:1; }
