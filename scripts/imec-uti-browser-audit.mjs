@@ -311,7 +311,7 @@ try{
   await click('#agreedSave');await page.waitForFunction(()=>document.querySelector('#agreedError')?.textContent.includes('conta foi alterada'));
   assert.equal((await fixture.db.query('select count(*)::int n from public.settlement_total_edits where admission_id=$1',[agreedId])).rows[0].n,0);
   await page.keyboard.press('Escape');await page.setViewportSize({width:1365,height:950});await click('[data-nav="settings"]');await click('#manualRefresh');await click('[data-nav="patients"]');await fill('#searchPatients','Acordo');await click('.table-row[data-open]');
-  await click('[data-action="settlement-total"]');await fill('#agreedTotal','3700,00');await fill('#agreedReason','Valor total combinado com a família');await click('#agreedSave');await page.locator('#settlementTotalForm').waitFor({state:'detached'});
+  await click('[data-action="settlement-total"]');await page.waitForFunction(()=>document.activeElement?.id==='agreedTotal');await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>resolve())));await fill('#agreedTotal','3700,00');await fill('#agreedReason','Valor total combinado com a família');await click('#agreedSave');await page.locator('#settlementTotalForm').waitFor({state:'detached'});
   assert.match(await page.locator('.money-hero').textContent(),/Saldo.*0,00/);assert.equal(await page.locator('[data-action="refund"]').count(),0);
   assert.equal((await fixture.db.query('select status from public.admissions where id=$1',[agreedId])).rows[0].status,'finalized');
   assert.equal((await fixture.db.query('select count(*)::int n from public.payments where admission_id=$1',[agreedId])).rows[0].n,1);

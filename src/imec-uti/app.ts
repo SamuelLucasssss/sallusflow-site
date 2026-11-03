@@ -277,7 +277,10 @@ function openModal(title,subtitle,body){
   host.querySelector('[data-close]').onclick=()=>closeModal();
   host.querySelector('#modalBackdrop').addEventListener('mousedown',e=>{if(e.target.id==='modalBackdrop')closeModal()});
   document.addEventListener('keydown',modalKeydown);
+  const openedDialog=host.querySelector('[role="dialog"]');
   requestAnimationFrame(()=>{
+    if(!openedDialog?.isConnected)return;
+    if(document.activeElement!==openedDialog&&openedDialog.contains(document.activeElement))return;
     const autofocus=host.querySelector('[autofocus]');
     const focusable=modalFocusables();
     (autofocus||focusable[0]||host.querySelector('[role="dialog"]'))?.focus();
