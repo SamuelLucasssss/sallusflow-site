@@ -20,6 +20,11 @@ a indicação crescente/decrescente no nome. A ordenação não exige recarregar
 
 A tabela agrupa valores por internação e mostra entrada, alta, datas de recebimento,
 líquido e tipo de leito. Particular acrescenta o responsável pelo fechamento.
+Na nova internação particular, o responsável deve ser escolhido explicitamente
+entre Samuel e Roberto. A comissão é de R$ 80 para o responsável escolhido por
+internação, não por pagamento. Na conta particular, o administrador pode usar
+**Responsável** para corrigir a atribuição, informando um motivo; a alteração
+fica auditada e preserva cobranças, recebimentos, reembolsos e a situação da conta.
 Humanizado calcula os 3% da Aline Glória sobre o recebido menos reembolsos da seleção;
 a comissão é opcional nos documentos e não aparece no particular.
 
@@ -59,3 +64,13 @@ limite mensal no fuso de São Paulo, cartão, previsões/cancelamentos, reembols
 comissão negativa, seleção, rejeição de dados obsoletos e autorização. O navegador
 usa dados sintéticos e o mesmo banco isolado para conferir exportações e layouts
 em 1365, 820, 390 e 360 pixels. Nenhum paciente real é alterado nesses testes.
+
+O **Repasse particular** é separado do total recebido: R$ 80 por internação para
+Samuel ou Roberto, somente quando a conta estiver encerrada e totalmente quitada.
+A competência do repasse é a do pagamento confirmado que completou o valor final
+cobrado, considerando reembolsos e excluindo pagamentos cancelados. Pagamentos
+parciais de meses anteriores continuam no caixa de seus próprios meses, sem gerar
+novos repasses. A seleção manual deve incluir o recebimento que quitou a conta.
+O resumo por responsável aparece na tela e pode ser incluído no PDF, impressão e
+CSV pela opção **Incluir repasse na exportação**. Alterações posteriores na conta,
+no responsável ou na quitação exigem nova conferência antes da exportação.
