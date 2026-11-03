@@ -8,6 +8,16 @@ Pagamentos parciais entram em seus respectivos meses, pelo valor efetivamente re
 Crédito parcelado entra integralmente na data do recebimento confirmado; os vencimentos
 do cartão não geram novos recebimentos. Previsões e lançamentos cancelados ficam fora.
 
+**Ordenar por** permite escolher nome do paciente, recebimento mais antigo ou
+recebimento mais recente. A ordem escolhida vale para a tabela, a conferência
+individual, PDF, impressão e CSV, preservando os movimentos selecionados e os totais.
+Como a tabela agrupa valores por internação, a ordem usa o primeiro recebimento
+selecionado de cada internação; uma linha apenas com reembolso usa a data do reembolso.
+Horários completos desempatarão datas iguais; quando o instante é o mesmo, o nome
+e a identificação da internação mantêm a ordem estável. Datas desconhecidas ficam
+ao final. Os documentos identificam o critério e os arquivos cronológicos incluem
+a indicação crescente/decrescente no nome. A ordenação não exige recarregar o banco.
+
 A tabela agrupa valores por internação e mostra entrada, alta, datas de recebimento,
 líquido e tipo de leito. Particular acrescenta o responsável pelo fechamento.
 Humanizado calcula os 3% da Aline Glória sobre o recebido menos reembolsos da seleção;
