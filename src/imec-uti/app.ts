@@ -9,7 +9,7 @@ import {
 } from './domain';
 import { SUPABASE_URL, SUPABASE_KEY } from './config';
 import { paymentMethodLabel, installmentSummary, validateInstallmentDates } from './payment-details';
-import {previousReportMonth,reportCompetence,reportReference,reportDate,reportLabel,reportColumns,reportRowCells,reportSelectionNote,selectMonthlyReport,monthlyReportFilename,monthlyReportCsv,buildMonthlyReportPdf} from './monthly-report';
+import {previousReportMonth,reportCompetence,reportReference,reportDate,reportLabel,reportColumns,reportRowCells,reportSelectionNote,selectMonthlyReport,monthlyReportFilename,monthlyReportCsv,buildMonthlyReportPdf,buildMonthlyReportPrintHtml} from './monthly-report';
 import {parseSettlementTotal} from './settlement-total';
 import {
   AUTH_STORAGE_KEY, ACTIVITY_STORAGE_KEY, IDLE_TIMEOUT_MS, APP_URL,
@@ -168,10 +168,8 @@ async function loadMonthlyReport(){
  }catch(ex){if(revision===monthlyReportState.revision&&epoch===authEpoch)monthlyReportState.error=ex.message||'Não foi possível carregar o relatório.'}
  finally{if(revision===monthlyReportState.revision&&epoch===authEpoch){monthlyReportState.loading=false;if(state.page==='reports'&&!state.selectedId)render()}}
 }
-function monthlyReportPrintHtml(r,commission){
- const mode=r.mode||'hotel',columns=reportColumns(mode);commission=commission&&mode==='hotel';
- return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(reportReference(r.month,mode))}</title><style>@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#202629;font-size:9pt;margin:0}.tools{padding:14px 0;display:flex;gap:10px}button{padding:10px 16px;border:1px solid #dce4df;border-radius:8px;background:white;color:#12635e;cursor:pointer}.head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #dce4df;padding-bottom:14px}h1{font-size:18pt;margin:0 0 8px}h2{font-size:14pt;margin:18px 0 6px}p{color:#667275;font-size:9pt;line-height:1.5}table{border-collapse:collapse;width:100%;table-layout:fixed;margin:20px 0}thead{display:table-header-group}th,td{text-align:left;border-bottom:1px solid #e4e8e7;padding:10px 4px;vertical-align:top;overflow-wrap:anywhere}th{font-size:7pt;color:#667275}th:first-child,td:first-child{padding-left:0}.money{text-align:right;font-variant-numeric:tabular-nums}tr{break-inside:avoid}.totals{margin:20px 0;break-inside:avoid}.totals div{display:flex;justify-content:space-between;padding:8px 0}.total{font-size:13pt;font-weight:bold}.reference{border-top:1px solid #dce4df;padding-top:16px;font-weight:bold;break-inside:avoid}.empty{padding:24px 0}.issued{font-size:8pt;color:#667275}@media print{.tools{display:none}}@media screen{body{max-width:800px;margin:30px auto;padding:0 20px}}</style></head><body><div class="tools"><button id="printMonthly">Imprimir / salvar PDF</button><button id="closeMonthly">Fechar</button></div><div class="head"><h1>IMEC UTI</h1><strong>Competência ${reportCompetence(r.month)}</strong></div><h2>${reportLabel(mode)}</h2><p>${r.receiptCount} recebimento(s) · ${r.admissionCount} internação(ões)<br>Valores líquidos recebidos na competência, descontados os reembolsos.</p>${r.rows.length?`<table><colgroup>${columns.map(c=>`<col style="width:${c.width/515*100}%">`).join('')}</colgroup><thead><tr>${columns.map((c,i)=>`<th ${i===4?'class="money"':''}>${c.label}</th>`).join('')}</tr></thead><tbody>${r.rows.map(row=>`<tr>${reportRowCells(row,mode).map((v,i)=>`<td ${i===4?'class="money"':''}>${esc(v).replace(/\n/g,'<br>')}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<p class="empty">Nenhuma movimentação nesta seleção.</p>'}<div class="totals"><div class="total"><span>Total líquido${r.manualSelection?' selecionado':' recebido'}</span><span>${money(r.netCents/100)}</span></div>${r.refundCount?`<div><span>Recebido: ${money(r.receivedCents/100)}</span><span>Reembolsado: ${money(r.refundedCents/100)}</span></div>`:''}${commission?`<div><strong>Comissão Aline Glória · 3%</strong><strong>${money(r.commissionCents/100)}</strong></div>`:''}</div><div class="reference">${esc(reportReference(r.month,mode))}</div><p>${esc(reportSelectionNote(r))}</p><p class="issued">Emitido em ${reportDate(r.generatedAt)}</p></body></html>`;
-}
+function monthlyReportPrintHtml(r,commission){return buildMonthlyReportPrintHtml(r,commission);}
+
 async function exportMonthlyReport(kind){
  if(remoteBusy||monthlyReportState.loading)return;
  const month=state.reportMonth,mode=state.reportMode,commission=mode==='hotel'&&state.reportCommission,epoch=authEpoch,base=monthlyReportState.report,selectedKeys=monthlyReportState.selectedKeys===null?null:[...monthlyReportState.selectedKeys];
@@ -279,7 +277,10 @@ function openModal(title,subtitle,body){
   host.querySelector('[data-close]').onclick=()=>closeModal();
   host.querySelector('#modalBackdrop').addEventListener('mousedown',e=>{if(e.target.id==='modalBackdrop')closeModal()});
   document.addEventListener('keydown',modalKeydown);
+  const openedDialog=host.querySelector('[role="dialog"]');
   requestAnimationFrame(()=>{
+    if(!openedDialog?.isConnected)return;
+    if(document.activeElement!==openedDialog&&openedDialog.contains(document.activeElement))return;
     const autofocus=host.querySelector('[autofocus]');
     const focusable=modalFocusables();
     (autofocus||focusable[0]||host.querySelector('[role="dialog"]'))?.focus();

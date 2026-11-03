@@ -3,6 +3,21 @@ import assert from 'node:assert/strict';
 import { appHarness } from './fixtures/imec-uti-app.ts';
 import { ACTIVITY_STORAGE_KEY } from '../src/imec-uti/security.ts';
 
+test('foco inicial atrasado do modal respeita o campo já escolhido pelo usuário',()=>{
+  const frames:Array<()=>void>=[];let autofocusCalls=0;
+  const doc:any={activeElement:{},body:{classList:{add:()=>{}}},addEventListener:()=>{}};
+  const first={focus:()=>{autofocusCalls++;doc.activeElement=first}},reason={};
+  const card:any={isConnected:true,contains:(node:unknown)=>node===first||node===reason||node===card};
+  const close={},backdrop={addEventListener:()=>{}};
+  const host={innerHTML:'',querySelector:(s:string)=>s==='[data-close]'?close:s==='#modalBackdrop'?backdrop:s==='[autofocus]'?first:card};
+  doc.getElementById=(id:string)=>id==='modal'?host:{setAttribute:()=>{}};doc.querySelector=()=>null;
+  const h=appHarness({document:doc,HTMLElement:class{},requestAnimationFrame:(cb:()=>void)=>frames.push(cb)});
+  h.run("polishIcons=()=>{};modalFocusables=()=>[];openModal('Teste','','')");
+  doc.activeElement=reason;frames.shift()!();assert.equal(doc.activeElement,reason);assert.equal(autofocusCalls,0);
+  doc.activeElement={};h.run("openModal('Teste','','')");frames.shift()!();assert.equal(doc.activeElement,first);assert.equal(autofocusCalls,1);
+  doc.activeElement={};h.run("openModal('Teste','','')");card.isConnected=false;frames.shift()!();assert.equal(autofocusCalls,1);
+});
+
 test('buscar por nome não inclui todos os CPFs e aceita acentos',()=>{
   const h=appHarness();
   h.run(`data.patients=[{id:'one',name:'João Silva',cpf:'12345678900'},{id:'two',name:'Maria Santos',cpf:'98765432100'}];

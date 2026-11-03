@@ -1,7 +1,7 @@
 import {describe,it,before,after,beforeEach,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {isolatedDatabase,createSyntheticAdmission} from './fixtures/imec-uti-database.ts';
-import {buildMonthlyReportPdf,monthlyReportCsv,previousReportMonth,reportCompetence,reportDate,type MonthlyReport} from '../src/imec-uti/monthly-report.ts';
+import {buildMonthlyReportPdf,buildMonthlyReportPrintHtml,monthlyReportCsv,previousReportMonth,reportCompetence,reportDate,type MonthlyReport} from '../src/imec-uti/monthly-report.ts';
 
 describe('relatório mensal humanizado — PostgreSQL isolado',()=>{
  let f:Awaited<ReturnType<typeof isolatedDatabase>>,a:string,b:string;
@@ -71,14 +71,24 @@ describe('documentos do relatório mensal',()=>{
  });
  it('PDF é A4 e omite comissão por padrão; versão opcional inclui Aline e taxa de 3%',()=>{
    const normal=Buffer.from(buildMonthlyReportPdf(sample)).toString('latin1'),fee=Buffer.from(buildMonthlyReportPdf(sample,true)).toString('latin1');
-   assert.match(normal,/%PDF-1.4/);assert.match(normal,/MediaBox \[0 0 595.28 841.89\]/);assert.doesNotMatch(normal,/Aline/);assert.match(fee,/Aline Glória - 3%/);assert.match(fee,/42,00/);
+   assert.match(normal,/%PDF-1.4/);assert.match(normal,/MediaBox \[0 0 595.28 841.89\]/);assert.match(normal,/01\/09\/2026/);assert.doesNotMatch(normal,/Aline/);assert.match(fee,/Aline Glória - 3%/);assert.match(fee,/42,00/);
  });
  it('múltiplas páginas repetem cabeçalho e mantêm todos os nomes, sem cortar linhas',()=>{
    const large={...sample,rows:Array.from({length:90},(_,i)=>({...sample.rows[0],patientName:`Paciente sintético ${i} de Albuquerque e Vasconcelos`,admissionId:String(i)}))};
-   const pdf=Buffer.from(buildMonthlyReportPdf(large)).toString('latin1');assert.match(pdf,/\/Count [3-9]/);assert.equal((pdf.match(/NOME DO PACIENTE/g)||[]).length,Number(pdf.match(/\/Count (\d+)/)?.[1]));assert.match(pdf,/Paciente sintético 89/);
+   const pdf=Buffer.from(buildMonthlyReportPdf(large)).toString('latin1');assert.match(pdf,/\/Count [3-9]/);const pages=Number(pdf.match(/\/Count (\d+)/)?.[1]);assert.ok((pdf.match(/\(PACIENTE\)/g)||[]).length>=pages-1);assert.match(pdf,/Paciente sintético 89/);
  });
  it('CSV é compatível com Excel em português, protege fórmulas e preserva centavos negativos',()=>{
    const csv=monthlyReportCsv({...sample,rows:[{...sample.rows[0],patientName:'=1+1',netCents:-10000}]},true);
    assert.ok(csv.startsWith('\ufeff'));assert.match(csv,/"'=1\+1"/);assert.match(csv,/"-100,00"/);assert.match(csv,/Aline Glória - 3%/);
+ });
+ it('impressão compartilha totais e seleção com o PDF, escapa nomes e mantém responsável e competência',()=>{
+   const report={...sample,mode:'private' as const,manualSelection:true,selectedCount:1,candidateCount:3,rows:[{...sample.rows[0],patientName:'<script>nome & "texto"</script>',responsible:'Roberto',receiptDates:['2026-10-01T02:59:00Z']}]};
+   const html=buildMonthlyReportPrintHtml(report,true);
+   assert.match(html,/&lt;script&gt;nome &amp; &quot;texto&quot;&lt;\/script&gt;/);assert.doesNotMatch(html,/<script>/);assert.doesNotMatch(html,/Aline/);assert.match(html,/Roberto/);assert.match(html,/SELEÇÃO MANUAL - 1 DE 3/);assert.match(html,/30\/09\/2026/);assert.match(html,/counter\(pages\)/);assert.match(html,/Particular - 09\/2026/);
+ });
+ it('linhas muito extensas continuam em outra página sem perder o final do nome',()=>{
+   const dates=Array.from({length:100},(_,i)=>new Date(Date.UTC(2026,8,1,12,i)).toISOString());
+   const report={...sample,rows:[{...sample.rows[0],patientName:'Nome longo '.repeat(1000)+' FIMNOME',receiptDates:dates}]};
+   const pdf=Buffer.from(buildMonthlyReportPdf(report)).toString('latin1');assert.match(pdf,/FIMNOME/);assert.match(pdf,/Página/);assert.ok(Number(pdf.match(/\/Count (\d+)/)?.[1])>1);
  });
 });

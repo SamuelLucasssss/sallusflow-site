@@ -311,7 +311,7 @@ try{
   await click('#agreedSave');await page.waitForFunction(()=>document.querySelector('#agreedError')?.textContent.includes('conta foi alterada'));
   assert.equal((await fixture.db.query('select count(*)::int n from public.settlement_total_edits where admission_id=$1',[agreedId])).rows[0].n,0);
   await page.keyboard.press('Escape');await page.setViewportSize({width:1365,height:950});await click('[data-nav="settings"]');await click('#manualRefresh');await click('[data-nav="patients"]');await fill('#searchPatients','Acordo');await click('.table-row[data-open]');
-  await click('[data-action="settlement-total"]');await fill('#agreedTotal','3700,00');await fill('#agreedReason','Valor total combinado com a família');await click('#agreedSave');await page.locator('#settlementTotalForm').waitFor({state:'detached'});
+  await click('[data-action="settlement-total"]');await page.waitForFunction(()=>document.activeElement?.id==='agreedTotal');await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>resolve())));await fill('#agreedTotal','3700,00');await fill('#agreedReason','Valor total combinado com a família');await click('#agreedSave');await page.locator('#settlementTotalForm').waitFor({state:'detached'});
   assert.match(await page.locator('.money-hero').textContent(),/Saldo.*0,00/);assert.equal(await page.locator('[data-action="refund"]').count(),0);
   assert.equal((await fixture.db.query('select status from public.admissions where id=$1',[agreedId])).rows[0].status,'finalized');
   assert.equal((await fixture.db.query('select count(*)::int n from public.payments where admission_id=$1',[agreedId])).rows[0].n,1);
@@ -372,7 +372,7 @@ try{
   assert.equal(await page.locator('#reportFee').count(),0);assert.equal(await page.locator('#reportCommission').count(),0);assert.match(await page.locator('.report-table').textContent(),/Responsável.*Particular.*Roberto/);assert.doesNotMatch(await page.locator('.report-table').textContent(),/Rodapé/);
   for(const width of [1365,820,390,360]){await page.setViewportSize({width,height:950});await surface('relatorio-particular-'+width);}
   const [privatePdf]=await Promise.all([page.waitForEvent('download'),click('#reportPdf')]);await privatePdf.saveAs(path.join(output,'relatorio-particular.pdf'));
-  const [privatePopup]=await Promise.all([context.waitForEvent('page'),click('#reportPrint')]);await privatePopup.locator('#printMonthly').waitFor();assert.doesNotMatch(await privatePopup.locator('body').textContent(),/Aline Glória/);assert.match(await privatePopup.locator('body').textContent(),/Responsável/);await privatePopup.screenshot({path:path.join(output,'relatorio-particular-impressao.png'),fullPage:true});await privatePopup.close();
+  const [privatePopup]=await Promise.all([context.waitForEvent('page'),click('#reportPrint')]);await privatePopup.locator('#printMonthly').waitFor();assert.doesNotMatch(await privatePopup.locator('body').textContent(),/Aline Glória/);assert.match(await privatePopup.locator('body').textContent(),/Responsável/i);await privatePopup.screenshot({path:path.join(output,'relatorio-particular-impressao.png'),fullPage:true});await privatePopup.close();
   await select('#reportMode','hotel');await wait('#reportFee');await page.setViewportSize({width:1365,height:950});
   // Another user's new receipt must require renewed conference, never silently change the PDF.
   await fixture.db.query("select public.add_uti_payment($1,'2026-10-06T14:00:00-03:00',10,'PIX',null,'monthly-concurrent-receipt')",[suiteId]);
