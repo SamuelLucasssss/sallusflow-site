@@ -1,4 +1,5 @@
 import {businessParts,monthKey,money} from './domain.ts';
+import {helveticaWidth} from './pdf-font-metrics.ts';
 
 export type ReportMode='hotel'|'private';
 export type MonthlyReportRow={admissionId:string;patientName:string;entryAt:string;dischargeAt:string|null;bedType:string;responsible?:string;netCents:number;receiptCount:number;refundCount:number;receiptDates?:string[];refundDates?:string[]};
@@ -61,62 +62,105 @@ export function monthlyReportCsv(report:MonthlyReport,commission=false):string{
 // Browser-native PDF: Helvetica/WinAnsi, A4, repeated headers and full patient names.
 const safe=(value:unknown)=>String(value??'').normalize('NFC').replace(/\u00a0/g,' ').replace(/[–—]/g,'-').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[^\x20-\xFF]/g,'?');
 const escapePdf=(value:unknown)=>safe(value).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
-function textWidth(value:string,size:number):number{
- return Array.from(safe(value)).reduce((n,c)=>n+(/[ilI.,:;'!|]/.test(c)?0.25:/[MWmw]/.test(c)?0.9:c===' '?0.28:/[A-ZÀ-Ý]/.test(c)?0.7:0.56)*size,0);
-}
-function wrap(value:string,width:number,size:number):string[]{
+const documentColumns=(mode:ReportMode)=>reportColumns(mode).map((column,i)=>({...column,width:(mode==='hotel'?[160,56,56,88,87,68]:[134,54,54,82,78,43,70])[i],label:['PACIENTE','ENTRADA','ALTA','RECEBIMENTOS','LÍQUIDO','LEITO','RESPONSÁVEL'][i]}));
+const documentScope=(r:MonthlyReport)=>r.manualSelection?`SELEÇÃO MANUAL - ${r.selectedCount} DE ${r.candidateCount} LANÇAMENTOS`:'RECEBIMENTOS CONFIRMADOS NA COMPETÊNCIA';
+function wrap(value:string,width:number,size:number,bold=false):string[]{
  const lines:string[]=[];let line='';
  for(const word of safe(value).split(/\s+/).filter(Boolean)){
-   if(line&&textWidth(line+' '+word,size)>width){lines.push(line);line='';}
-   for(const char of word){if(textWidth(line+char,size)>width){lines.push(line);line='';}line+=char;}
+   if(line&&helveticaWidth(line+' '+word,size,bold)>width){lines.push(line);line=''}
+   for(const char of word){if(line&&helveticaWidth(line+char,size,bold)>width){lines.push(line);line=''}line+=char}
    line+=' ';
  }
- if(line.trim())lines.push(line.trim());return lines.length?lines:['Paciente'];
+ if(line.trim())lines.push(line.trim());return lines.length?lines:[''];
 }
 export function buildMonthlyReportPdf(report:MonthlyReport,includeCommission=false):Uint8Array{
- const mode=report.mode||'hotel',columns=reportColumns(mode);includeCommission=includeCommission&&mode==='hotel';
+ const mode=report.mode||'hotel',columns=documentColumns(mode),left=40,rightEdge=555,width=515,bottom=103;
+ includeCommission=includeCommission&&mode==='hotel';
+ const ink=[0.12,0.16,0.17],muted=[0.39,0.44,0.44],brand=[0.07,0.36,0.34],line=[0.86,0.89,0.88],paper=[0.965,0.974,0.970];
  const pages:string[][]=[];let commands:string[]=[];let y=0;
- const text=(x:number,yy:number,size:number,value:unknown,bold=false)=>commands.push(`BT /F${bold?2:1} ${size} Tf ${x.toFixed(2)} ${yy.toFixed(2)} Td (${escapePdf(value)}) Tj ET`);
- const right=(end:number,yy:number,size:number,value:string,bold=false)=>text(end-textWidth(value,size),yy,size,value,bold);
- const rule=(yy:number)=>commands.push(`0.87 G 0.5 w 40 ${yy} m 555 ${yy} l S 0 g`);
- const startPage=()=>{
-   commands=['0 g'];pages.push(commands);
-   text(40,802,17,'IMEC UTI',true);right(555,804,9,'Competência '+reportCompetence(report.month),true);
-   text(40,777,14,reportLabel(mode),true);
-   commands.push('0.4 g');text(40,759,8,'Recebimentos confirmados no mês, descontados os reembolsos.');
-   text(40,746,8,`${report.receiptCount} recebimento(s) - ${report.admissionCount} internação(ões)`);commands.push('0 g');rule(732);
-   let x=40;columns.forEach((c,i)=>{if(i===4)right(x+c.width-7,716,7,c.label.toUpperCase(),true);else text(x,716,7,c.label.toUpperCase(),true);x+=c.width;});
-   rule(705);y=686;
+ const color=(rgb:number[])=>rgb.join(' ');
+ const text=(x:number,yy:number,size:number,value:unknown,bold=false,rgb=ink)=>commands.push(`BT ${color(rgb)} rg /F${bold?2:1} ${size} Tf ${x.toFixed(2)} ${yy.toFixed(2)} Td (${escapePdf(value)}) Tj ET`);
+ const right=(end:number,yy:number,size:number,value:string,bold=false,rgb=ink)=>text(end-helveticaWidth(safe(value),size,bold),yy,size,value,bold,rgb);
+ const rule=(yy:number,rgb=line,x=left,w=width)=>commands.push(`${color(rgb)} RG 0.5 w ${x} ${yy} m ${x+w} ${yy} l S`);
+ const fill=(x:number,yy:number,w:number,h:number,rgb:number[])=>commands.push(`${color(rgb)} rg ${x} ${yy} ${w} ${h} re f`);
+ const header=()=>{
+   fill(40,789,22,22,brand);commands.push('1 1 1 RG 1.1 w 44 800 m 48 800 l 50 805 l 53 795 l 55 800 l 59 800 l S');
+   text(70,802,11,'IMEC UTI',true);text(70,790,6.4,'PARTICULAR & HOTELARIA',false,muted);
+   right(rightEdge,804,6.5,'RELATÓRIO MENSAL',true,muted);right(rightEdge,789,11,reportCompetence(report.month),true);
  };
- startPage();
- if(!report.rows.length){text(40,y,9,'Nenhum recebimento ou reembolso nesta seleção.');y-=35;}
+ const tableHeader=()=>{
+   fill(left,y-19,width,25,paper);let x=left;
+   columns.forEach((c,i)=>{if(i===4)right(x+c.width-8,y-10,6.7,c.label,true,muted);else text(x+(i?5:8),y-10,6.7,c.label,true,muted);x+=c.width});y-=37;
+ };
+ const startPage=(first=false,withTable=true)=>{
+   commands=[];pages.push(commands);header();
+   if(first){
+     text(left,749,24,reportLabel(mode),true);text(left,730,8.4,'Relatório de recebimentos',false,muted);
+     rule(716,brand,left,32);
+     fill(left,636,width,63,paper);
+     text(52,682,6.8,report.manualSelection?'TOTAL LÍQUIDO DA SELEÇÃO':'TOTAL LÍQUIDO RECEBIDO',true,muted);
+     text(52,653,22,money(report.netCents/100),true);
+     text(360,682,6.5,'RECEBIMENTOS',true,muted);text(360,655,17,String(report.receiptCount),true);
+     text(468,682,6.5,'INTERNAÇÕES',true,muted);text(468,655,17,String(report.admissionCount),true);
+     text(left,617,7,documentScope(report),true,report.manualSelection?brand:muted);
+     y=593;
+   }else{
+     text(left,757,15,reportLabel(mode),true);right(rightEdge,758,7,'CONTINUAÇÃO',false,muted);
+     text(left,739,7,documentScope(report),false,muted);y=714;
+   }
+   if(withTable)tableHeader();
+ };
+ startPage(true);
+ if(!report.rows.length){text(left+8,y,9,'Nenhum recebimento ou reembolso nesta seleção.',false,muted);y-=38}
  for(const row of report.rows){
-   const lines=reportRowCells(row,mode).map((value,i)=>value.split('\n').flatMap(line=>wrap(line,columns[i].width-8,i===0?8.5:7.5)));
-   let offset=0;const count=Math.max(...lines.map(cell=>cell.length));
+   const values=reportRowCells(row,mode),lines=values.map((value,i)=>value.split('\n').flatMap(v=>wrap(v,columns[i].width-13,i===0?8.5:8,i===0||i===4)));
+   const count=Math.max(...lines.map(cell=>cell.length)),fullHeight=Math.max(32,count*12+16),freshCapacity=677-bottom;
+   // Ordinary rows stay intact. Only a row taller than a full page may continue.
+   if(y-fullHeight<bottom&&fullHeight<=freshCapacity)startPage();
+   let offset=0;
    while(offset<count){
-     if(y<110)startPage();
-     const space=Math.max(1,Math.floor((y-104)/12)),take=Math.min(count-offset,space),height=Math.max(26,take*12+12);
-     if(height>y-90){startPage();continue;}
-     let x=40;lines.forEach((cell,i)=>{cell.slice(offset,offset+take).forEach((line,n)=>{if(i===4)right(x+columns[i].width-7,y-n*12,7.5,line);else text(x,y-n*12,i===0?8.5:7.5,line)});x+=columns[i].width});offset+=take;
-     y-=height;rule(y+9);
+     if(y<bottom+28)startPage();
+     let active=lines.map(cell=>cell.slice(offset)),available=Math.floor((y-bottom-16)/12);
+     if(offset>=lines[0].length){
+       active[0]=[...wrap(row.patientName,columns[0].width-13,8.5,true).slice(0,2),'(continuação)'];
+       available=Math.max(active[0].length,available);
+     }
+     const take=Math.min(count-offset,Math.max(1,available));
+     const repeatingName=offset>=lines[0].length,cellCount=Math.max(take,repeatingName?active[0].length:0),height=Math.max(32,cellCount*12+16);
+     if(y-height<bottom){startPage();continue}
+     let x=left;
+     active.forEach((cell,i)=>{const chunk=repeatingName&&i===0?cell:cell.slice(0,take);chunk.forEach((value,n)=>{
+       if(i===4)right(x+columns[i].width-8,y-n*12,8,value,true);
+       else text(x+(i?5:8),y-n*12,i===0?8.5:8,value,i===0,i===0?ink:muted);
+     });x+=columns[i].width});offset+=take;y-=height;rule(y+9);
    }
  }
- const needed=includeCommission?153:119;
- if(y<needed+90)startPage();
- y-=12;text(40,y,10,report.manualSelection?'TOTAL LÍQUIDO DA SELEÇÃO':'TOTAL LÍQUIDO RECEBIDO',true);right(555,y,14,money(report.netCents/100),true);y-=26;
- if(report.refundCount){commands.push('0.4 g');text(40,y,8,`Recebido: ${money(report.receivedCents/100)} | Reembolsado: ${money(report.refundedCents/100)}`);commands.push('0 g');y-=21;}
- if(includeCommission){text(40,y,9,'Comissão Aline Glória - 3%',true);right(555,y,11,money(report.commissionCents/100),true);y-=25;}
- rule(y+3);y-=18;text(40,y,10,reportReference(report.month,mode),true);y-=18;text(40,y,8,reportSelectionNote(report));
- pages.forEach((page,i)=>{
-   commands=page;rule(63);commands.push('0.4 g');text(40,48,7,'Emitido em '+reportDate(report.generatedAt));right(555,48,7,`Página ${i+1} de ${pages.length}`);
- });
+ const closingHeight=116+(includeCommission?29:0)+(report.refundCount?20:0);
+ if(y-closingHeight<bottom)startPage(false,false);
+ y-=18;text(left,y,9,report.manualSelection?'Total líquido selecionado':'Total líquido recebido',true);right(rightEdge,y-1,16,money(report.netCents/100),true);y-=29;
+ if(report.refundCount){text(left,y,7.5,`Recebido: ${money(report.receivedCents/100)}  |  Reembolsado: ${money(report.refundedCents/100)}`,false,muted);y-=20}
+ if(includeCommission){text(left,y,8.5,'Comissão Aline Glória - 3%',false,muted);right(rightEdge,y,10,money(report.commissionCents/100),true);y-=29}
+ rule(y+6);y-=15;text(left,y,8.5,reportReference(report.month,mode),true);y-=17;
+ for(const value of wrap(reportSelectionNote(report),width,7.2)){text(left,y,7.2,value,false,muted);y-=11}
+ text(left,y-2,7.2,'Competência pela data do recebimento; valores líquidos de reembolsos.',false,muted);
+ pages.forEach((page,i)=>{commands=page;rule(63);text(left,47,7,'Emitido em '+reportDate(report.generatedAt),false,muted);right(rightEdge,47,7,`Página ${i+1} de ${pages.length}`,false,muted)});
  const objects=['<< /Type /Catalog /Pages 2 0 R >>',`<< /Type /Pages /Kids [${pages.map((_,i)=>`${5+i*2} 0 R`).join(' ')}] /Count ${pages.length} >>`,
    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'];
- pages.forEach((page,i)=>{const stream=page.join('\n');objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${6+i*2} 0 R >>`,`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);});
+ pages.forEach((page,i)=>{const stream=page.join('\n');objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${6+i*2} 0 R >>`,`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`)});
  let pdf='%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';const offsets=[0];
- objects.forEach((object,i)=>{offsets[i+1]=pdf.length;pdf+=`${i+1} 0 obj\n${object}\nendobj\n`;});
+ objects.forEach((object,i)=>{offsets[i+1]=pdf.length;pdf+=`${i+1} 0 obj\n${object}\nendobj\n`});
  const xref=pdf.length;pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
  offsets.slice(1).forEach(offset=>pdf+=`${String(offset).padStart(10,'0')} 00000 n \n`);
  pdf+=`trailer\n<< /Size ${objects.length+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
  return Uint8Array.from(pdf,c=>c.charCodeAt(0)&255);
+}
+
+export function buildMonthlyReportPrintHtml(report:MonthlyReport,includeCommission=false):string{
+ const mode=report.mode||'hotel',columns=documentColumns(mode);includeCommission=includeCommission&&mode==='hotel';
+ const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]!));
+ const rowHtml=report.rows.map(row=>`<tr>${reportRowCells(row,mode).map((value,i)=>`<td class="${i===0?'patient':i===4?'money':''}">${esc(value).replace(/\n/g,'<br>')}</td>`).join('')}</tr>`).join('');
+ return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(reportReference(report.month,mode))}</title><style>
+ @page{size:A4;margin:14mm 14mm 18mm;@bottom-left{content:'IMEC UTI - ${reportLabel(mode)} - ${reportCompetence(report.month)}${report.manualSelection?' - Seleção manual':''}';font:7pt Arial;color:#66716e}@bottom-right{content:'Página ' counter(page) ' de ' counter(pages);font:7pt Arial;color:#66716e}}
+ *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#20292b;font-size:9pt;margin:0}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}.identity{display:flex;align-items:center;gap:10px}.mark{width:28px;height:28px;background:#125c57;display:grid;place-items:center;color:white;font-weight:bold;font-size:19px}.identity strong{display:block;font-size:11pt}.identity small{display:block;margin-top:4px;font-size:6.4pt;letter-spacing:.08em;color:#65706e}.period{text-align:right}.period small{display:block;font-size:6.5pt;letter-spacing:.09em;color:#65706e}.period strong{display:block;margin-top:6px;font-size:11pt}h1{font-size:24pt;line-height:1.15;margin:0 0 8px;font-weight:700;letter-spacing:-.035em}.subtitle{font-size:8.5pt;color:#65706e;margin:0 0 14px}.accent{width:32px;border-top:1px solid #125c57;margin-bottom:18px}.summary{display:grid;grid-template-columns:minmax(0,1fr) 110px 90px;gap:14px;padding:16px;background:#f6f8f7;border:1px solid #e6ebe8;break-inside:avoid}.summary small{display:block;font-size:6.8pt;font-weight:bold;letter-spacing:.04em;color:#65706e}.summary strong{display:block;margin-top:9px;font-size:17pt;line-height:1.2}.summary .primary strong{font-size:22pt;letter-spacing:-.025em}.scope{font-size:7pt;letter-spacing:.04em;color:#65706e;margin:16px 0 19px}.scope.manual{color:#125c57;font-weight:bold}table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0 0 16px}thead{display:table-header-group}th{text-align:left;padding:9px 5px;font-size:6.7pt;color:#65706e;background:#f6f8f7;font-weight:bold}td{text-align:left;vertical-align:top;padding:12px 5px;border-bottom:1px solid #e3e8e5;font-size:8pt;line-height:1.5;color:#65706e;overflow-wrap:anywhere}.patient{font-size:8.5pt;color:#20292b;font-weight:bold}th:first-child,td:first-child{padding-left:8px}.money{text-align:right;color:#20292b;font-weight:bold;font-variant-numeric:tabular-nums}tr{break-inside:avoid}.closing{break-inside:avoid;padding-top:12px}.total,.commission{display:flex;justify-content:space-between;align-items:baseline;gap:15px}.total{font-size:9pt;font-weight:bold}.total strong{font-size:16pt;letter-spacing:-.02em}.cash{font-size:7.5pt;color:#65706e;margin:12px 0}.commission{font-size:8.5pt;color:#65706e;margin-top:16px}.commission strong{font-size:10pt;color:#20292b}.reference{font-size:8.5pt;font-weight:bold;border-top:1px solid #dce4df;padding-top:17px;margin:19px 0 8px}.note{font-size:7.2pt;color:#65706e;line-height:1.6;margin:3px 0}.issued{font-size:7pt;color:#65706e;border-top:1px solid #dce4df;padding-top:10px;margin-top:25px}.empty{padding:18px 8px;color:#65706e}.tools{display:flex;justify-content:flex-end;gap:8px;border-bottom:1px solid #e3e8e5;padding-bottom:16px;margin-bottom:24px}.tools button{font:12px Arial;padding:10px 15px;border:1px solid #dce4df;border-radius:8px;background:white;color:#125c57;cursor:pointer}@media screen{body{max-width:820px;padding:30px 25px;margin:auto}}@media print{.tools{display:none}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@media screen and (max-width:580px){body{padding:20px 12px}.summary{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.primary{grid-column:1/-1}table{min-width:650px}.table-wrap{overflow-x:auto}}
+ </style></head><body><div class="tools"><button id="printMonthly">Imprimir / salvar PDF</button><button id="closeMonthly">Fechar</button></div><header><div class="identity"><span class="mark"><svg viewBox="0 0 22 22" width="22" height="22" aria-hidden="true"><path d="M3 11h4l2-5 3 10 2-5h5" fill="none" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><strong>IMEC UTI</strong><small>PARTICULAR &amp; HOTELARIA</small></div></div><div class="period"><small>RELATÓRIO MENSAL</small><strong>${reportCompetence(report.month)}</strong></div></header><h1>${reportLabel(mode)}</h1><p class="subtitle">Relatório de recebimentos</p><div class="accent"></div><section class="summary"><div class="primary"><small>${report.manualSelection?'TOTAL LÍQUIDO DA SELEÇÃO':'TOTAL LÍQUIDO RECEBIDO'}</small><strong>${esc(money(report.netCents/100))}</strong></div><div><small>RECEBIMENTOS</small><strong>${report.receiptCount}</strong></div><div><small>INTERNAÇÕES</small><strong>${report.admissionCount}</strong></div></section><p class="scope ${report.manualSelection?'manual':''}">${esc(documentScope(report))}</p>${report.rows.length?`<div class="table-wrap"><table><colgroup>${columns.map(c=>`<col style="width:${c.width/515*100}%">`).join('')}</colgroup><thead><tr>${columns.map((c,i)=>`<th class="${i===4?'money':''}">${c.label}</th>`).join('')}</tr></thead><tbody>${rowHtml}</tbody></table></div>`:'<p class="empty">Nenhum recebimento ou reembolso nesta seleção.</p>'}<section class="closing"><div class="total"><span>${report.manualSelection?'Total líquido selecionado':'Total líquido recebido'}</span><strong>${esc(money(report.netCents/100))}</strong></div>${report.refundCount?`<p class="cash">Recebido: ${esc(money(report.receivedCents/100))} &nbsp;|&nbsp; Reembolsado: ${esc(money(report.refundedCents/100))}</p>`:''}${includeCommission?`<div class="commission"><span>Comissão Aline Glória - 3%</span><strong>${esc(money(report.commissionCents/100))}</strong></div>`:''}<p class="reference">${esc(reportReference(report.month,mode))}</p><p class="note">${esc(reportSelectionNote(report))}</p><p class="note">Competência pela data do recebimento; valores líquidos de reembolsos.</p></section><p class="issued">Emitido em ${reportDate(report.generatedAt)}</p></body></html>`;
 }
