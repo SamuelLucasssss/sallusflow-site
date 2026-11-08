@@ -302,8 +302,9 @@ function newAdmissionModal(){
   if(!can('create_admission')){toast('Seu perfil não pode criar internações.');return}
   const beds=Array.from({length:19},(_,i)=>i+1).map(n=>`<option value="${n}">Leito ${String(n).padStart(2,'0')}${n<=9?' — Salão':n<=16?' — Individual':' — Suíte'}</option>`).join('');
   const closerNames=teamClosers.length?teamClosers.filter(x=>x.active!==false).map(x=>x.display_name):USERS;
-  openModal('Nova internação','Cadastre apenas o essencial. O financeiro começa a partir daqui.',`<form class="form" id="newForm"><div class="form-section"><h3>Paciente</h3><div class="form-grid two">${field('Nome completo','<input id="nName" required autofocus autocomplete="off" placeholder="Nome do paciente">')}${field('CPF','<input id="nCpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00">','Opcional, recomendado para evitar duplicidade')}</div></div><div class="form-section"><h3>Internação</h3><div class="form-grid three">${field('Leito',`<select id="nBed"><option value="">Selecionar</option>${beds}</select>`)}${field('Modalidade','<select id="nMode"><option value="private">Particular</option><option value="hotel">Hotelaria</option></select>')}${field('Entrada',`<input id="nEntry" type="datetime-local" value="${nowLocalInput()}">`)}</div></div><div class="form-section"><h3>Condição comercial</h3><div class="form-grid three">${field('Ventilação mecânica','<select id="nVent"><option value="0">Não</option><option value="1">Sim</option></select>')}${field('Valor padrão','<div class="read-value" id="nStandard">R$ 7.000,00</div>')}${field('Valor negociado','<div class="currency-input"><span>R$</span><input id="nValue" inputmode="decimal" placeholder="7000,00"></div>')}</div><div class="form-grid two">${field('Responsável pelo fechamento',`<select id="nCloser">${closerNames.map(u=>`<option ${u===data.onDuty?'selected':''}>${esc(u)}</option>`).join('')}</select><small id="nResponsibleHint"></small>`)}${field('Primeira cobrança','<select id="nHalf"><option value="0">Diária inteira</option><option value="1">½ diária</option></select><small id="lateHint"></small>')}</div>${field('Observação','<textarea id="nNote" rows="2" placeholder="Opcional"></textarea>')}</div><div class="summary-box"><div><span>Diária aplicada</span><strong id="nApplied">R$ 7.000,00</strong></div><div><span>Primeiro lançamento</span><strong id="nFirst">R$ 7.000,00</strong></div><div><span>Desconto por diária</span><strong id="nDiscount">R$ 0,00</strong></div></div><div id="nRetroPreview"></div><div id="nError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button type="submit" class="btn btn-primary">✓ Confirmar internação</button></div></form>`);
+  openModal('Nova internação','Cadastre apenas o essencial. O financeiro começa a partir daqui.',`<form class="form" id="newForm"><div class="form-section"><h3>Paciente</h3><div class="form-grid two">${field('Nome completo','<input id="nName" required autofocus autocomplete="off" placeholder="Nome do paciente">')}${field('CPF','<input id="nCpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00">','Opcional, recomendado para evitar duplicidade')}</div></div><div class="form-section"><h3>Internação</h3><div class="form-grid three">${field('Leito',`<select id="nBed"><option value="">Selecionar</option>${beds}</select>`)}${field('Modalidade','<select id="nMode"><option value="private">Particular</option><option value="hotel">Hotelaria</option></select>')}${field('Entrada',`<input id="nEntry" type="datetime-local" value="${nowLocalInput()}">`)}</div></div>${can('discharge')?field('Alta já realizada (opcional)','<input id="nDischarge" type="datetime-local">','Preencha para cadastrar uma internação já encerrada.'):''}<div class="form-section"><h3>Condição comercial</h3><div class="form-grid three">${field('Ventilação mecânica','<select id="nVent"><option value="0">Não</option><option value="1">Sim</option></select>')}${field('Valor padrão','<div class="read-value" id="nStandard">R$ 7.000,00</div>')}${field('Valor negociado','<div class="currency-input"><span>R$</span><input id="nValue" inputmode="decimal" placeholder="7000,00"></div>')}</div><div class="form-grid two">${field('Responsável pelo fechamento',`<select id="nCloser">${closerNames.map(u=>`<option ${u===data.onDuty?'selected':''}>${esc(u)}</option>`).join('')}</select><small id="nResponsibleHint"></small>`)}${field('Primeira cobrança','<select id="nHalf"><option value="0">Diária inteira</option><option value="1">½ diária</option></select><small id="lateHint"></small>')}</div>${field('Observação','<textarea id="nNote" rows="2" placeholder="Opcional"></textarea>')}</div><div class="summary-box"><div><span>Diária aplicada</span><strong id="nApplied">R$ 7.000,00</strong></div><div><span>Primeiro lançamento</span><strong id="nFirst">R$ 7.000,00</strong></div><div><span>Desconto por diária</span><strong id="nDiscount">R$ 0,00</strong></div></div><div id="nRetroPreview"></div><div id="nError"></div><div class="modal-actions"><button type="button" class="btn btn-secondary" data-close2>Cancelar</button><button type="submit" class="btn btn-primary">✓ Confirmar internação</button></div></form>`);
   document.querySelector('[data-close2]').onclick=closeModal;
+  document.getElementById('nDischarge')?.addEventListener('input',updateNew);
   const ids=['nBed','nMode','nEntry','nVent','nValue','nHalf'];ids.forEach(id=>document.getElementById(id).addEventListener('input',updateNew));
   document.getElementById('nEntry').addEventListener('change',()=>{document.getElementById('nHalf').value=late(document.getElementById('nEntry').value)?'1':'0';updateNew()});
   document.getElementById('nHalf').value=late(document.getElementById('nEntry').value)?'1':'0';
@@ -331,7 +332,17 @@ function updateNew(){
   document.getElementById('nDiscount').textContent=money(Math.max(0,x.standard-(x.value||0)));
   document.getElementById('lateHint').textContent=late(entry)?'Entrada após 18h: meia diária sugerida.':'';
   const retro=document.getElementById('nRetroPreview');
-  if(retro)retro.innerHTML=est.retro?`<div class="form-warning"><strong>Entrada retroativa</strong><br>Ao confirmar, o sistema registrará <strong>${est.units.toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong> já vencidas até ontem, total estimado de <strong>${money(est.total)}</strong>. O dia de hoje permanece provisório e não entra na cobrança enquanto o paciente estiver internado.</div>`:'';
+  const discharge=document.getElementById('nDischarge')?.value;
+  if(retro&&discharge){
+    const start=Date.parse(entry),end=Date.parse(discharge);
+    if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||Date.parse(parseLocal(discharge))>Date.now()){
+      retro.textContent='A alta deve ser posterior à entrada e não pode estar no futuro.';
+    }else{
+      const days=Math.round((Date.parse(discharge.slice(0,10))-Date.parse(entry.slice(0,10)))/86400000);
+      const units=(x.half?0.5:1)+Math.max(0,days-1);
+      retro.innerHTML=`<p class="receipt-timing-note">Estimativa até a alta: ${units.toLocaleString('pt-BR')} diária(s) · ${money((x.half?Math.round(x.value*50)/100:x.value)+Math.max(0,days-1)*x.value)}.</p>`;
+    }
+  }else if(retro)retro.innerHTML=est.retro?`<div class="form-warning"><strong>Entrada retroativa</strong><br>Ao confirmar, o sistema registrará <strong>${est.units.toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong> já vencidas até ontem, total estimado de <strong>${money(est.total)}</strong>. O dia de hoje permanece provisório e não entra na cobrança enquanto o paciente estiver internado.</div>`:'';
 }
 function refundModal(a){
   if(data.currentRole!=='admin'){toast('Somente administradores podem registrar reembolsos.');return}
@@ -813,18 +824,21 @@ async function submitNew(e){
   e.preventDefault();if(remoteBusy)return;
   const name=document.getElementById('nName').value.trim(),cpf=cpfNorm(document.getElementById('nCpf').value),entry=document.getElementById('nEntry').value,closer=document.getElementById('nCloser').value,note=document.getElementById('nNote').value.trim(),x=newCalc(),est=newAdmissionEstimate(entry,x),err=document.getElementById('nError');
   const fail=m=>{err.innerHTML=`<div class="form-error">⚠ ${esc(m)}</div>`;return false};
+  const discharge=document.getElementById('nDischarge')?.value;
+  if(discharge&&(!entry||discharge<=entry||Date.parse(parseLocal(discharge))>Date.now()))
+    return fail('A alta deve ser posterior à entrada e não pode estar no futuro.');
   if(!name)return fail('Informe o nome do paciente.');
   if(!x.bed||x.bed<1||x.bed>19)return fail('Selecione um leito entre 01 e 19.');
   if(x.mode==='hotel'&&x.bed<10)return fail('Hotelaria está disponível nos leitos 10 a 19.');
   if(!x.value||x.value<=0)return fail('Informe um valor de diária válido.');
   try{
     setLoading(true,'Salvando internação…');
-    const aid=await rpc('create_uti_admission',{p_name:name,p_cpf:cpf||null,p_bed:x.bed,p_mode:x.mode,p_entry_at:parseLocal(entry),p_closer:closer,p_half_initial:x.half,p_ventilation:x.mode==='private'?x.vent:null,p_negotiated_rate:x.value,p_notes:note||null});
+    const aid=await rpc(discharge?'create_uti_historical_admission':'create_uti_admission',{...(discharge?{p_discharge_at:parseLocal(discharge)}:{}),p_name:name,p_cpf:cpf||null,p_bed:x.bed,p_mode:x.mode,p_entry_at:parseLocal(entry),p_closer:closer,p_half_initial:x.half,p_ventilation:x.mode==='private'?x.vent:null,p_negotiated_rate:x.value,p_notes:note||null});
     await loadRemote({quiet:true});
     closeModal();
-    state.selectedId=null;
+    state.selectedId=discharge?aid:null;
     state.page='home';
-    toast(est.retro?`Internação criada: ${est.units.toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s) retroativas registradas.`:'Internação criada com sucesso.');
+    toast(discharge?'Internação retroativa registrada com alta.':est.retro?`Internação criada: ${est.units.toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s) retroativas registradas.`:'Internação criada com sucesso.');
     render();
   }catch(ex){fail(ex.message)}finally{setLoading(false)}
 }
