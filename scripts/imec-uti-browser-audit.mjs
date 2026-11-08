@@ -401,6 +401,15 @@ try{
   // Fast month changes cannot let an old response overwrite the selected competence.
   await fill('#reportMonth','2026-09');await fill('#reportMonth','2026-10');await page.waitForFunction(()=>document.querySelector('.report-sheet h2')?.textContent.includes('10/2026'));
   assert.equal(await page.locator('#reportNet').textContent(),money(expected.net));
+  await click('[data-action="new"]');await fill('#nName','Histórico sintético do leito');
+  await select('#nMode','hotel');await select('#nBed','18');
+  await fill('#nEntry','2026-09-20T19:30');await select('#nHalf','0');
+  await fill('#nDischarge','2026-10-02T15:15');await click('#newForm button[type=submit]');
+  await wait('#nError .form-error');assert.match(await page.locator('#nError').textContent(),/período coincide/);
+  await fill('#nDischarge','2026-09-22T15:15');assert.match(await page.locator('#nRetroPreview').textContent(),/1\.000,00/);
+  await surface('cadastro-retroativo-com-alta');
+  await click('#newForm button[type=submit]');await page.locator('#newForm').waitFor({state:'detached'});
+  await wait('.detail-hero');assert.match(await page.locator('.detail-hero').textContent(),/Histórico sintético do leito/);
   await click('[data-nav="settings"]');await wait('#logoutBtn');
   const [exported]=await Promise.all([page.waitForEvent('download'),click('[data-action="export"]')]);await exported.saveAs(path.join(output,'exportacao-sintetica.json'));
   await context.setOffline(true);await wait('#networkStatus.show');assert.match(await page.locator('#networkStatus').textContent(),/Sem conexão/);await context.setOffline(false);
