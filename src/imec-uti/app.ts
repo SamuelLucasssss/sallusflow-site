@@ -237,6 +237,7 @@ function patientDetail(a){
   return `<div class="detail-top no-print"><button class="back-btn" data-action="back">← Voltar</button><div class="detail-actions"><button class="btn btn-secondary" data-action="print">▤ Imprimir ficha</button>${canPay?'<button class="btn btn-primary" data-action="payment">＋ Pagamento</button>':''}${canRefund?'<button class="btn btn-primary" data-action="refund">↗ Reembolso</button>':''}</div></div>
   <section class="detail-hero print-area"><div class="detail-identity"><div class="bed-large">${String(a.bed).padStart(2,'0')}</div><div><div class="detail-badges">${statusBadge(a.status)}<span class="badge ${a.mode==='private'?'badge-brand':'badge-neutral'}">${a.mode==='private'?'Particular':'Hotelaria'}</span></div><h1>${esc(p?.name)}</h1><p>CPF ${cpfMask(p?.cpf)} • Responsável pelo fechamento: <strong>${esc(a.closer)}</strong></p></div></div><div class="detail-meta-grid"><div><span>Entrada</span><strong>${fmtDT(a.entryAt)}</strong></div><div><span>Saída</span><strong>${a.dischargeAt?fmtDT(a.dischargeAt):'Em andamento'}</strong></div><div><span>Tempo de internação</span><strong>${hospitalDays(a)} dia${hospitalDays(a)>1?'s':''}</strong></div><div><span>Condição atual</span><strong>${esc(r.label)}</strong></div><div><span>Diária atual</span><strong>${money(r.negotiatedRate)}</strong></div></div></section>
   <div class="money-hero print-area"><div><span>Cobrado</span><strong>${money(t.billed)}</strong></div><div><span>Recebido líquido</span><strong>${money(t.netReceived)}</strong>${t.refunded>0?`<small>Reembolsado: ${money(t.refunded)}</small>`:''}</div><div class="balance ${Math.abs(t.balance)<=0.009?'paid':'open'}"><span>${m.label}</span><strong>${money(m.amount)}</strong></div></div>
+  ${a.bedTransfers?.length?`<details class="panel"><summary>Histórico de leitos</summary><ul><li>${fmtDT(a.entryAt)} · Entrada no leito ${String(a.bedTransfers[0].from_bed).padStart(2,'0')}</li>${a.bedTransfers.map(t=>`<li>${fmtDT(t.effective_at)} · Leito ${String(t.from_bed).padStart(2,'0')} → ${String(t.to_bed).padStart(2,'0')} · ${esc(t.reason)}</li>`).join('')}</ul></details>`:''}
   <div class="quick-actions no-print"><button data-action="payment" ${!canPay?'disabled':''}><div>R$</div><span>Registrar pagamento</span></button><button data-action="extra" ${!can('add_extra')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>＋</div><span>Adicionar extra</span></button>${data.currentRole==='admin'&&a.dischargeAt&&['discharge_pending','finalized'].includes(a.status)?'<button data-action="settlement-total"><div>✎</div><span>Ajustar total do acerto</span></button>':''}${canDiscount?'<button data-action="discount"><div>−</div><span>Conceder desconto</span></button>':''}<button data-action="rate" ${!can('adjust_rate')||a.status!=='active'?'disabled':''}><div>↻</div><span>Ajustar diária</span></button>${canRefund?'<button data-action="refund"><div>↗</div><span>Reembolsar crédito</span></button>':''}<button data-action="discharge" ${!can('discharge')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>→</div><span>${a.status==='discharge_pending'?'Acerto / saída':'Registrar alta'}</span></button></div>
   ${scheduledReceiptPanel(a)}<div class="detail-columns print-area"><section class="panel"><div class="panel-head"><div><h2>Movimentação financeira</h2><p>Resumo da conta; as diárias são agrupadas para evitar repetição visual.</p></div></div>${timeline.length?`<div class="timeline">${timeline.map(row=>row.kind==='p'?`<div class="timeline-row payment"><div class="timeline-dot">↙</div><div><strong>Pagamento recebido</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}${editReceiptButton(row.item)}</div><strong class="good-text">+ ${money(row.item.amount)}</strong></div>`:row.kind==='r'?`<div class="timeline-row payment"><div class="timeline-dot">↗</div><div><strong>Reembolso ao paciente</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}</div><strong>- ${money(row.item.amount)}</strong></div>`:row.kind==='d'?`<div class="timeline-row charge"><div class="timeline-dot">▤</div><div><strong>Diárias da internação — ${Number(row.item.units).toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong><span>${fmtDM(row.item.first)} a ${fmtDM(row.item.last)} • ${row.item.count} lançamento(s)</span></div><strong>${money(row.item.amount)}</strong></div>`:`<div class="timeline-row charge"><div class="timeline-dot">${row.item.amount<0?'−':'＋'}</div><div><strong>${esc(row.item.description)}</strong><span>${fmtDT(row.at)} • ${esc(row.item.category)}</span></div><strong>${row.item.amount<0?'− ':''}${money(Math.abs(row.item.amount))}</strong></div>`).join('')}</div>`:empty('Sem movimentações','As diárias, extras, pagamentos e reembolsos aparecerão aqui.')}</section>
   <div class="side-stack"><section class="panel"><div class="panel-head"><div><h2>Diárias geradas</h2><p>${daily.length?Number(dailyUnits).toLocaleString('pt-BR',{maximumFractionDigits:1})+' diária(s) • '+money(dailyTotal):'Nenhuma diária gerada'}</p></div></div>${daily.length?`<details><summary style="cursor:pointer;font-weight:700;padding:10px 0">Ver detalhamento por dia (${daily.length})</summary><div class="coverage-list">${cov.map(({c,paid,status})=>`<div class="coverage-row"><div><strong>${fmtDM(c.occurredAt)}</strong><span>${esc(c.description)}</span></div><div class="coverage-right"><span>${money(c.amount)}</span><span class="badge ${status==='paid'?'badge-good':status==='partial'?'badge-warn':'badge-bad'}">${status==='paid'?'Pago':status==='partial'?`Parcial ${money(paid)}`:'Em aberto'}</span></div></div>`).join('')}</div></details>`:''}</section>
@@ -629,13 +630,18 @@ async function checkPasswordSafety(password){
   return true;
 }
 
-function mapRemote({patients,admissions,rates,charges,payments,scheduledReceipts,refunds,audits,settings,profiles,closers,profile,healthHistory,alerts}){
+function mapRemote({patients,admissions,bedTransfers,rates,charges,payments,scheduledReceipts,refunds,audits,settings,profiles,closers,profile,healthHistory,alerts}){
   const rateMap={};(rates||[]).forEach(r=>(rateMap[r.admission_id]??=[]).push({id:r.id,effectiveAt:r.effective_at,standardRate:Number(r.standard_rate),negotiatedRate:Number(r.negotiated_rate),ventilation:r.ventilation??undefined,label:r.label,changedBy:r.changed_by_name}));
+  const bedTransferMap = new Map();
+  for(const transfer of bedTransfers||[]){
+    if(!bedTransferMap.has(transfer.admission_id))bedTransferMap.set(transfer.admission_id,[]);
+    bedTransferMap.get(transfer.admission_id).push(transfer);
+  }
   teamProfiles=profiles||[];
   teamClosers=closers||[];
   return {
     patients:(patients||[]).map(p=>({id:p.id,name:p.name,cpf:p.cpf||undefined,createdAt:p.created_at})),
-    admissions:(admissions||[]).map(a=>({id:a.id,patientId:a.patient_id,bed:a.bed,mode:a.mode,entryAt:a.entry_at,dischargeAt:a.discharge_at||undefined,status:a.status,closerId:a.closer_id||undefined,closer:a.closer_name,createdBy:a.created_by_name,halfInitial:a.half_initial,commissionAmount:Number(a.commission_amount||0),accountVersion:Number(a.account_version||1),notes:a.notes||undefined,createdAt:a.created_at,rateHistory:rateMap[a.id]||[]})),
+    admissions:(admissions||[]).map(a=>({id:a.id,patientId:a.patient_id,bed:a.bed,bedTransfers:bedTransferMap.get(a.id)||[],mode:a.mode,entryAt:a.entry_at,dischargeAt:a.discharge_at||undefined,status:a.status,closerId:a.closer_id||undefined,closer:a.closer_name,createdBy:a.created_by_name,halfInitial:a.half_initial,commissionAmount:Number(a.commission_amount||0),accountVersion:Number(a.account_version||1),notes:a.notes||undefined,createdAt:a.created_at,rateHistory:rateMap[a.id]||[]})),
     charges:(charges||[]).map(c=>({id:c.id,admissionId:c.admission_id,occurredAt:c.occurred_at,kind:c.kind,category:c.category,description:c.description,amount:Number(c.amount),cycleKey:c.cycle_key||undefined,createdBy:c.created_by_name})),
     payments:(payments||[]).map(p=>({id:p.id,admissionId:p.admission_id,occurredAt:p.occurred_at,amount:Number(p.amount),method:p.method,cardType:p.card_type,installmentDates:p.installment_dates,notes:p.notes||undefined,createdBy:p.created_by_name})),
     scheduledReceipts:(scheduledReceipts||[]).map(p=>({id:p.id,admissionId:p.admission_id,expectedAt:p.expected_at,amount:Number(p.amount),method:p.method,installmentDates:p.installment_dates||[],notes:p.notes||'',status:p.status,createdBy:p.created_by_name})),
@@ -659,9 +665,10 @@ async function loadRemote({quiet=false}={}){
     if(!profile){renderAccountState('Seu perfil ainda está sendo preparado.','Tente novamente em alguns segundos.');return false}
     if(!profile.active){data=blankData();data.currentUser=profile.display_name;data.currentRole=profile.role;renderPending(profile);return false}
     try{await rpc('sync_uti_charges',{})}catch(e){console.warn('sync daily charges',e)}
-    const [patients,admissions,rates,charges,payments,scheduledReceipts,refunds,audits,settingsRows,profiles,closers,healthHistory,alerts]=await Promise.all([
+    const [patients,admissions,bedTransfers,rates,charges,payments,scheduledReceipts,refunds,audits,settingsRows,profiles,closers,healthHistory,alerts]=await Promise.all([
       restAll('patients?select=*&order=created_at.asc,id.asc'),
       restAll('admissions?select=*&order=entry_at.desc,id.asc'),
+      restAll('admission_bed_transfers?select=admission_id,from_bed,to_bed,effective_at,reason&order=effective_at.asc,id.asc'),
       restAll('rate_periods?select=*&order=effective_at.asc,id.asc'),
       restAll('charges?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
       restAll('payments?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
@@ -675,7 +682,7 @@ async function loadRemote({quiet=false}={}){
       profile.role==='admin'?rest('system_alerts?select=id,alert_key,code,severity,message,details,status,first_detected_at,last_detected_at,occurrence_count,health_check_id,acknowledged_at,acknowledged_by_name,resolved_at&order=last_detected_at.desc&limit=50'):Promise.resolve([])
     ]);
     if(epoch!==authEpoch||!authState)return false;
-    data=mapRemote({patients,admissions,rates,charges,payments,scheduledReceipts,refunds,audits,settings:settingsRows?.[0],profiles,closers,profile,healthHistory,alerts});
+    data=mapRemote({patients,admissions,bedTransfers,rates,charges,payments,scheduledReceipts,refunds,audits,settings:settingsRows?.[0],profiles,closers,profile,healthHistory,alerts});
     if(!quiet)render();
     return true;
   }catch(e){
@@ -1005,6 +1012,45 @@ function editPaymentModal(p,returnWhen=null){
    }catch(ex){er.innerHTML=`<div class="form-error">${esc(ex.message)}</div>`}finally{setLoading(false)}
  };
 }
+function transferBedModal(admission){
+  const epoch=authEpoch;
+  const firstBed=admission.mode==='hotel'?10:1;
+  const beds=Array.from({length:20-firstBed},(_,index)=>firstBed+index)
+    .filter(bed=>bed!==admission.bed)
+    .map(bed=>`<option value="${bed}">Leito ${String(bed).padStart(2,'0')}</option>`).join('');
+  openModal('Transferir leito',`Leito atual ${String(admission.bed).padStart(2,'0')} · ${patient(admission.patientId)?.name||'Paciente'}`,
+    `<form id="bedTransferForm" class="form"><div class="form-grid two">
+      ${field('Leito de destino',`<select id="transferBed" required autofocus><option value="">Selecionar</option>${beds}</select>`)}
+      ${field('Data e hora',`<input id="transferWhen" type="datetime-local" value="${admission.dischargeAt?'':nowLocalInput()}" required>`)}
+    </div>${field('Motivo','<textarea id="transferReason" rows="2" minlength="8" maxlength="220" required></textarea>')}
+    <p class="receipt-timing-note">A transferência mantém a diária negociada e os lançamentos da internação.</p>
+    <div id="transferError" role="alert"></div><div class="modal-actions">
+    <button type="button" class="btn btn-secondary" data-close2>Cancelar</button>
+    <button type="submit" class="btn btn-primary">Salvar transferência</button></div></form>`);
+  document.querySelector('[data-close2]').onclick=closeModal;
+  document.getElementById('bedTransferForm').onsubmit=async event=>{
+    event.preventDefault();
+    if(remoteBusy)return;
+    const error=document.getElementById('transferError');
+    try{
+      setLoading(true,'Salvando transferência…');
+      await rpc('transfer_uti_bed',{
+        p_admission_id:admission.id,p_expected_version:admission.accountVersion,
+        p_to_bed:Number(document.getElementById('transferBed').value),
+        p_effective_at:parseLocal(document.getElementById('transferWhen').value),
+        p_reason:document.getElementById('transferReason').value.trim()
+      });
+      if(epoch!==authEpoch)return;
+      if(!await loadRemote({quiet:true})||epoch!==authEpoch)return;
+      closeModal();
+      render();
+      toast('Transferência registrada no histórico.');
+    }catch(ex){
+      if(epoch===authEpoch)error.innerHTML=`<div class="form-error">${esc(ex.message)}</div>`;
+    }finally{setLoading(false)}
+  };
+}
+
 function privateResponsibleModal(a){
  if(!a||a.mode!=='private'||data.currentRole!=='admin'||a.status==='cancelled')return;
  const version=a.accountVersion,ref=crypto.randomUUID(),epoch=authEpoch;
@@ -1617,6 +1663,12 @@ function bindDetail(a){
     const responsible=document.createElement('button');responsible.className='btn btn-secondary';responsible.dataset.action='private-responsible';responsible.innerHTML=icon('patients')+'Responsável';responsible.onclick=()=>privateResponsibleModal(a);actions.insertBefore(responsible,actions.firstChild);
   }
   if(actions&&data.currentRole==='admin'&&a.status!=='cancelled'){
+    const transfer=document.createElement('button');
+    transfer.className='btn btn-secondary';
+    transfer.dataset.action='transfer-bed';
+    transfer.innerHTML=icon('bed')+'Transferir leito';
+    transfer.onclick=()=>transferBedModal(a);
+    actions.insertBefore(transfer,actions.firstChild);
     const edit=document.createElement('button');edit.className='btn btn-secondary';edit.dataset.action='edit-admission';edit.innerHTML=icon('edit')+'Editar internação';edit.onclick=()=>editAdmissionInitialModal(a);actions.insertBefore(edit,actions.firstChild);
   }
   const hasCorrectable=data.payments.some(x=>x.admissionId===a.id)||data.charges.some(x=>x.admissionId===a.id&&x.kind!=='daily')||(data.refunds||[]).some(x=>x.admissionId===a.id);

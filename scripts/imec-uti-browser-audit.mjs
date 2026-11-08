@@ -26,7 +26,7 @@ const browser=await chromium.launch({headless:true,...(process.env.IMEC_CHROME_P
 const context=await browser.newContext({viewport:{width:1365,height:950},serviceWorkers:'block',acceptDownloads:true});
 const api=[],errors=[],steps=[],visualChecks=[];let queue=Promise.resolve();let failNetwork=false;let previewDelay=0;
 const session=()=>({access_token:'synthetic.'+Buffer.from(JSON.stringify({sub:auditUsers.admin,aal:'aal1',session_id:auditUsers.admin,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')+'.signature',refresh_token:'synthetic-refresh',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:auditUsers.admin,email:'admin@audit.invalid',factors:[]}});
-const tables=new Set(['profiles','patients','admissions','rate_periods','charges','payments','scheduled_receipts','refunds','audits','app_settings','commercial_closers']);
+const tables=new Set(['admission_bed_transfers','profiles','patients','admissions','rate_periods','charges','payments','scheduled_receipts','refunds','audits','app_settings','commercial_closers']);
 const identifier=value=>{if(!/^[a-z_][a-z_0-9]*$/i.test(value))throw new Error('Invalid test identifier');return '"'+value+'"';};
 await context.route('https://nxaxkczyeythvzdxqwyu.supabase.co/**',async route=>{
   if(failNetwork){await route.abort('internetdisconnected');return;}
@@ -410,6 +410,15 @@ try{
   await surface('cadastro-retroativo-com-alta');
   await click('#newForm button[type=submit]');await page.locator('#newForm').waitFor({state:'detached'});
   await wait('.detail-hero');assert.match(await page.locator('.detail-hero').textContent(),/Histórico sintético do leito/);
+  await click('[data-action="transfer-bed"]');
+  await select('#transferBed','17');await fill('#transferWhen','2026-09-21T15:15');
+  await fill('#transferReason','Mudança de leito durante a internação');
+  await click('#bedTransferForm button[type=submit]');
+  await page.locator('#bedTransferForm').waitFor({state:'detached'});
+  await click('summary:has-text("Histórico de leitos")');
+  assert.match(await page.locator('details[open]').filter({hasText:'Histórico de leitos'}).textContent(),/Leito 18 → 17/);
+  assert.equal(await page.locator('.detail-hero .bed-large').textContent(),'17');
+  await surface('historico-de-leitos');
   await click('[data-nav="settings"]');await wait('#logoutBtn');
   const [exported]=await Promise.all([page.waitForEvent('download'),click('[data-action="export"]')]);await exported.saveAs(path.join(output,'exportacao-sintetica.json'));
   await context.setOffline(true);await wait('#networkStatus.show');assert.match(await page.locator('#networkStatus').textContent(),/Sem conexão/);await context.setOffline(false);
