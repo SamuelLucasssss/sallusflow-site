@@ -30,3 +30,35 @@ it('registra a troca de leito e usa o histórico ao validar novas internações'
     await assert.rejects(()=>transfer(18,'2026-10-07T18:15:00Z'),/permission denied/);
   }finally{await db.close()}
 });
+
+it('programa o valor escolhido para o próximo ciclo e preserva diárias lançadas nas duas direções',async()=>{
+  const {db,asUser}=await isolatedDatabase();
+  try{
+    for(const [from,to,beforeRate,chosenRate] of [[10,17,400,510],[17,10,500,400]]){
+      await db.exec('reset role;begin');await asUser('admin');
+      const id=await createSyntheticAdmission(db,{name:'Tarifa sintética',bed:from,entry:'2026-10-05T20:02:00Z',rate:beforeRate});
+      const version=(await db.query('select account_version from public.admissions where id=$1',[id])).rows[0].account_version;
+      const charges=()=>db.query("select id,amount from public.charges where admission_id=$1 and cancelled_at is null order by id",[id]).then(result=>result.rows);
+      const before=await charges();
+      const transfer=(rate:number|string)=>db.query(
+        "select public.transfer_uti_bed_with_rate($1,$2,$3,'2026-10-06T18:15:00Z','Tarifa escolhida no teste',$4)",[id,version,to,rate]);
+      await db.exec('savepoint invalid_rate');
+      await assert.rejects(()=>transfer('NaN'),/valor positivo/);
+      await db.exec('rollback to savepoint invalid_rate');
+      await transfer(chosenRate);
+      assert.deepEqual(await charges(),before);
+      const {rows:[schedule]}=await db.query(`select next_daily_rate::float8 rate,
+        (rate_effective_at at time zone 'America/Sao_Paulo')::time::text cycle,
+        rate_effective_at>now() prospective,rate_effective_at
+        from public.admission_bed_transfers where admission_id=$1`,[id]);
+      assert.equal(schedule.rate,chosenRate);
+      assert.equal(schedule.cycle,'07:00:00');
+      assert.equal(schedule.prospective,true);
+      await db.exec('reset role');
+      const projected=await db.query(`select amount::float8 amount from private.compute_daily_charge_rows($1,$2::timestamptz+interval '1 day')
+        where occurred_at between $2::timestamptz-interval '1 day' and $2::timestamptz order by occurred_at`,[id,schedule.rate_effective_at]);
+      assert.deepEqual(projected.rows,[{amount:beforeRate},{amount:chosenRate}]);
+      await db.exec('rollback');
+    }
+  }finally{await db.close()}
+});
