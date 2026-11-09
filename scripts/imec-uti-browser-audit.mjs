@@ -419,6 +419,14 @@ try{
   assert.match(await page.locator('details[open]').filter({hasText:'Histórico de leitos'}).textContent(),/Leito 18 → 17/);
   assert.equal(await page.locator('.detail-hero .bed-large').textContent(),'17');
   await surface('historico-de-leitos');
+  await click('[data-nav="patients"]');await click('[data-filter="all"]');await fill('#searchPatients','Suíte');
+  await click(`.table-row[data-open="${suiteId}"]`);await click('[data-action="transfer-bed"]');
+  await select('#transferBed','17');assert.equal(await page.locator('#transferNextRate').inputValue(),'500,00');
+  await fill('#transferNextRate','475,00');await fill('#transferWhen','2026-10-02T15:15');
+  await fill('#transferReason','Valor negociado para o novo leito');await surface('transferencia-proxima-diaria');
+  await click('#bedTransferForm button[type=submit]');await page.locator('#bedTransferForm').waitFor({state:'detached'});
+  await click('summary:has-text("Histórico de leitos")');
+  assert.match(await page.locator('details[open]').filter({hasText:'Histórico de leitos'}).textContent(),/Diária programada: R\$\s475,00/);
   await click('[data-nav="settings"]');await wait('#logoutBtn');
   const [exported]=await Promise.all([page.waitForEvent('download'),click('[data-action="export"]')]);await exported.saveAs(path.join(output,'exportacao-sintetica.json'));
   await context.setOffline(true);await wait('#networkStatus.show');assert.match(await page.locator('#networkStatus').textContent(),/Sem conexão/);await context.setOffline(false);

@@ -237,7 +237,7 @@ function patientDetail(a){
   return `<div class="detail-top no-print"><button class="back-btn" data-action="back">← Voltar</button><div class="detail-actions"><button class="btn btn-secondary" data-action="print">▤ Imprimir ficha</button>${canPay?'<button class="btn btn-primary" data-action="payment">＋ Pagamento</button>':''}${canRefund?'<button class="btn btn-primary" data-action="refund">↗ Reembolso</button>':''}</div></div>
   <section class="detail-hero print-area"><div class="detail-identity"><div class="bed-large">${String(a.bed).padStart(2,'0')}</div><div><div class="detail-badges">${statusBadge(a.status)}<span class="badge ${a.mode==='private'?'badge-brand':'badge-neutral'}">${a.mode==='private'?'Particular':'Hotelaria'}</span></div><h1>${esc(p?.name)}</h1><p>CPF ${cpfMask(p?.cpf)} • Responsável pelo fechamento: <strong>${esc(a.closer)}</strong></p></div></div><div class="detail-meta-grid"><div><span>Entrada</span><strong>${fmtDT(a.entryAt)}</strong></div><div><span>Saída</span><strong>${a.dischargeAt?fmtDT(a.dischargeAt):'Em andamento'}</strong></div><div><span>Tempo de internação</span><strong>${hospitalDays(a)} dia${hospitalDays(a)>1?'s':''}</strong></div><div><span>Condição atual</span><strong>${esc(r.label)}</strong></div><div><span>Diária atual</span><strong>${money(r.negotiatedRate)}</strong></div></div></section>
   <div class="money-hero print-area"><div><span>Cobrado</span><strong>${money(t.billed)}</strong></div><div><span>Recebido líquido</span><strong>${money(t.netReceived)}</strong>${t.refunded>0?`<small>Reembolsado: ${money(t.refunded)}</small>`:''}</div><div class="balance ${Math.abs(t.balance)<=0.009?'paid':'open'}"><span>${m.label}</span><strong>${money(m.amount)}</strong></div></div>
-  ${a.bedTransfers?.length?`<details class="panel"><summary>Histórico de leitos</summary><ul><li>${fmtDT(a.entryAt)} · Entrada no leito ${String(a.bedTransfers[0].from_bed).padStart(2,'0')}</li>${a.bedTransfers.map(t=>`<li>${fmtDT(t.effective_at)} · Leito ${String(t.from_bed).padStart(2,'0')} → ${String(t.to_bed).padStart(2,'0')} · ${esc(t.reason)}</li>`).join('')}</ul></details>`:''}
+  ${a.bedTransfers?.length?`<details class="panel"><summary>Histórico de leitos</summary><ul><li>${fmtDT(a.entryAt)} · Entrada no leito ${String(a.bedTransfers[0].from_bed).padStart(2,'0')}</li>${a.bedTransfers.map(t=>`<li>${fmtDT(t.effective_at)} · Leito ${String(t.from_bed).padStart(2,'0')} → ${String(t.to_bed).padStart(2,'0')} · ${esc(t.reason)}${t.rate_effective_at?`<br><small>Diária programada: ${money(Number(t.next_daily_rate))} a partir de ${fmtDT(t.rate_effective_at)}</small>`:''}</li>`).join('')}</ul></details>`:''}
   <div class="quick-actions no-print"><button data-action="payment" ${!canPay?'disabled':''}><div>R$</div><span>Registrar pagamento</span></button><button data-action="extra" ${!can('add_extra')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>＋</div><span>Adicionar extra</span></button>${data.currentRole==='admin'&&a.dischargeAt&&['discharge_pending','finalized'].includes(a.status)?'<button data-action="settlement-total"><div>✎</div><span>Ajustar total do acerto</span></button>':''}${canDiscount?'<button data-action="discount"><div>−</div><span>Conceder desconto</span></button>':''}<button data-action="rate" ${!can('adjust_rate')||a.status!=='active'?'disabled':''}><div>↻</div><span>Ajustar diária</span></button>${canRefund?'<button data-action="refund"><div>↗</div><span>Reembolsar crédito</span></button>':''}<button data-action="discharge" ${!can('discharge')||a.status==='finalized'||a.status==='cancelled'?'disabled':''}><div>→</div><span>${a.status==='discharge_pending'?'Acerto / saída':'Registrar alta'}</span></button></div>
   ${scheduledReceiptPanel(a)}<div class="detail-columns print-area"><section class="panel"><div class="panel-head"><div><h2>Movimentação financeira</h2><p>Resumo da conta; as diárias são agrupadas para evitar repetição visual.</p></div></div>${timeline.length?`<div class="timeline">${timeline.map(row=>row.kind==='p'?`<div class="timeline-row payment"><div class="timeline-dot">↙</div><div><strong>Pagamento recebido</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}${editReceiptButton(row.item)}</div><strong class="good-text">+ ${money(row.item.amount)}</strong></div>`:row.kind==='r'?`<div class="timeline-row payment"><div class="timeline-dot">↗</div><div><strong>Reembolso ao paciente</strong><span>${fmtDT(row.at)} • ${esc(paymentMethodLabel(row.item))} • ${esc(row.item.createdBy)}</span>${row.item.notes?`<small>${esc(row.item.notes)}</small>`:''}</div><strong>- ${money(row.item.amount)}</strong></div>`:row.kind==='d'?`<div class="timeline-row charge"><div class="timeline-dot">▤</div><div><strong>Diárias da internação — ${Number(row.item.units).toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong><span>${fmtDM(row.item.first)} a ${fmtDM(row.item.last)} • ${row.item.count} lançamento(s)</span></div><strong>${money(row.item.amount)}</strong></div>`:`<div class="timeline-row charge"><div class="timeline-dot">${row.item.amount<0?'−':'＋'}</div><div><strong>${esc(row.item.description)}</strong><span>${fmtDT(row.at)} • ${esc(row.item.category)}</span></div><strong>${row.item.amount<0?'− ':''}${money(Math.abs(row.item.amount))}</strong></div>`).join('')}</div>`:empty('Sem movimentações','As diárias, extras, pagamentos e reembolsos aparecerão aqui.')}</section>
   <div class="side-stack"><section class="panel"><div class="panel-head"><div><h2>Diárias geradas</h2><p>${daily.length?Number(dailyUnits).toLocaleString('pt-BR',{maximumFractionDigits:1})+' diária(s) • '+money(dailyTotal):'Nenhuma diária gerada'}</p></div></div>${daily.length?`<details><summary style="cursor:pointer;font-weight:700;padding:10px 0">Ver detalhamento por dia (${daily.length})</summary><div class="coverage-list">${cov.map(({c,paid,status})=>`<div class="coverage-row"><div><strong>${fmtDM(c.occurredAt)}</strong><span>${esc(c.description)}</span></div><div class="coverage-right"><span>${money(c.amount)}</span><span class="badge ${status==='paid'?'badge-good':status==='partial'?'badge-warn':'badge-bad'}">${status==='paid'?'Pago':status==='partial'?`Parcial ${money(paid)}`:'Em aberto'}</span></div></div>`).join('')}</div></details>`:''}</section>
@@ -668,7 +668,7 @@ async function loadRemote({quiet=false}={}){
     const [patients,admissions,bedTransfers,rates,charges,payments,scheduledReceipts,refunds,audits,settingsRows,profiles,closers,healthHistory,alerts]=await Promise.all([
       restAll('patients?select=*&order=created_at.asc,id.asc'),
       restAll('admissions?select=*&order=entry_at.desc,id.asc'),
-      restAll('admission_bed_transfers?select=admission_id,from_bed,to_bed,effective_at,reason&order=effective_at.asc,id.asc'),
+      restAll('admission_bed_transfers?select=admission_id,from_bed,to_bed,effective_at,reason,next_daily_rate,rate_effective_at&order=effective_at.asc,id.asc'),
       restAll('rate_periods?select=*&order=effective_at.asc,id.asc'),
       restAll('charges?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
       restAll('payments?cancelled_at=is.null&select=*&order=occurred_at.asc,id.asc'),
@@ -1014,6 +1014,7 @@ function editPaymentModal(p,returnWhen=null){
 }
 function transferBedModal(admission){
   const epoch=authEpoch;
+  const canScheduleRate=admission.mode==='hotel'&&admission.status==='active'&&!admission.dischargeAt;
   const firstBed=admission.mode==='hotel'?10:1;
   const beds=Array.from({length:20-firstBed},(_,index)=>firstBed+index)
     .filter(bed=>bed!==admission.bed)
@@ -1023,20 +1024,31 @@ function transferBedModal(admission){
       ${field('Leito de destino',`<select id="transferBed" required autofocus><option value="">Selecionar</option>${beds}</select>`)}
       ${field('Data e hora',`<input id="transferWhen" type="datetime-local" value="${admission.dischargeAt?'':nowLocalInput()}" required>`)}
     </div>${field('Motivo','<textarea id="transferReason" rows="2" minlength="8" maxlength="220" required></textarea>')}
-    <p class="receipt-timing-note">A transferência mantém a diária negociada e os lançamentos da internação.</p>
+    ${canScheduleRate?field('Valor da próxima diária',`<div class="currency-input"><span>R$</span><input id="transferNextRate" inputmode="decimal" placeholder="Selecione o leito" required></div>`,'O leito sugere um valor. Você pode editar. A vigência começa no próximo ciclo das 07h.'):''}
     <div id="transferError" role="alert"></div><div class="modal-actions">
     <button type="button" class="btn btn-secondary" data-close2>Cancelar</button>
     <button type="submit" class="btn btn-primary">Salvar transferência</button></div></form>`);
   document.querySelector('[data-close2]').onclick=closeModal;
+  const destination=document.getElementById('transferBed');
+  const rateInput=document.getElementById('transferNextRate');
+  if(rateInput)destination.onchange=()=>{
+    rateInput.value=destination.value?bedRate(Number(destination.value)).toFixed(2).replace('.',','):'';
+  };
   document.getElementById('bedTransferForm').onsubmit=async event=>{
     event.preventDefault();
     if(remoteBusy)return;
     const error=document.getElementById('transferError');
+    const nextRate=rateInput?parseSettlementTotal(rateInput.value):null;
+    if(rateInput&&!(nextRate>0)){
+      error.innerHTML='<div class="form-error">Informe um valor positivo para a próxima diária.</div>';
+      return;
+    }
     try{
       setLoading(true,'Salvando transferência…');
-      await rpc('transfer_uti_bed',{
+      await rpc(rateInput?'transfer_uti_bed_with_rate':'transfer_uti_bed',{
+        ...(rateInput?{p_next_daily_rate:nextRate}:{}),
         p_admission_id:admission.id,p_expected_version:admission.accountVersion,
-        p_to_bed:Number(document.getElementById('transferBed').value),
+        p_to_bed:Number(destination.value),
         p_effective_at:parseLocal(document.getElementById('transferWhen').value),
         p_reason:document.getElementById('transferReason').value.trim()
       });
