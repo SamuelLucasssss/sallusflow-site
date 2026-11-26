@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { settlementHarness, sampleSettlement } from './fixtures/imec-uti-settlement.ts';
 
 const sql=readFileSync('supabase/migrations/20261012001555_uti_audited_settlement_discount.sql','utf8');
 const app=readFileSync('src/imec-uti/app.ts','utf8');
@@ -37,7 +38,8 @@ test('UI mostra desconto separado e preserva auditoria, PDF e histórico',()=>{
   assert.match(app,/Desconto no acerto:/);
   assert.match(app,/Confirmar desconto/);
   assert.match(app,/Total após desconto/);
-  assert.match(app,/Extras\/Desc\./);
+  const pdf=settlementHarness().pdf({...sampleSettlement,extrasTotal:-300});
+  assert.match(Buffer.from(pdf).toString('latin1'),/Extras e descontos -R\$ 300,00/);
   assert.match(app,/settlementDocumentModel/);
   assert.match(app,/const timeline=/);
 });

@@ -4,3 +4,13 @@ const bold=[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,
 export function helveticaWidth(value:string,size:number,heavy=false):number{
  const widths=heavy?bold:regular;let width=0;for(const char of value){const code=char.charCodeAt(0);width+=widths[code-32]??556}return width*size/1000;
 }
+
+export function wrapHelvetica(value:string,width:number,size:number,bold=false):string[]{
+ const lines:string[]=[];let line='';
+ for(const word of value.split(/\s+/).filter(Boolean)){
+   if(line&&helveticaWidth(line+' '+word,size,bold)>width){lines.push(line);line=''}
+   for(const char of word){if(line&&helveticaWidth(line+char,size,bold)>width){lines.push(line);line=''}line+=char}
+   line+=' ';
+ }
+ if(line.trim())lines.push(line.trim());return lines.length?lines:[''];
+}
