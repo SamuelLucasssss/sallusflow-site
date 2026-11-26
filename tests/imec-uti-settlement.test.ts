@@ -32,6 +32,7 @@ test('impressão exibe CPF discreto, parcelas e vencimentos com saída auditada'
   assert.match(html,/Cartão de crédito · 3x/);
   assert.match(html,/3ª 07\/01\/2027/);
   assert.match(html,/Cartão de débito/);
+  assert.doesNotMatch(html,/anexar|proof-space|comprovantes de movimentação/i);
   assert.deepEqual(harness.events,['print_view_opened']);
   await harness.listeners.get('settlementPrintBtn')!();
   assert.deepEqual(harness.events,['print_view_opened','print_requested']);
@@ -41,6 +42,10 @@ test('PDF contém CPF e todos os vencimentos e pagina contas extensas',()=>{
   const text=Buffer.from(harness.pdf()).toString('latin1');
   assert.match(text,/CPF 123\.456\.789-00/);
   assert.match(text,/3ª 07\/01\/2027/);
+  // This many receipt rows used to trigger a page reserved solely for paper attachments.
+  const compact=Buffer.from(harness.pdf({...sampleSettlement,payments:Array(8).fill(sampleSettlement.payments[0])})).toString('latin1');
+  assert.match(compact,/\/Count 1\b/);
+  assert.doesNotMatch(compact,/anexar|comprovantes de movimentação/i);
   const payments=Array.from({length:45},(_,i)=>({...sampleSettlement.payments[1],amount:i+1}));
   const long=Buffer.from(harness.pdf({...sampleSettlement,payments})).toString('latin1');
   assert.ok(Number(long.match(/\/Count (\d+)/)![1])>1);

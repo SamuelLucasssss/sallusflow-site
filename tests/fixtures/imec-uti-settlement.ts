@@ -1,3 +1,4 @@
+import { helveticaWidth, wrapHelvetica } from '../../src/imec-uti/pdf-font-metrics.ts';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { money, cpfMask, fmtDT, balanceMeta } from '../../src/imec-uti/domain.ts';
@@ -26,7 +27,7 @@ export function settlementHarness(name='Maria Helena de Oliveira Santos') {
     open(){},write(value:string){html=value;},close(){resolveOutput();},
     getElementById(id:string){return {addEventListener(_:string,listener:Function){listeners.set(id,listener);}}}
   }};
-  const context=vm.createContext({money,cpfMask,fmtDT,balanceMeta,paymentMethodLabel,installmentSummary,Intl,Date,Blob,Uint8Array,
+  const context=vm.createContext({helveticaWidth,wrapHelvetica,money,cpfMask,fmtDT,balanceMeta,paymentMethodLabel,installmentSummary,Intl,Date,Blob,Uint8Array,
     patient:()=>({name,cpf:'12345678900'}),data:{currentUser:'Equipe IMEC'},
     esc:(s:unknown)=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]!)),
     window:{open:()=>win},alert:(message:string)=>{throw new Error(message);},

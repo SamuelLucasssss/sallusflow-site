@@ -10,6 +10,7 @@ import {
 import { SUPABASE_URL, SUPABASE_KEY } from './config';
 import { paymentMethodLabel, installmentSummary, validateInstallmentDates } from './payment-details';
 import {previousReportMonth,reportCompetence,reportReference,reportDate,reportLabel,reportColumns,reportRowCells,reportSelectionNote,privateCommissionSummary,privateCommissionNote,reportOrderNote,orderMonthlyReport,selectMonthlyReport,monthlyReportFilename,monthlyReportCsv,buildMonthlyReportPdf,buildMonthlyReportPrintHtml} from './monthly-report';
+import {helveticaWidth,wrapHelvetica} from './pdf-font-metrics';
 import {parseSettlementTotal} from './settlement-total';
 import {
   AUTH_STORAGE_KEY, ACTIVITY_STORAGE_KEY, IDLE_TIMEOUT_MS, APP_URL,
@@ -1301,7 +1302,15 @@ function settlementDocumentModel(a,s){
     .sort((x,y)=>new Date(x.occurredAt)-new Date(y.occurredAt))
     .map(x=>({date:docDateOnly(x.occurredAt),method:(x.kind==='refund'?'Reembolso · ':'')+paymentMethodLabel(x),schedule:x.kind==='receipt'?installmentSummary(x):'',total:Number(x.amount||0)*(x.kind==='refund'?-1:1)}));
   const bal=Number(s.balance||0);
-  return {patient:p,lines,movements,status:bal<-.009?'CRÉDITO A DEVOLVER':bal>.009?'ACERTO COM PENDÊNCIA':'ACERTO QUITADO',statusClass:Math.abs(bal)<=.009?'ok':'pending',docId:settlementDocumentId(a)};
+  const details=[
+    ['Modalidade',a.mode==='private'?'Particular':'Hotelaria'],['Acomodação',accommodationLabel(a)],['Leito',String(a.bed).padStart(2,'0')],
+    ['Entrada',fmtDT(a.entryAt)],['Saída',fmtDT(s.dischargeAt||a.dischargeAt)],['Permanência',stayText(s.stayMinutes)]
+  ];
+  const received=Number(s.received||0),refunded=Number(s.refunded||0);
+  const summary=[['Total da conta',money(Number(s.total||0))],['Recebido líquido',money(received-refunded)],[balanceMeta(bal).label,money(Math.abs(bal))]];
+  const breakdown=['Diárias '+money(Number(s.dailyTotal||0))+'   ·   Extras e descontos '+money(Number(s.extrasTotal||0))];
+  if(refunded)breakdown.push('Recebido '+money(received)+'   ·   Reembolsado '+money(refunded));
+  return {patient:p,lines,movements,details,summary,breakdown,status:bal<-.009?'CRÉDITO A DEVOLVER':bal>.009?'ACERTO COM PENDÊNCIA':'ACERTO QUITADO',statusClass:Math.abs(bal)<=.009?'ok':'pending',docId:settlementDocumentId(a)};
 }
 function pdfSafeText(v){
   return String(v??'').normalize('NFC').replace(/\u00a0/g,' ').replace(/[–—]/g,'-').replace(/•/g,'-').replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[^\x20-\xFF]/g,'?');
@@ -1312,90 +1321,89 @@ function pdfEscape(v){
 function pdfShort(v,n){
   const s=pdfSafeText(v);return s.length>n?s.slice(0,Math.max(1,n-3))+'...':s;
 }
-function pdfWrap(v,n,maxLines=2){
-  const words=pdfSafeText(v).split(/\s+/).filter(Boolean),lines=[];let idx=0;
-  while(idx<words.length&&lines.length<maxLines){
-    let current='';
-    while(idx<words.length){
-      const next=current?current+' '+words[idx]:words[idx];
-      if(next.length<=n||!current){current=next;idx++;}else break;
-    }
-    if(lines.length===maxLines-1&&idx<words.length){
-      if(current.length>n-3)current=current.slice(0,n-3);
-      current=current.replace(/\s+$/,'')+'...';
-      idx=words.length;
-    }
-    lines.push(current);
-  }
-  return lines.length?lines:['Paciente'];
-}
 function buildSettlementPdfBytes(a,s){
-  const m=settlementDocumentModel(a,s),p=m.patient||{},pages=[];let cmd=[];
-  const t=(x,y,size,value,bold=false)=>cmd.push('BT /F'+(bold?'2':'1')+' '+size+' Tf '+x+' '+y+' Td ('+pdfEscape(value)+') Tj ET');
-  const line=(x1,y1,x2,y2)=>cmd.push(x1+' '+y1+' m '+x2+' '+y2+' l S');
-  const rect=(x,y,w,h)=>cmd.push(x+' '+y+' '+w+' '+h+' re S');
-  cmd.push('0.04 0.43 0.45 RG','1.4 w');line(40,786,555,786);
-  cmd.push('0.04 0.43 0.45 rg');t(40,804,19,'IMEC UTI',true);cmd.push('0 g');
-  t(40,790,9,'Folha de Acerto - Particular & Hotelaria');
-  t(405,806,8,'Documento '+m.docId,true);t(405,792,8,m.status,true);
-  const patientLines=pdfWrap(p.name||'Paciente',56,2);
-  t(40,765,16,patientLines[0],true);
-  if(patientLines[1])t(40,747,14,patientLines[1],true);
-  cmd.push('0.4 g');t(40,patientLines[1]?735:749,8,'CPF '+cpfMask(p.cpf));cmd.push('0 g');
-  cmd.push('0.82 G','0.7 w');
-  rect(40,696,165,34);rect(215,696,165,34);rect(390,696,165,34);
-  t(50,717,7,'MODALIDADE',true);t(50,703,10,a.mode==='private'?'Particular':'Hotelaria',true);
-  t(225,717,7,'ACOMODAÇÃO',true);t(225,703,10,pdfShort(accommodationLabel(a),25),true);
-  t(400,717,7,'LEITO',true);t(400,703,10,String(a.bed).padStart(2,'0'),true);
-  rect(40,654,165,34);rect(215,654,165,34);rect(390,654,165,34);
-  t(50,675,7,'ENTRADA',true);t(50,661,9,fmtDT(a.entryAt),true);
-  t(225,675,7,'SAÍDA',true);t(225,661,9,fmtDT(s.dischargeAt||a.dischargeAt),true);
-  t(400,675,7,'PERMANÊNCIA',true);t(400,661,9,pdfShort(stayText(s.stayMinutes),24),true);
-  rect(40,609,515,35);
-  t(50,629,13,Number(s.dailyUnits||0).toLocaleString('pt-BR',{maximumFractionDigits:1})+' diária(s)',true);
-  t(50,615,8,pdfShort(settlementComposition(s),55));
-  t(386,629,8,'Regra de alta',true);t(386,615,8,'O dia da saída não é cobrado');
-  const fin=[['Diárias',s.dailyTotal],['Extras/Desc.',s.extrasTotal],['Total',s.total],['Recebido',s.received],['Reembolsado',s.refunded],[balanceMeta(s.balance).label,s.balance]];
-  const fw=515/6;
-  fin.forEach((x,i)=>{const xx=40+i*fw;rect(xx,558,fw,38);t(xx+7,583,7,x[0].toUpperCase(),true);t(xx+7,567,9,pdfShort(money(i===5?Math.abs(Number(x[1]||0)):Number(x[1]||0)),18),true)});
-  t(40,536,8,'RESUMO DA COMPOSIÇÃO',true);line(40,530,555,530);
-  t(42,518,7,'PERÍODO',true);t(145,518,7,'DESCRIÇÃO',true);t(442,518,7,'QTD.',true);t(490,518,7,'VALOR',true);
-  let y=502;
-  m.lines.forEach(x=>{t(42,y,7,pdfShort(x.period,18));t(145,y,7,pdfShort(x.description,46));t(445,y,7,Number(x.qty).toLocaleString('pt-BR',{maximumFractionDigits:1}));t(486,y,7,pdfShort(money(x.total),15));y-=18});
+  const m=settlementDocumentModel(a,s),p=m.patient||{},pages=[];
+  const ink='0.10 0.16 0.17',muted='0.32 0.39 0.39',teal='0.06 0.36 0.34';
+  const issuedAt=fmtDT(new Date().toISOString());
+  let cmd=[],y=0;
+  const t=(x,y,size,value,bold=false,color=ink)=>cmd.push(color+' rg BT /F'+(bold?'2':'1')+' '+size+' Tf '+x+' '+y+' Td ('+pdfEscape(value)+') Tj ET');
+  const right=(x,y,size,value,bold=false,color=ink)=>t(x-helveticaWidth(pdfSafeText(value),size,bold),y,size,value,bold,color);
+  const rule=(y,left=40,end=555)=>cmd.push('0.81 0.85 0.84 RG 0.6 w '+left+' '+y+' m '+end+' '+y+' l S');
+  const wrap=(value,width,size,bold=false)=>wrapHelvetica(pdfSafeText(value),width,size,bold);
+  const heading=()=>{
+    t(40,798,12,'IMEC UTI',true,teal);
+    t(40,783,8,'Particular & Hotelaria',false,muted);
+    right(555,798,9,m.status,true,m.statusClass==='ok'?teal:'0.49 0.30 0.08');
+    right(555,783,8,'Documento '+m.docId,false,muted);
+    rule(772);
+  };
   const finishPage=()=>{
-    cmd.push('0 g','0.82 G');line(40,76,555,76);
-    t(40,60,7,'Responsável pelo fechamento: '+pdfShort(a.closer||'—',34),true);
-    t(40,47,7,'Emitido por: '+pdfShort(data.currentUser||'—',30)+' - '+fmtDT(new Date().toISOString()));
-    t(395,60,7,'Conferência / Visto');line(395,69,555,69);
-    t(505,30,7,'Página '+(pages.length+1));
+    rule(75);
+    t(40,58,8,'Responsável pelo fechamento: '+(a.closer||'—'),true);
+    t(40,42,7,'Emitido por: '+pdfShort(data.currentUser||'—',40)+' · '+issuedAt,false,muted);
+    rule(61,375,491);t(375,48,7,'Conferência / Visto',false,muted);
+    right(555,48,8,'Página '+(pages.length+1),false,muted);
     pages.push(cmd.join('\n'));
   };
-  const nextPage=()=>{
-    finishPage();cmd=['0 g','0.82 G','0.7 w'];
-    t(40,804,14,'IMEC UTI - Folha de Acerto',true);
-    t(40,786,9,pdfShort(p.name||'Paciente',72),true);
-    t(40,772,8,'CPF '+cpfMask(p.cpf)+' - Documento '+m.docId);line(40,760,555,760);y=738;
+  const tableHead=(title,columns)=>{
+    t(40,y,12,title,true);y-=21;
+    for(const [x,label] of columns)t(x,y,7,label,true,muted);
+    right(555,y,7,'VALOR',true,muted);y-=7;rule(y);y-=16;
   };
-  const movementsHeader=()=>{
-    t(40,y,8,'RECEBIMENTOS'+((s.refunds||[]).length?' E REEMBOLSOS':''),true);y-=12;
-    line(40,y,555,y);y-=13;
-    t(42,y,7,'DATA',true);t(145,y,7,'FORMA DE RECEBIMENTO',true);t(486,y,7,'VALOR',true);y-=18;
-  };
-  y-=12;movementsHeader();
-  if(!m.movements.length){t(42,y,8,'Nenhum recebimento registrado.');y-=18;}
-  m.movements.forEach(x=>{
-    const schedule=x.schedule?pdfWrap(x.schedule,77,12):[];
-    const height=33+schedule.length*11;
-    if(y-height<100){nextPage();movementsHeader();}
-    t(42,y,8,x.date);t(145,y,8,x.method);t(486,y,8,pdfShort(money(x.total),16));y-=13;
-    cmd.push('0.4 g');schedule.forEach(text=>{t(145,y,7,text);y-=11});cmd.push('0 g');
-    line(40,y-6,555,y-6);y-=20;
+  heading();
+  t(40,748,9,'Folha de Acerto',true,teal);y=724;
+  for(const nameLine of wrap(p.name||'Paciente',515,20,true)){t(40,y,20,nameLine,true);y-=23}
+  t(40,y+4,8,'CPF '+cpfMask(p.cpf),false,muted);y-=23;
+  m.details.forEach(([label,value],i)=>{
+    const column=i%3;
+    const x=40+column*174;
+    t(x,y,7,label.toUpperCase(),true,muted);t(x,y-14,10,value);
+    if(column===2)y-=36;
   });
-  if(y<240)nextPage();
-  const proofHeight=Math.min(185,y-105),proofTop=y-10;
-  cmd.push('0.65 G');rect(40,proofTop-proofHeight,515,proofHeight);
-  t(50,proofTop-20,8,'COMPROVANTES DE MOVIMENTAÇÃO',true);
-  t(50,proofTop-35,7,'Anexar os comprovantes originais de recebimentos ou reembolsos.');
+  rule(y+6);y-=10;
+  t(40,y,9,settlementComposition(s),true);
+  right(555,y,8,'O dia da saída não é cobrado',false,muted);
+  y-=18;
+  cmd.push('0.94 0.97 0.96 rg 40 '+(y-46)+' 515 46 re f');
+  m.summary.forEach(([label,value],i)=>{
+    const x=50+i*171;
+    t(x,y-15,8,label,true,muted);
+    const size=Math.min(15,150*15/helveticaWidth(pdfSafeText(value),15,true));
+    t(x,y-34,size,value,true,i===2?teal:ink);
+  });
+  y-=62;
+  for(const detail of m.breakdown){t(40,y,8,detail,false,muted);y-=13}
+  y-=11;
+  const compositionColumns=[[40,'PERÍODO'],[134,'DESCRIÇÃO'],[431,'QTD.']];
+  const paymentColumns=[[40,'DATA'],[134,'FORMA DE RECEBIMENTO']];
+  const paymentTitle=(s.refunds||[]).length?'Recebimentos e reembolsos':'Recebimentos';
+  const continueSection=(title,columns)=>{
+    finishPage();cmd=[];heading();y=748;
+    for(const nameLine of wrap(p.name||'Paciente',515,12,true)){t(40,y,12,nameLine,true);y-=15}
+    t(40,y,8,'CPF '+cpfMask(p.cpf)+' · Folha de Acerto',false,muted);y-=27;
+    tableHead(title,columns);
+  };
+  tableHead('Composição da conta',compositionColumns);
+  for(const row of m.lines){
+    const description=wrap(row.description,280,8.5);
+    if(y-description.length*11<89)continueSection('Composição da conta',compositionColumns);
+    t(40,y,8.5,row.period);t(431,y,8.5,Number(row.qty).toLocaleString('pt-BR',{maximumFractionDigits:1}));
+    right(555,y,9,money(row.total),true);
+    for(const part of description){t(134,y,8.5,part);y-=11}
+    rule(y+3);y-=12;
+  }
+  y-=7;
+  const scheduleLines=row=>row.schedule?wrap(row.schedule,300,8):[];
+  const movementHeight=row=>24+scheduleLines(row).length*11;
+  if(y-44-(m.movements.length?movementHeight(m.movements[0]):16)<86)continueSection(paymentTitle,paymentColumns);
+  else tableHead(paymentTitle,paymentColumns);
+  if(!m.movements.length)t(40,y,9,'Nenhum recebimento registrado.',false,muted);
+  for(const row of m.movements){
+    if(y-movementHeight(row)<86)continueSection(paymentTitle,paymentColumns);
+    t(40,y,9,row.date);t(134,y,9,row.method);right(555,y,9,money(row.total),true);y-=13;
+    for(const part of scheduleLines(row)){t(134,y,8,part,false,muted);y-=11}
+    rule(y+3);y-=11;
+  }
   finishPage();
   const objects=[
     '<< /Type /Catalog /Pages 2 0 R >>',
@@ -1456,52 +1464,46 @@ function printSettlementSheet(a,knownSettlement=null){
       const model=settlementDocumentModel(a,s),p=model.patient,printItems=model.lines,movements=model.movements,status=model.status,statusClass=model.statusClass;
       win.document.open();
       win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Folha de Acerto — ${esc(p?.name||'Paciente')}</title><style>
-        @page{size:A4 portrait;margin:13mm}
-        *{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;color:#172326;background:#eef3f3;padding:12px;font-size:9.5pt}.sheet{width:184mm;min-height:271mm;margin:0 auto;background:#fff;padding:0;display:flex;flex-direction:column}
-        .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0b6f72;padding-bottom:10px;margin-bottom:12px}
-        .brand{font-size:18pt;font-weight:800;color:#07575a}.brand small{display:block;font-size:9pt;color:#6d7b7e;font-weight:600;margin-top:2px}
-        .status{font-size:8.5pt;font-weight:800;padding:6px 9px;border-radius:6px}.status.ok{background:#eaf7f0;color:#16794a}.status.pending{background:#fff7df;color:#8b5a0e}
-        .patient{font-size:17pt;font-weight:800;margin:0 0 3px;overflow-wrap:anywhere}.patient-cpf{font-size:8pt;color:#6d7b7e;margin:0 0 12px}.schedule{display:block;color:#5d6d70;font-size:7.5pt;line-height:1.6;margin-top:3px;overflow-wrap:anywhere}.empty-movements{color:#6d7b7e;font-size:8.5pt}.grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:8px;margin-bottom:10px}
-        .box{border:1px solid #dfe7e7;border-radius:7px;padding:8px}.box span{display:block;color:#6d7b7e;font-size:7.5pt;text-transform:uppercase;font-weight:700;letter-spacing:.03em}.box strong{display:block;margin-top:3px;font-size:10pt}
-        .period{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
-        .daily{border:1px solid #cfe4e4;background:#f3f9f9;border-radius:7px;padding:9px;margin:10px 0;display:flex;justify-content:space-between;align-items:center}.daily strong{font-size:14pt;color:#07575a}.daily small{display:block;color:#6d7b7e;margin-top:2px}
-        .finance{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #dfe7e7;border-radius:7px;overflow:hidden;margin:10px 0 12px}.finance div{padding:8px;border-right:1px solid #dfe7e7}.finance div:last-child{border-right:0}.finance span{display:block;color:#6d7b7e;font-size:7.5pt}.finance strong{display:block;margin-top:3px;font-size:10.5pt}.finance .saldo strong{font-size:12pt}
-        h2{font-size:9pt;text-transform:uppercase;letter-spacing:.05em;color:#5d6d70;margin:12px 0 6px}
-        table{width:100%;border-collapse:collapse;font-size:8.5pt}th{background:#f5f8f8;color:#5d6d70;text-align:left;font-size:7.5pt;text-transform:uppercase}th,td{border:0;border-bottom:1px solid #e1e8e8;padding:6px;vertical-align:top}td:first-child{white-space:nowrap}th:last-child,td:last-child{text-align:right}
-        .proof{margin-top:12px;border:1px dashed #9caaaa;border-radius:6px;padding:9px;flex:1;min-height:145px}.proof h2{margin-top:0}.proof p{color:#6d7b7e;margin:3px 0 0;font-size:8pt}.proof-space{min-height:105px}
-        .footer{display:flex;justify-content:space-between;gap:20px;border-top:1px solid #d7dfdf;padding-top:8px;margin-top:10px;font-size:8pt;color:#6d7b7e}.sign{margin-top:28px;width:210px;border-top:1px solid #7b888a;padding-top:4px;text-align:center;color:#46575a}
-        .no-print{width:184mm;margin:0 auto 10px;display:flex;justify-content:flex-end;gap:7px}.no-print button,.no-print a{border:0;background:#0b6f72;color:#fff;padding:9px 13px;border-radius:7px;font-weight:700;cursor:pointer;text-decoration:none;font:inherit}.no-print .ghost{background:#fff;color:#435456;border:1px solid #cfd8d8}.doc-side{text-align:right}.doc-side small{display:block;color:#6d7b7e;font-size:7.5pt;margin-top:5px}
-        @media screen{body{background:#f4f6f3;padding:28px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.sheet{padding:28px;border:1px solid #e0e7de;border-radius:14px;box-shadow:0 8px 32px rgba(24,43,40,.06)}.no-print{align-items:center;margin-bottom:16px}.no-print button{border-radius:9px;background:#12635e;font-size:12px;min-height:42px}.no-print .ghost{background:#fff}.top{border-bottom-width:1px}.brand{font-weight:650}.patient{font-weight:650}.box strong{font-weight:600}}
-        @media screen and (max-width:740px){body{padding:16px 12px;font-size:12px}.sheet,.no-print{width:100%;min-height:0}.sheet{padding:18px}.top{gap:12px}.brand{font-size:19px}.brand small{font-size:10px}.status{font-size:10px;padding:5px 7px}.patient{font-size:21px}.grid,.period{grid-template-columns:1fr 1fr}.finance{grid-template-columns:repeat(2,minmax(0,1fr))}.finance div{border-bottom:1px solid #dfe7e7}.daily{gap:12px;align-items:flex-start}.daily strong{font-size:18px}.daily small{font-size:11px}.footer{flex-direction:column;gap:12px}.sign{margin-top:20px;width:100%}table{font-size:11px;table-layout:fixed}th{font-size:9px}th,td{padding:7px 4px;overflow-wrap:anywhere}td:first-child{white-space:normal}.schedule{font-size:10px}.proof{min-height:130px}.no-print{flex-wrap:wrap}}
-        @media print{html,body{background:#fff!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}.sheet{width:auto;min-height:271mm;margin:0}.proof{break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}h2{break-after:avoid}.top,.grid,.period,.daily,.finance{break-inside:avoid}}
+        @page{size:A4 portrait;margin:16mm 15mm}
+        *{box-sizing:border-box}
+        body{margin:0;color:#192a2b;font:10pt/1.4 Arial,Helvetica,sans-serif;font-variant-numeric:tabular-nums}
+        .sheet,.no-print{max-width:210mm;margin:auto}
+        .top,.daily,.footer,.no-print{display:flex;justify-content:space-between;gap:12px}
+        .top{align-items:flex-start;padding-bottom:11pt;border-bottom:1px solid #cbd7d3}
+        .brand{font-size:13pt;font-weight:700;color:#105d57}
+        .brand small,.doc-side small,.schedule{display:block;color:#526561;font-weight:400;font-size:8pt}
+        .doc-side{text-align:right}.status{font-size:8pt;font-weight:700;color:#105d57}.status.pending{color:#805419}
+        .kicker{margin:15pt 0 2pt;color:#105d57;font-size:9pt;font-weight:700}
+        .patient{font-size:21pt;line-height:1.12;letter-spacing:-.035em;margin:0;overflow-wrap:anywhere}
+        .patient-cpf{font-size:8pt;color:#526561;margin:4pt 0 16pt}
+        .details,.finance{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10pt}
+        .details{row-gap:12pt;margin:0 0 11pt}
+        .details dt,.finance span,th{font-size:7pt;font-weight:700;color:#526561;text-transform:uppercase;letter-spacing:.04em}
+        .details dd{margin:2pt 0 0;font-size:10pt}.daily{border-top:1px solid #d2dcd8;padding:9pt 0;font-size:9pt}.daily small{color:#526561}
+        .finance{background:#f0f6f3;border-block:1px solid #d2dcd8;padding:10pt}
+        .finance span,.finance strong{display:block}.finance strong{font-size:15pt;letter-spacing:-.025em}.finance div:last-child strong{color:#105d57}
+        .breakdown,.empty-movements{font-size:8.5pt;color:#526561;margin:6pt 0}
+        h2{font-size:12pt;letter-spacing:-.015em;margin:16pt 0 6pt}
+        table{width:100%;border-collapse:collapse;font-size:9pt}th,td{padding:5pt 4pt;text-align:left;border-bottom:1px solid #d7e1dd;vertical-align:top}
+        th:first-child,td:first-child{padding-left:0}th:last-child,td:last-child{text-align:right;padding-right:0;white-space:nowrap}td:last-child{font-weight:700}
+        .schedule{margin-top:3pt;line-height:1.55}.footer{align-items:flex-end;margin-top:22pt;padding-top:9pt;border-top:1px solid #cbd7d3;font-size:8pt;color:#526561}
+        .sign{border-top:1px solid #9eafa9;padding-top:3pt;min-width:100pt;text-align:center;font-size:7.5pt}
+        .no-print{justify-content:flex-end;padding:0 0 12px}.no-print button{border:1px solid #ccd8d2;border-radius:7px;padding:9px 13px;font:600 12px Arial;cursor:pointer;background:#105d57;color:white}.no-print .ghost{background:white;color:#28423f}
+        @media screen{body{padding:20px 12px;background:#eef3f0}.sheet{padding:16mm 15mm;background:white;box-shadow:0 3px 20px #1a353012}}
+        @media screen and (max-width:600px){.sheet{padding:18px}.details{grid-template-columns:repeat(2,minmax(0,1fr))}.finance{grid-template-columns:1fr;gap:6pt}.finance div{display:flex;align-items:baseline;justify-content:space-between;gap:6px}.finance strong{font-size:12pt}.daily,.footer{flex-wrap:wrap}.footer .sign{margin-top:12px}.patient{font-size:17pt}th,td{overflow-wrap:anywhere;font-size:8pt;padding:5pt 2pt}}
+        @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}.no-print{display:none}.sheet{max-width:none}.top,.details,.finance,.footer,tr{break-inside:avoid}h2{break-after:avoid}thead{display:table-header-group}}
       </style></head><body>
       <div class="no-print"><button id="settlementPrintBtn" type="button">Imprimir / Salvar PDF</button><button id="settlementCloseBtn" type="button" class="ghost">Fechar</button></div>
       <main class="sheet">
-      <div class="top"><div><div class="brand">IMEC UTI<small>Folha de Acerto — Particular & Hotelaria</small></div></div><div class="doc-side"><div class="status ${statusClass}">${status}</div><small>Documento ${model.docId}</small></div></div>
-      <div class="patient">${esc(p?.name||'Paciente')}</div><div class="patient-cpf">CPF ${esc(cpfMask(p?.cpf))}</div>
-      <div class="grid">
-        <div class="box"><span>Modalidade</span><strong>${a.mode==='private'?'Particular':'Hotelaria'}</strong></div>
-        <div class="box"><span>Acomodação</span><strong>${accommodationLabel(a)}</strong></div>
-        <div class="box"><span>Leito</span><strong>${String(a.bed).padStart(2,'0')}</strong></div>
-      </div>
-      <div class="period">
-        <div class="box"><span>Entrada</span><strong>${fmtDT(a.entryAt)}</strong></div>
-        <div class="box"><span>Saída</span><strong>${fmtDT(s.dischargeAt||a.dischargeAt)}</strong></div>
-        <div class="box"><span>Permanência</span><strong>${stayText(s.stayMinutes)}</strong></div>
-      </div>
-      <div class="daily"><div><strong>${Number(s.dailyUnits||0).toLocaleString('pt-BR',{maximumFractionDigits:1})} diária(s)</strong><small>${esc(settlementComposition(s))}</small></div><div style="text-align:right"><span style="font-size:8pt;color:#6d7b7e">Regra de alta</span><small>O dia da saída não é cobrado</small></div></div>
-      <div class="finance">
-        <div><span>Diárias</span><strong>${money(Number(s.dailyTotal||0))}</strong></div>
-        <div><span>Extras</span><strong>${money(Number(s.extrasTotal||0))}</strong></div>
-        <div><span>Total</span><strong>${money(Number(s.total||0))}</strong></div>
-        <div><span>Recebido</span><strong>${money(Number(s.received||0))}</strong></div>
-        <div><span>Reembolsado</span><strong>${money(Number(s.refunded||0))}</strong></div>
-        <div class="saldo"><span>${balanceMeta(s.balance).label}</span><strong>${money(Math.abs(Number(s.balance||0)))}</strong></div>
-      </div>
-      <h2>Resumo da composição</h2>
+      <header class="top"><div class="brand">IMEC UTI<small>Particular &amp; Hotelaria</small></div><div class="doc-side"><div class="status ${statusClass}">${status}</div><small>Documento ${model.docId}</small></div></header>
+      <p class="kicker">Folha de Acerto</p><h1 class="patient">${esc(p?.name||'Paciente')}</h1><p class="patient-cpf">CPF ${esc(cpfMask(p?.cpf))}</p>
+      <dl class="details">${model.details.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>
+      <div class="daily"><strong>${esc(settlementComposition(s))}</strong><small>O dia da saída não é cobrado</small></div>
+      <div class="finance">${model.summary.map(([label,value])=>`<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join('')}</div>
+      ${model.breakdown.map(text=>`<p class="breakdown">${esc(text)}</p>`).join('')}
+      <h2>Composição da conta</h2>
       <table><thead><tr><th>Período</th><th>Descrição</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>${printItems.map(x=>`<tr><td>${esc(x.period)}</td><td>${esc(x.description)}</td><td>${Number(x.qty).toLocaleString('pt-BR',{maximumFractionDigits:1})}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table><div style="font-size:7.5pt;color:#6d7b7e;margin-top:4px">O detalhamento completo permanece disponível no sistema.</div>
       <h2>Recebimentos${(s.refunds||[]).length?' e reembolsos':''}</h2>${movements.length?`<table><thead><tr><th>Data</th><th>Forma de recebimento</th><th>Valor</th></tr></thead><tbody>${movements.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.method)}${x.schedule?`<small class="schedule">${esc(x.schedule)}</small>`:''}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table>`:'<p class="empty-movements">Nenhum recebimento registrado.</p>'}
-      <div class="proof"><h2>Comprovantes de movimentação financeira</h2><p>Anexar abaixo os comprovantes originais de recebimentos ou reembolsos registrados nesta conta.</p><div class="proof-space"></div></div>
       <div class="footer"><div><strong>Responsável pelo fechamento:</strong> ${esc(a.closer||'—')}<br><strong>Documento emitido por:</strong> ${esc(data.currentUser)} • ${fmtDT(new Date().toISOString())}</div><div class="sign">Conferência / Visto</div></div>
       </main></body></html>`);
       win.document.close();

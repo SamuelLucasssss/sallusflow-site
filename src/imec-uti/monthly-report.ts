@@ -1,5 +1,5 @@
 import {businessParts,monthKey,money} from './domain.ts';
-import {helveticaWidth} from './pdf-font-metrics.ts';
+import {helveticaWidth,wrapHelvetica} from './pdf-font-metrics.ts';
 
 export type ReportMode='hotel'|'private';
 export type ReportOrder='name'|'receipt_asc'|'receipt_desc';
@@ -89,13 +89,7 @@ const escapePdf=(value:unknown)=>safe(value).replace(/\\/g,'\\\\').replace(/\(/g
 const documentColumns=(mode:ReportMode)=>reportColumns(mode).map((column,i)=>({...column,width:(mode==='hotel'?[160,56,56,88,87,68]:[134,54,54,82,78,43,70])[i],label:['PACIENTE','ENTRADA','ALTA','RECEBIMENTOS','LÍQUIDO','LEITO','RESPONSÁVEL'][i]}));
 const documentScope=(r:MonthlyReport)=>r.manualSelection?`SELEÇÃO MANUAL - ${r.selectedCount} DE ${r.candidateCount} LANÇAMENTOS`:'RECEBIMENTOS CONFIRMADOS NA COMPETÊNCIA';
 function wrap(value:string,width:number,size:number,bold=false):string[]{
- const lines:string[]=[];let line='';
- for(const word of safe(value).split(/\s+/).filter(Boolean)){
-   if(line&&helveticaWidth(line+' '+word,size,bold)>width){lines.push(line);line=''}
-   for(const char of word){if(line&&helveticaWidth(line+char,size,bold)>width){lines.push(line);line=''}line+=char}
-   line+=' ';
- }
- if(line.trim())lines.push(line.trim());return lines.length?lines:[''];
+ return wrapHelvetica(safe(value),width,size,bold);
 }
 export function buildMonthlyReportPdf(report:MonthlyReport,includeCommission=false):Uint8Array{
  report=orderMonthlyReport(report);
